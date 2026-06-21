@@ -1,6 +1,4 @@
 import Link from "next/link";
-import { SiteHeader } from "@/components/SiteHeader";
-import { SiteFooter } from "@/components/SiteFooter";
 import { Disclaimer } from "@/components/Disclaimer";
 import { VerdictView } from "@/components/VerdictView";
 import { RequestReviewButton } from "@/components/RequestReviewButton";
@@ -19,53 +17,34 @@ export default async function VerdictPage({
   const deal = await getDealById(params.id);
 
   return (
-    <>
-      <SiteHeader />
-      <main className="mx-auto max-w-prose px-4 py-8 sm:py-12">
-        {!deal ? (
-          <NotFound />
-        ) : (
-          <>
-            <div className="mb-6">
-              <Link
-                href="/check"
-                className="text-sm font-medium text-gold-dark hover:underline"
-              >
-                ← Check another deal
-              </Link>
-              <h1 className="mt-2 font-serif text-3xl font-semibold text-navy">
-                {[deal.vehicle_year, deal.vehicle_make, deal.vehicle_model]
-                  .filter(Boolean)
-                  .join(" ") || "Your deal"}
-              </h1>
-              <p className="mt-1 text-sm text-navy/55">
-                Here&apos;s our read on the offer you entered.
-              </p>
-            </div>
+    <div className="flex min-h-[100dvh] flex-col bg-cream">
+      <VerdictTopBar />
+      <main className="flex-1 overflow-y-auto px-5 pb-12">
+        <div className="mx-auto w-full max-w-md pt-6">
+          {!deal ? (
+            <NotFound />
+          ) : (
+            <div className="space-y-6">
+              {deal.reviewed_verdict ? (
+                <VerdictView
+                  result={buildReviewedResult(deal)}
+                  reviewedNote={
+                    deal.reviewed_headline ??
+                    "An advocate reviewed and adjusted this verdict."
+                  }
+                  vehicle={vehicleOf(deal)}
+                />
+              ) : deal.auto_result ? (
+                <VerdictView
+                  result={deal.auto_result as FairnessResult}
+                  vehicle={vehicleOf(deal)}
+                />
+              ) : (
+                <p className="text-navy/60">
+                  We couldn&apos;t load the verdict for this deal.
+                </p>
+              )}
 
-            {/* Disclaimer appears on every verdict (compliance). */}
-            <div className="mb-6">
-              <Disclaimer />
-            </div>
-
-            {/* Prefer a published human-reviewed verdict; else the auto verdict. */}
-            {deal.reviewed_verdict ? (
-              <VerdictView
-                result={buildReviewedResult(deal)}
-                reviewedNote={
-                  deal.reviewed_headline ??
-                  "An advocate reviewed and adjusted this verdict."
-                }
-              />
-            ) : deal.auto_result ? (
-              <VerdictView result={deal.auto_result as FairnessResult} />
-            ) : (
-              <p className="text-navy/60">
-                We couldn&apos;t load the verdict for this deal.
-              </p>
-            )}
-
-            <div className="mt-8">
               <RequestReviewButton
                 dealId={deal.id}
                 alreadyRequested={
@@ -74,13 +53,66 @@ export default async function VerdictPage({
                   deal.status === "reviewed"
                 }
               />
+
+              {/* Compact compliance line — required on every verdict. */}
+              <Disclaimer />
+
+              <Link
+                href="/check"
+                className="block py-2 text-center text-sm font-semibold text-gold-dark hover:underline"
+              >
+                ← Check another deal
+              </Link>
             </div>
-          </>
-        )}
+          )}
+        </div>
       </main>
-      <SiteFooter />
-    </>
+    </div>
   );
+}
+
+/** Minimal app-style top bar — keeps flow → reward seamless (no site chrome). */
+function VerdictTopBar() {
+  return (
+    <header className="sticky top-0 z-10 bg-cream/90 backdrop-blur">
+      <div className="flex h-14 items-center justify-between px-3">
+        <Link
+          href="/check"
+          aria-label="Check another deal"
+          className="flex h-9 w-9 items-center justify-center rounded-full text-navy/70 hover:bg-navy/5"
+        >
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+            <path d="M15 6l-6 6 6 6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </Link>
+        <span className="font-serif text-sm font-semibold tracking-tight text-navy/80">
+          Your verdict
+        </span>
+        <Link
+          href="/"
+          aria-label="Home"
+          className="flex h-9 w-9 items-center justify-center rounded-full text-navy/50 hover:bg-navy/5"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+          </svg>
+        </Link>
+      </div>
+      <div className="h-1 w-full bg-gold" />
+    </header>
+  );
+}
+
+function vehicleOf(deal: {
+  vehicle_year: number | null;
+  vehicle_make: string | null;
+  vehicle_model: string | null;
+}) {
+  return {
+    year: deal.vehicle_year,
+    make: deal.vehicle_make,
+    model: deal.vehicle_model,
+  };
 }
 
 /**

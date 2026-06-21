@@ -2,6 +2,7 @@ import Link from "next/link";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Disclaimer } from "@/components/Disclaimer";
+import { VerdictGauge } from "@/components/VerdictView";
 
 export default function LandingPage() {
   return (
@@ -10,31 +11,34 @@ export default function LandingPage() {
       <main>
         {/* Hero */}
         <section className="mx-auto max-w-5xl px-4 pb-12 pt-12 sm:pt-20">
-          <div className="max-w-2xl">
-            <span className="inline-block rounded-full bg-gold/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gold-dark">
-              The KBB for car deals &amp; extended warranties
-            </span>
-            <h1 className="mt-4 font-serif text-4xl font-semibold leading-tight text-navy sm:text-5xl">
-              Is your car deal fair, or a rip-off?
-            </h1>
-            <p className="mt-4 text-lg leading-relaxed text-navy/70">
-              Dealers profit because buyers have no reference point. Paste or
-              upload the dealer&apos;s offer and get a clear, plain-English
-              verdict — fees, interest rate, add-ons, and especially the extended
-              warranty — with every red flag explained. We&apos;re on your side,
-              not theirs.
-            </p>
-            <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-              <Link href="/check" className="btn-primary">
-                Check my deal
-              </Link>
-              <a href="#how" className="btn-secondary">
-                See how it works
-              </a>
+          <div className="grid items-center gap-10 lg:grid-cols-2">
+            <div>
+              <span className="inline-block rounded-full bg-gold/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gold-dark">
+                The KBB for car deals &amp; extended warranties
+              </span>
+              <h1 className="mt-4 font-serif text-4xl font-semibold leading-tight text-navy sm:text-5xl">
+                Is your car deal fair, or a rip-off?
+              </h1>
+              <p className="mt-4 text-lg leading-relaxed text-navy/70">
+                Dealers profit because buyers have no reference point. Tap through
+                a few quick questions — or snap a photo of the quote — and get a
+                clear <strong>Deal Score</strong> on the fees, interest rate,
+                add-ons, and especially the extended warranty, with every red flag
+                explained. We&apos;re on your side, not theirs.
+              </p>
+              <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+                <Link href="/check" className="btn-primary">
+                  Check my deal
+                </Link>
+                <a href="#how" className="btn-secondary">
+                  See how it works
+                </a>
+              </div>
+              <p className="mt-4 text-sm text-navy/50">
+                Free. No account needed. About a minute.
+              </p>
             </div>
-            <p className="mt-4 text-sm text-navy/50">
-              Free. No account needed. Takes about two minutes.
-            </p>
+            <ReportPreview />
           </div>
         </section>
 
@@ -65,8 +69,8 @@ export default function LandingPage() {
           <ol className="mt-8 grid gap-6 sm:grid-cols-3">
             <Step
               n={1}
-              title="Enter the offer"
-              body="Type the dealer's numbers, or upload a photo or PDF of the quote and we'll read what we can."
+              title="Tap in the offer"
+              body="Tap through a few quick questions — no forms — or snap a photo of the quote and we'll read what we can."
             />
             <Step
               n={2}
@@ -120,6 +124,44 @@ export default function LandingPage() {
       </main>
       <SiteFooter />
     </>
+  );
+}
+
+/** A static sample of the result "report" — sells the value at a glance. */
+function ReportPreview() {
+  return (
+    <div className="mx-auto w-full max-w-sm">
+      <div className="rounded-2xl bg-white p-6 shadow-card ring-1 ring-navy/10">
+        <p className="text-xs font-semibold uppercase tracking-wide text-navy/45">
+          2021 Toyota Camry · sample
+        </p>
+        <div className="mt-3 flex items-end justify-between">
+          <div>
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-navy/50">
+              Deal score
+            </span>
+            <div className="flex items-baseline gap-1">
+              <span className="font-serif text-5xl font-bold leading-none text-verdict-amber">
+                64
+              </span>
+              <span className="text-lg font-semibold text-navy/35">/100</span>
+            </div>
+          </div>
+          <span className="rounded-full bg-verdict-amber/10 px-3 py-1 text-sm font-semibold text-verdict-amber ring-1 ring-verdict-amber/30">
+            Proceed with caution
+          </span>
+        </div>
+        <VerdictGauge score={64} />
+        <div className="mt-5 rounded-xl border border-navy/10 bg-cream-100 px-4 py-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-navy/55">
+            Potential savings we spotted
+          </p>
+          <p className="font-serif text-2xl font-bold text-gold-dark">
+            $1,400–$2,900
+          </p>
+        </div>
+      </div>
+    </div>
   );
 }
 

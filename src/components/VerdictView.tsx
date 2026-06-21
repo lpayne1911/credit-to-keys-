@@ -91,8 +91,8 @@ export function RangePill({ range }: { range: PriceRange }) {
  * verdict's zone. Gives the result the instant, confident "where do I land?"
  * read that a value report does.
  */
-export function VerdictGauge({ verdict }: { verdict: Verdict }) {
-  const pos = verdict === "red" ? 15 : verdict === "amber" ? 50 : 85;
+export function VerdictGauge({ score }: { score: number }) {
+  const pos = Math.max(4, Math.min(96, score));
   return (
     <div className="mt-5">
       <div className="relative">
@@ -110,6 +110,21 @@ export function VerdictGauge({ verdict }: { verdict: Verdict }) {
       </div>
     </div>
   );
+}
+
+/**
+ * A single 0–100 "Deal Score" — the KBB-style headline number. Starts at 100
+ * and docks points per real red flag by severity. Presentation-only (kept out
+ * of the engine so its tests stay stable); the gauge marker is driven by it.
+ */
+export function dealScore(result: FairnessResult): number {
+  let score = 100;
+  for (const f of result.flags) {
+    if (f.type === "missing_info" || f.type === "info") continue;
+    score -=
+      f.severity === "high" ? 22 : f.severity === "medium" ? 11 : f.severity === "low" ? 5 : 0;
+  }
+  return Math.max(8, Math.min(100, Math.round(score)));
 }
 
 /** Sum the dollar impact across all flags that carry an estimate. */
@@ -277,11 +292,17 @@ export function WarrantyCard({ warranty }: { warranty: WarrantyAssessment }) {
 export function VerdictView({
   result,
   reviewedNote,
+  vehicle,
 }: {
   result: FairnessResult;
   reviewedNote?: string | null;
+  vehicle?: { year?: number | null; make?: string | null; model?: string | null };
 }) {
   const s = VERDICT_STYLES[result.overallVerdict];
+  const score = dealScore(result);
+  const vehicleName = vehicle
+    ? [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(" ")
+    : "";
   const sortedFlags = [...result.flags].sort(
     (a, b) =>
       (SEVERITY_ORDER[a.severity] ?? 9) - (SEVERITY_ORDER[b.severity] ?? 9),
@@ -298,11 +319,29 @@ export function VerdictView({
       {/* Overall verdict — the KBB-style "report" header */}
       <div className={`overflow-hidden rounded-2xl ${s.bg} ring-1 ${s.ring}`}>
         <div className="p-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <VerdictBadge verdict={result.overallVerdict} />
-            <ConfidenceBadge level={result.confidence} />
+          {vehicleName && (
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-navy/45">
+              {vehicleName}
+            </p>
+          )}
+          <div className="flex items-end justify-between gap-3">
+            <div>
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-navy/50">
+                Deal score
+              </span>
+              <div className="flex items-baseline gap-1">
+                <span className={`font-serif text-5xl font-bold leading-none ${s.text}`}>
+                  {score}
+                </span>
+                <span className="text-lg font-semibold text-navy/35">/100</span>
+              </div>
+            </div>
+            <div className="flex flex-col items-end gap-2">
+              <VerdictBadge verdict={result.overallVerdict} />
+              <ConfidenceBadge level={result.confidence} />
+            </div>
           </div>
-          <VerdictGauge verdict={result.overallVerdict} />
+          <VerdictGauge score={score} />
           <h2 className={`mt-5 font-serif text-2xl font-semibold ${s.text}`}>
             {result.headline}
           </h2>

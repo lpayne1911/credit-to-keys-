@@ -281,7 +281,13 @@ export function GamifiedDealCheck() {
         />
         <Scroll>
           <div className="animate-pop">
-            <VerdictView result={inlineResult} />
+            <VerdictView
+              result={inlineResult}
+              vehicle={{
+                year: s.year,
+                make: s.make === "Other" ? s.makeOther : s.make === "VW" ? "Volkswagen" : s.make,
+              }}
+            />
           </div>
         </Scroll>
       </AppShell>
