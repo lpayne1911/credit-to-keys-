@@ -1,6 +1,6 @@
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
-import { DealCheckForm } from "@/components/DealCheckForm";
+import { GamifiedDealCheck } from "@/components/GamifiedDealCheck";
 import { Disclaimer } from "@/components/Disclaimer";
 
 export const metadata = {
@@ -16,15 +16,14 @@ export default function CheckPage() {
           Check my deal
         </h1>
         <p className="mt-2 text-navy/65">
-          Enter what the dealer is offering. The more you fill in, the sharper
-          your verdict — but even a few numbers help. Nothing here is shared with
-          any dealer.
+          Tap through a few quick questions — no forms to fill out. Nothing here
+          is ever shared with a dealer.
         </p>
         <div className="mt-5">
           <Disclaimer />
         </div>
         <div className="mt-6">
-          <DealCheckForm />
+          <GamifiedDealCheck />
         </div>
       </main>
       <SiteFooter />
