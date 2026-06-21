@@ -9,20 +9,26 @@
  */
 import { NextResponse } from "next/server";
 import { scoreDeal } from "@/lib/fairness-engine";
-import {
-  toFairnessInput,
-  toDealRow,
-  type DealSubmission,
-} from "@/lib/deal-mapper";
+import { toFairnessInput, toDealRow } from "@/lib/deal-mapper";
+import { dealSubmissionSchema } from "@/lib/schemas";
 import { getServiceClient } from "@/lib/supabase/server";
 
 export async function POST(req: Request) {
-  let body: DealSubmission;
+  let raw: unknown;
   try {
-    body = (await req.json()) as DealSubmission;
+    raw = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
+
+  const parsed = dealSubmissionSchema.safeParse(raw);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "That submission didn't look right. Please check your entries." },
+      { status: 422 },
+    );
+  }
+  const body = parsed.data;
 
   const input = toFairnessInput(body);
 

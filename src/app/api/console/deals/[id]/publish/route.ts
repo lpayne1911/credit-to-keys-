@@ -12,13 +12,8 @@
 import { NextResponse } from "next/server";
 import { isConsoleAuthed } from "@/lib/console-auth";
 import { getServiceClient } from "@/lib/supabase/server";
-import type { Flag, Verdict } from "@/lib/fairness-engine";
-
-interface PublishBody {
-  verdict: Verdict;
-  headline: string;
-  flags: Flag[];
-}
+import type { Flag } from "@/lib/fairness-engine";
+import { publishSchema } from "@/lib/schemas";
 
 export async function POST(
   req: Request,
@@ -35,21 +30,15 @@ export async function POST(
     );
   }
 
-  let body: PublishBody;
-  try {
-    body = (await req.json()) as PublishBody;
-  } catch {
-    return NextResponse.json({ ok: false, error: "Bad request." }, { status: 400 });
-  }
-
-  if (!["green", "amber", "red"].includes(body.verdict)) {
+  const parsed = publishSchema.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) {
     return NextResponse.json(
-      { ok: false, error: "Invalid verdict." },
+      { ok: false, error: "Invalid review payload." },
       { status: 422 },
     );
   }
-
-  const flags = Array.isArray(body.flags) ? body.flags : [];
+  const body = parsed.data;
+  const flags = body.flags as Flag[];
 
   const { error } = await supabase
     .from("deals")

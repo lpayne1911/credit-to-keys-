@@ -10,6 +10,7 @@ import {
   isConsoleConfigured,
   CONSOLE_COOKIE,
 } from "@/lib/console-auth";
+import { loginSchema } from "@/lib/schemas";
 
 export async function POST(req: Request) {
   if (!isConsoleConfigured()) {
@@ -19,13 +20,11 @@ export async function POST(req: Request) {
     );
   }
 
-  let password = "";
-  try {
-    const body = (await req.json()) as { password?: string };
-    password = body.password ?? "";
-  } catch {
+  const parsed = loginSchema.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) {
     return NextResponse.json({ ok: false, error: "Bad request." }, { status: 400 });
   }
+  const password = parsed.data.password;
 
   if (!passwordMatches(password)) {
     return NextResponse.json(

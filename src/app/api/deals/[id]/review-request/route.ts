@@ -12,6 +12,7 @@
  */
 import { NextResponse } from "next/server";
 import { getServiceClient } from "@/lib/supabase/server";
+import { reviewRequestSchema } from "@/lib/schemas";
 
 export async function POST(
   req: Request,
@@ -27,7 +28,8 @@ export async function POST(
 
   let contact: { name?: string; email?: string } = {};
   try {
-    contact = (await req.json()) as { name?: string; email?: string };
+    const parsed = reviewRequestSchema.safeParse(await req.json());
+    if (parsed.success) contact = parsed.data;
   } catch {
     // body is optional
   }
