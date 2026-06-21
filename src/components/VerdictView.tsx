@@ -86,6 +86,76 @@ export function RangePill({ range }: { range: PriceRange }) {
   );
 }
 
+/**
+ * KBB-style range gauge: a red→amber→green track with a marker sitting in the
+ * verdict's zone. Gives the result the instant, confident "where do I land?"
+ * read that a value report does.
+ */
+export function VerdictGauge({ verdict }: { verdict: Verdict }) {
+  const pos = verdict === "red" ? 15 : verdict === "amber" ? 50 : 85;
+  return (
+    <div className="mt-5">
+      <div className="relative">
+        <div className="h-3 rounded-full bg-gradient-to-r from-verdict-red via-verdict-amber to-verdict-green" />
+        <div
+          className="absolute -top-2 h-7 w-7 -translate-x-1/2 rounded-full border-[3px] border-white bg-navy shadow-card"
+          style={{ left: `${pos}%` }}
+          aria-hidden
+        />
+      </div>
+      <div className="mt-2.5 flex justify-between text-[11px] font-semibold uppercase tracking-wide text-navy/45">
+        <span>Walk away</span>
+        <span>Caution</span>
+        <span>Looks fair</span>
+      </div>
+    </div>
+  );
+}
+
+/** Sum the dollar impact across all flags that carry an estimate. */
+function totalImpact(result: FairnessResult): { low: number; high: number } | null {
+  let low = 0;
+  let high = 0;
+  let any = false;
+  for (const f of result.flags) {
+    if (f.estimatedImpact) {
+      low += f.estimatedImpact.low;
+      high += f.estimatedImpact.high;
+      any = true;
+    }
+  }
+  return any && high > 0 ? { low, high } : null;
+}
+
+/**
+ * The big "value-forward" number a KBB-style report leads with: the money we
+ * estimate is on the table across every red flag. Honest range, never a promise.
+ */
+export function SavingsHero({ result }: { result: FairnessResult }) {
+  const impact = totalImpact(result);
+  if (!impact) {
+    return (
+      <div className="border-t border-navy/10 bg-white/55 px-6 py-4 text-sm text-navy/65">
+        Nothing obvious to claw back — the numbers you entered look reasonable
+        against our estimates.
+      </div>
+    );
+  }
+  return (
+    <div className="border-t border-navy/10 bg-white/60 px-6 py-5">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-navy/55">
+        Potential savings we spotted
+      </p>
+      <p className="mt-0.5 font-serif text-3xl font-bold text-gold-dark">
+        {money(impact.low)}–{money(impact.high)}
+      </p>
+      <p className="mt-1 text-sm text-navy/60">
+        If you push back on the flags below. An estimate, not a guarantee.
+      </p>
+    </div>
+  );
+}
+
 export function VerdictBadge({
   verdict,
   size = "lg",
@@ -225,21 +295,25 @@ export function VerdictView({
 
   return (
     <div className="space-y-6">
-      {/* Overall verdict */}
-      <div className={`rounded-2xl ${s.bg} ring-1 ${s.ring} p-6`}>
-        <div className="flex flex-wrap items-center gap-3">
-          <VerdictBadge verdict={result.overallVerdict} />
-          <ConfidenceBadge level={result.confidence} />
+      {/* Overall verdict — the KBB-style "report" header */}
+      <div className={`overflow-hidden rounded-2xl ${s.bg} ring-1 ${s.ring}`}>
+        <div className="p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <VerdictBadge verdict={result.overallVerdict} />
+            <ConfidenceBadge level={result.confidence} />
+          </div>
+          <VerdictGauge verdict={result.overallVerdict} />
+          <h2 className={`mt-5 font-serif text-2xl font-semibold ${s.text}`}>
+            {result.headline}
+          </h2>
+          {reviewedNote && (
+            <p className="mt-3 rounded-lg bg-white/70 px-3 py-2 text-sm text-navy/75">
+              <span className="font-semibold">Reviewed by a human advocate:</span>{" "}
+              {reviewedNote}
+            </p>
+          )}
         </div>
-        <h2 className={`mt-3 font-serif text-2xl font-semibold ${s.text}`}>
-          {result.headline}
-        </h2>
-        {reviewedNote && (
-          <p className="mt-3 rounded-lg bg-white/70 px-3 py-2 text-sm text-navy/75">
-            <span className="font-semibold">Reviewed by a human advocate:</span>{" "}
-            {reviewedNote}
-          </p>
-        )}
+        <SavingsHero result={result} />
       </div>
 
       {/* Warranty */}
