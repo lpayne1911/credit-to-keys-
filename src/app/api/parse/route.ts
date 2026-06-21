@@ -17,6 +17,11 @@ import { NextResponse } from "next/server";
 import { getServiceClient } from "@/lib/supabase/server";
 import { extractFields } from "@/lib/parse/extract";
 
+// The extractor calls a Claude model — needs the Node runtime (not edge) and a
+// longer budget than the default serverless timeout.
+export const runtime = "nodejs";
+export const maxDuration = 60;
+
 const MAX_BYTES = 15 * 1024 * 1024; // 15 MB
 const ALLOWED_PREFIXES = ["image/", "application/pdf"];
 
