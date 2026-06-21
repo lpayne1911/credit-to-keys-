@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Fraunces, Inter } from "next/font/google";
+import { PwaRegister } from "@/components/PwaRegister";
 import "./globals.css";
 
 // Characterful serif for headlines.
@@ -20,13 +21,21 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Driveway Advocate — Is your car deal fair?",
   description:
-    "Paste or upload a car dealer's offer and get a clear, buyer-side verdict on whether it's fair — with the red flags explained. The KBB for car deals and extended warranties.",
+    "Tap through a few questions or snap your dealer quote and get a clear, buyer-side Deal Score before you sign — with every red flag explained. The KBB for car deals and extended warranties.",
+  applicationName: "Driveway Advocate",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "Advocate",
+    statusBarStyle: "default",
+  },
 };
 
 export const viewport: Viewport = {
   themeColor: "#14253D",
   width: "device-width",
   initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -36,7 +45,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={`${fraunces.variable} ${inter.variable}`}>
-      <body>{children}</body>
+      <body>
+        {children}
+        <PwaRegister />
+      </body>
     </html>
   );
 }
