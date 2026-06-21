@@ -89,6 +89,38 @@ export function DealCheckForm() {
   const [confirming, setConfirming] = useState(false);
   const [uploadedPath, setUploadedPath] = useState<string | null>(null);
 
+  // VIN decode state
+  const [decodingVin, setDecodingVin] = useState(false);
+  const [vinNote, setVinNote] = useState<string | null>(null);
+
+  async function handleDecodeVin() {
+    const vin = form.vin.trim();
+    if (vin.length < 17) return;
+    setDecodingVin(true);
+    setVinNote(null);
+    try {
+      const res = await fetch(`/api/vin/${encodeURIComponent(vin)}`);
+      const data = await res.json();
+      const v = data.vehicle;
+      if (!v || !v.make) {
+        setVinNote("Couldn't decode that VIN — please enter the vehicle manually.");
+        return;
+      }
+      setForm((f) => ({
+        ...f,
+        year: v.year ? String(v.year) : f.year,
+        make: v.make ?? f.make,
+        model: v.model ?? f.model,
+        trim: v.trim ?? f.trim,
+      }));
+      setVinNote("Decoded ✓ — please confirm the details are right.");
+    } catch {
+      setVinNote("VIN lookup failed — please enter the vehicle manually.");
+    } finally {
+      setDecodingVin(false);
+    }
+  }
+
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((f) => ({ ...f, [key]: value }));
   }
@@ -321,12 +353,25 @@ export function DealCheckForm() {
                 />
               </Field>
               <Field label="VIN (optional)">
-                <input
-                  className="field-input"
-                  placeholder="Decode later"
-                  value={form.vin}
-                  onChange={(e) => set("vin", e.target.value)}
-                />
+                <div className="flex gap-2">
+                  <input
+                    className="field-input"
+                    placeholder="Decode year/make/model"
+                    value={form.vin}
+                    onChange={(e) => set("vin", e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleDecodeVin}
+                    disabled={decodingVin || form.vin.trim().length < 17}
+                    className="btn-secondary shrink-0 px-3 py-2 text-sm"
+                  >
+                    {decodingVin ? "…" : "Decode"}
+                  </button>
+                </div>
+                {vinNote && (
+                  <p className="mt-1 text-xs text-navy/55">{vinNote}</p>
+                )}
               </Field>
             </Grid>
           </Section>

@@ -7,45 +7,18 @@
  * didn't, and we never auto-score from an upload without buyer confirmation.
  *
  * ---------------------------------------------------------------------------
- *  PLACEHOLDER PARSER
- * ---------------------------------------------------------------------------
- *  Real OCR / document understanding (image + PDF → structured fields) is out
- *  of scope for v1 and would depend on an external service. `extractFields`
- *  below is a clearly-labeled placeholder: it returns an empty extraction with
- *  an honest note. Drop a real extractor into `extractFields` ONLY — its return
- *  shape is the contract the form already understands, so nothing else changes.
+ *  The extractor itself lives behind a swappable seam in
+ *  `src/lib/parse/extract.ts`. v1 ships the `none` provider (returns {}), which
+ *  is honest: we store the file and ask the buyer to confirm/enter fields. A
+ *  real OCR / document-LLM provider drops in there with zero route changes.
  * ---------------------------------------------------------------------------
  */
 import { NextResponse } from "next/server";
 import { getServiceClient } from "@/lib/supabase/server";
-
-interface ExtractedFields {
-  year?: string;
-  make?: string;
-  model?: string;
-  trim?: string;
-  mileage?: string;
-  vin?: string;
-  vehiclePrice?: string;
-  apr?: string;
-  termMonths?: string;
-  monthlyPayment?: string;
-  warrantyPrice?: string;
-  fees?: { label: string; amount: number }[];
-}
-
-/**
- * PLACEHOLDER — replace with a real OCR / LLM document parser.
- * Must return whatever it could confidently extract (partial is fine). Anything
- * omitted is left for the buyer to fill in the confirm step. Returning {} is the
- * honest default until a real parser is wired in.
- */
-async function extractFields(_file: File): Promise<ExtractedFields> {
-  // PLACEHOLDER — no extraction performed in v1.
-  return {};
-}
+import { extractFields } from "@/lib/parse/extract";
 
 const MAX_BYTES = 15 * 1024 * 1024; // 15 MB
+const ALLOWED_PREFIXES = ["image/", "application/pdf"];
 
 export async function POST(req: Request) {
   let form: FormData;
@@ -65,6 +38,16 @@ export async function POST(req: Request) {
       { status: 413 },
     );
   }
+  const contentType = file.type || "application/octet-stream";
+  if (!ALLOWED_PREFIXES.some((p) => contentType.startsWith(p))) {
+    return NextResponse.json(
+      { error: "Please upload an image or a PDF of your quote." },
+      { status: 415 },
+    );
+  }
+
+  // Read the file once; reuse the bytes for both storage and extraction.
+  const bytes = new Uint8Array(await file.arrayBuffer());
 
   // Store the original upload in private storage (service role, server-only).
   let uploadedFilePath: string | null = null;
@@ -73,20 +56,20 @@ export async function POST(req: Request) {
     try {
       const ext = file.name.split(".").pop() || "bin";
       const path = `quotes/${crypto.randomUUID()}.${ext}`;
-      const bytes = new Uint8Array(await file.arrayBuffer());
       const { error } = await supabase.storage
         .from("deal-uploads")
-        .upload(path, bytes, {
-          contentType: file.type || "application/octet-stream",
-          upsert: false,
-        });
+        .upload(path, bytes, { contentType, upsert: false });
       if (!error) uploadedFilePath = path;
     } catch {
       // Non-fatal — the buyer can still confirm/enter fields manually.
     }
   }
 
-  const extracted = await extractFields(file);
+  const extracted = await extractFields({
+    bytes,
+    contentType,
+    filename: file.name,
+  });
   const gotAnything = Object.keys(extracted).length > 0;
 
   return NextResponse.json({
