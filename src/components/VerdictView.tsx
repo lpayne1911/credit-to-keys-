@@ -39,6 +39,12 @@ const VERDICT_STYLES: Record<
     ring: "ring-verdict-red/30",
     dot: "bg-verdict-red",
   },
+  black: {
+    bg: "bg-navy-900/10",
+    text: "text-navy-900",
+    ring: "ring-navy-900/40",
+    dot: "bg-navy-900",
+  },
 };
 
 export function ConfidenceBadge({ level }: { level: Confidence }) {
@@ -299,7 +305,9 @@ export function VerdictView({
   vehicle?: { year?: number | null; make?: string | null; model?: string | null };
 }) {
   const s = VERDICT_STYLES[result.overallVerdict];
-  const score = dealScore(result);
+  // A "walk away" verdict pins the score to the bottom regardless of how many
+  // individual flags fired — the call is categorical, not additive.
+  const score = result.overallVerdict === "black" ? 3 : dealScore(result);
   const vehicleName = vehicle
     ? [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(" ")
     : "";

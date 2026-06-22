@@ -111,7 +111,7 @@ export interface FairnessInput {
 //  OUTPUT TYPES
 // ---------------------------------------------------------------------------
 
-export type Verdict = "green" | "amber" | "red";
+export type Verdict = "green" | "amber" | "red" | "black";
 
 export type Confidence = "low" | "medium" | "high";
 
@@ -764,11 +764,16 @@ function dedupe(items: string[]): string[] {
   return Array.from(new Set(items));
 }
 
-/** Human-readable labels for verdict/rating enums, for UI reuse. */
+/**
+ * Action-oriented verdict labels. The automated scan returns green/amber/red;
+ * "black" (walk away — fraud or legal concern) is a human-reviewer escalation
+ * only, assigned from the console — fraud needs human judgment, not a heuristic.
+ */
 export const VERDICT_LABEL: Record<Verdict, string> = {
   green: "Looks fair",
-  amber: "Proceed with caution",
-  red: "This deal has problems",
+  amber: "Negotiate first",
+  red: "Don't sign yet",
+  black: "Walk away",
 };
 
 export const WARRANTY_RATING_LABEL: Record<WarrantyPriceRating, string> = {

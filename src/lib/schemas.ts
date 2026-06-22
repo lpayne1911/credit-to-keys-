@@ -62,7 +62,7 @@ export const reviewRequestSchema = z.object({
   email: z.string().max(320).optional(),
 });
 
-const verdictEnum = z.enum(["green", "amber", "red"]);
+const verdictEnum = z.enum(["green", "amber", "red", "black"]);
 
 export const publishSchema = z.object({
   verdict: verdictEnum,

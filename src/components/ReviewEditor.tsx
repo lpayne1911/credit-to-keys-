@@ -12,7 +12,15 @@ import { useRouter } from "next/navigation";
 import type { Flag, FlagSeverity, FlagType, Verdict } from "@/lib/fairness-engine";
 import { VERDICT_LABEL } from "@/lib/fairness-engine";
 
-const VERDICTS: Verdict[] = ["green", "amber", "red"];
+const VERDICTS: Verdict[] = ["green", "amber", "red", "black"];
+
+// Selected-state styling per verdict (Black = walk away, fraud/legal).
+const VERDICT_BTN: Record<Verdict, string> = {
+  green: "border-verdict-green bg-verdict-green/10 text-verdict-green",
+  amber: "border-verdict-amber bg-verdict-amber/10 text-verdict-amber",
+  red: "border-verdict-red bg-verdict-red/10 text-verdict-red",
+  black: "border-navy-900 bg-navy-900/10 text-navy-900",
+};
 const SEVERITIES: FlagSeverity[] = ["info", "low", "medium", "high"];
 const TYPES: FlagType[] = [
   "junk_fee",
@@ -98,13 +106,9 @@ export function ReviewEditor({
               key={v}
               type="button"
               onClick={() => setVerdict(v)}
-              className={`rounded-lg border px-3 py-2 text-sm font-semibold capitalize transition ${
+              className={`rounded-lg border px-3 py-2 text-sm font-semibold transition ${
                 verdict === v
-                  ? v === "red"
-                    ? "border-verdict-red bg-verdict-red/10 text-verdict-red"
-                    : v === "amber"
-                      ? "border-verdict-amber bg-verdict-amber/10 text-verdict-amber"
-                      : "border-verdict-green bg-verdict-green/10 text-verdict-green"
+                  ? VERDICT_BTN[v]
                   : "border-navy/15 bg-white text-navy/60"
               }`}
             >
