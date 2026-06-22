@@ -9,111 +9,134 @@ export default function LandingPage() {
     <>
       <SiteHeader />
       <main>
-        {/* Hero */}
+        {/* Hero — the panic moment, not the ecosystem */}
         <section className="mx-auto max-w-5xl px-4 pb-12 pt-12 sm:pt-20">
           <div className="grid items-center gap-10 lg:grid-cols-2">
             <div>
               <span className="inline-block rounded-full bg-gold/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gold-dark">
-                The KBB for car deals &amp; extended warranties
+                Buyer-side car-deal protection
               </span>
               <h1 className="mt-4 font-serif text-4xl font-semibold leading-tight text-navy sm:text-5xl">
-                Is your car deal fair, or a rip-off?
+                Before you sign, we check the deal.
               </h1>
               <p className="mt-4 text-lg leading-relaxed text-navy/70">
-                Dealers profit because buyers have no reference point. Tap through
-                a few quick questions — or snap a photo of the quote — and get a
-                clear <strong>Deal Score</strong> on the fees, interest rate,
-                add-ons, and especially the extended warranty, with every red flag
-                explained. We&apos;re on your side, not theirs.
+                Upload your dealer quote, buyer&apos;s order, or payment
+                worksheet. We review the numbers, expose the junk fees and
+                finance-office traps, and tell you whether to{" "}
+                <strong>sign, push back, or walk away</strong> — before the
+                paperwork becomes permanent.
               </p>
               <div className="mt-7 flex flex-col gap-3 sm:flex-row">
                 <Link href="/check" className="btn-primary">
-                  Check my deal
+                  Upload my deal
                 </Link>
-                <a href="#how" className="btn-secondary">
-                  See how it works
+                <a href="#paths" className="btn-secondary">
+                  I&apos;m 3–9 months from buying
                 </a>
               </div>
               <p className="mt-4 text-sm text-navy/50">
-                Free. No account needed. About a minute.
+                Free first scan. No account needed. About a minute.
               </p>
             </div>
             <ReportPreview />
           </div>
         </section>
 
-        {/* Trust strip */}
-        <section className="border-y border-navy/10 bg-white">
-          <div className="mx-auto grid max-w-5xl gap-6 px-4 py-8 sm:grid-cols-3">
-            <Trust
-              title="Strictly buyer-side"
-              body="We never take money from dealers, lenders, or warranty companies — and never steer you to a partner."
+        {/* The trust promise — loudest line in the brand */}
+        <section className="bg-navy text-cream">
+          <div className="mx-auto max-w-5xl px-4 py-12 text-center">
+            <h2 className="font-serif text-2xl font-semibold text-white sm:text-3xl">
+              The dealer has a team. Now you do too.
+            </h2>
+            <p className="mx-auto mt-3 max-w-2xl text-cream/80">
+              We&apos;re paid by <span className="font-semibold text-gold-light">you</span>{" "}
+              — never the dealer, the lender, the finance office, or the warranty
+              company. No commissions, no kickbacks, ever. Yours is the only side
+              we&apos;re on.
+            </p>
+          </div>
+        </section>
+
+        {/* Three doors — every buyer gets a clear entry point */}
+        <section id="paths" className="mx-auto max-w-5xl px-4 py-14">
+          <h2 className="font-serif text-3xl font-semibold text-navy">
+            Three ways in
+          </h2>
+          <p className="mt-2 text-navy/60">
+            Wherever you are in the process, there&apos;s a door for you.
+          </p>
+          <div className="mt-8 grid gap-5 sm:grid-cols-3">
+            <Door
+              live
+              title="Check my deal"
+              who="You have a quote, worksheet, or payment in hand — and a bad feeling."
+              cta="Check my deal"
+              href="/check"
             />
-            <Trust
-              title="Honest estimates"
-              body="Every number is a range with a confidence level. We never invent a fake exact 'fair price.'"
+            <Door
+              title="Help me buy"
+              who="You haven't picked the car yet and want a pro in your corner from the start."
             />
-            <Trust
-              title="Plain English"
-              body="No jargon. Just what's fair, what's padded, and what to push back on before you sign."
+            <Door
+              title="Fix my credit first"
+              who="Your score is about to cost you thousands. Credit-to-Keys preps it before you buy."
             />
+          </div>
+        </section>
+
+        {/* What we check — the Red Flag Matrix */}
+        <section className="bg-white">
+          <div className="mx-auto max-w-5xl px-4 py-14">
+            <h2 className="font-serif text-3xl font-semibold text-navy">
+              What we check — the Red Flag Matrix
+            </h2>
+            <p className="mt-2 max-w-2xl text-navy/60">
+              Every review runs your deal through eight categories of where
+              buyers get worked, and ends with a plain-English call.
+            </p>
+            <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {RED_FLAGS.map((r) => (
+                <Flag key={r.title} title={r.title} body={r.body} />
+              ))}
+            </div>
+
+            {/* Verdict scale */}
+            <div className="mt-8 grid gap-3 sm:grid-cols-4">
+              <Tier color="bg-verdict-green" label="Green" note="Looks fair — sign it." />
+              <Tier color="bg-verdict-amber" label="Yellow" note="Negotiate before you sign." />
+              <Tier color="bg-verdict-red" label="Red" note="Don't sign yet." />
+              <Tier color="bg-navy-900" label="Black" note="Walk away — fraud or legal concern." />
+            </div>
           </div>
         </section>
 
         {/* How it works */}
-        <section id="how" className="mx-auto max-w-5xl px-4 py-14">
+        <section className="mx-auto max-w-5xl px-4 py-14">
           <h2 className="font-serif text-3xl font-semibold text-navy">
             How it works
           </h2>
-          <p className="mt-2 text-navy/60">Three steps. Two minutes.</p>
+          <p className="mt-2 text-navy/60">Three steps. About a minute.</p>
           <ol className="mt-8 grid gap-6 sm:grid-cols-3">
             <Step
               n={1}
-              title="Tap in the offer"
-              body="Tap through a few quick questions — no forms — or snap a photo of the quote and we'll read what we can."
+              title="Upload or tap in the offer"
+              body="Snap a photo of the quote, or tap through a few questions — no forms."
             />
             <Step
               n={2}
-              title="Get your verdict"
-              body="A clear red / amber / green rating, plus a separate fairness check on the extended-warranty price."
+              title="Get your Deal Score"
+              body="A clear score and a sign / push back / walk verdict, plus a fairness check on the extended warranty."
             />
             <Step
               n={3}
               title="Know your red flags"
-              body="See padded fees, marked-up interest, and overpriced add-ons explained — so you can negotiate."
+              body="Padded fees, marked-up interest, and overpriced add-ons explained — with the numbers to push back."
             />
           </ol>
           <div className="mt-10">
             <Link href="/check" className="btn-primary">
-              Check my deal
+              Upload my deal
             </Link>
-          </div>
-        </section>
-
-        {/* What we check */}
-        <section className="bg-navy text-cream">
-          <div className="mx-auto max-w-5xl px-4 py-14">
-            <h2 className="font-serif text-3xl font-semibold">
-              What we look at
-            </h2>
-            <div className="mt-8 grid gap-6 sm:grid-cols-2">
-              <Check
-                title="Padded & junk fees"
-                body="Dealer prep, nitrogen tires, paint protection, VIN etching, vague 'market adjustments' — the stuff that's pure profit."
-              />
-              <Check
-                title="Marked-up interest"
-                body="Dealers often inflate your loan's APR above what you'd qualify for and pocket the difference. We flag it."
-              />
-              <Check
-                title="The extended warranty"
-                body="The biggest markup in the finance office. We estimate a fair price range so you know if you're overpaying."
-              />
-              <Check
-                title="Unnecessary add-ons"
-                body="Coverage and accessories you may not need, or could buy far cheaper elsewhere."
-              />
-            </div>
           </div>
         </section>
 
@@ -127,7 +150,18 @@ export default function LandingPage() {
   );
 }
 
-/** A static sample of the result "report" — sells the value at a glance. */
+/* The eight Red Flag Matrix categories. */
+const RED_FLAGS = [
+  { title: "Price", body: "Markups, “market adjustments,” and an out-the-door number that doesn't add up." },
+  { title: "Fees", body: "Junk doc, prep, nitrogen, VIN-etch, and vague “procurement” padding." },
+  { title: "Financing", body: "Rate markup over what your credit qualifies for, and stretched terms." },
+  { title: "Trade-in", body: "Lowball trade values and negative equity buried in the payment." },
+  { title: "Warranty & F&I", body: "Overpriced service contracts, GAP, and add-ons sold under pressure." },
+  { title: "Used-car risk", body: "Condition, history, and title red flags on a used vehicle." },
+  { title: "Contract & legal", body: "Terms that don't match what you were told, or that aren't legal." },
+  { title: "Pressure tactics", body: "Payment-packing and finance-office moves designed to rush you." },
+];
+
 function ReportPreview() {
   return (
     <div className="mx-auto w-full max-w-sm">
@@ -148,7 +182,7 @@ function ReportPreview() {
             </div>
           </div>
           <span className="rounded-full bg-verdict-amber/10 px-3 py-1 text-sm font-semibold text-verdict-amber ring-1 ring-verdict-amber/30">
-            Proceed with caution
+            Push back first
           </span>
         </div>
         <VerdictGauge score={64} />
@@ -165,11 +199,74 @@ function ReportPreview() {
   );
 }
 
-function Trust({ title, body }: { title: string; body: string }) {
+function Door({
+  title,
+  who,
+  cta,
+  href,
+  live = false,
+}: {
+  title: string;
+  who: string;
+  cta?: string;
+  href?: string;
+  live?: boolean;
+}) {
   return (
-    <div>
-      <h3 className="text-base font-semibold text-navy">{title}</h3>
-      <p className="mt-1 text-sm leading-relaxed text-navy/60">{body}</p>
+    <div className="flex flex-col rounded-2xl border border-navy/10 bg-white p-6 shadow-card">
+      <div className="flex items-center justify-between">
+        <h3 className="font-serif text-xl font-semibold text-navy">{title}</h3>
+        {live ? (
+          <span className="rounded-full bg-verdict-green/10 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-verdict-green">
+            Live
+          </span>
+        ) : (
+          <span className="rounded-full bg-navy-50 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-navy/45">
+            Soon
+          </span>
+        )}
+      </div>
+      <p className="mt-2 flex-1 text-sm leading-relaxed text-navy/65">{who}</p>
+      {live && href && cta ? (
+        <Link href={href} className="btn-primary mt-5">
+          {cta}
+        </Link>
+      ) : (
+        <span className="mt-5 inline-flex items-center justify-center rounded-xl border border-navy/15 px-6 py-3 text-sm font-semibold text-navy/45">
+          Coming soon
+        </span>
+      )}
+    </div>
+  );
+}
+
+function Flag({ title, body }: { title: string; body: string }) {
+  return (
+    <div className="rounded-xl border border-navy/10 bg-cream-100 p-4">
+      <h3 className="text-sm font-bold uppercase tracking-wide text-gold-dark">
+        {title}
+      </h3>
+      <p className="mt-1.5 text-sm leading-relaxed text-navy/65">{body}</p>
+    </div>
+  );
+}
+
+function Tier({
+  color,
+  label,
+  note,
+}: {
+  color: string;
+  label: string;
+  note: string;
+}) {
+  return (
+    <div className="flex items-start gap-3 rounded-xl border border-navy/10 bg-white p-4">
+      <span className={`mt-1 h-3.5 w-3.5 shrink-0 rounded-full ${color}`} />
+      <div>
+        <p className="font-semibold text-navy">{label}</p>
+        <p className="text-sm text-navy/60">{note}</p>
+      </div>
     </div>
   );
 }
@@ -183,14 +280,5 @@ function Step({ n, title, body }: { n: number; title: string; body: string }) {
       <h3 className="mt-3 text-lg font-semibold text-navy">{title}</h3>
       <p className="mt-1 text-sm leading-relaxed text-navy/65">{body}</p>
     </li>
-  );
-}
-
-function Check({ title, body }: { title: string; body: string }) {
-  return (
-    <div className="rounded-xl border border-cream/15 bg-navy-700/40 p-5">
-      <h3 className="text-lg font-semibold text-gold-light">{title}</h3>
-      <p className="mt-1.5 text-sm leading-relaxed text-cream/75">{body}</p>
-    </div>
   );
 }
