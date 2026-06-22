@@ -10,9 +10,17 @@ export function SiteHeader() {
             Driveway Advocate
           </span>
         </Link>
-        <Link href="/check" className="btn-primary px-4 py-2 text-sm">
-          Check my deal
-        </Link>
+        <div className="flex items-center gap-4">
+          <Link
+            href="/services"
+            className="hidden text-sm font-semibold text-navy/70 hover:text-navy sm:block"
+          >
+            Pricing
+          </Link>
+          <Link href="/check" className="btn-primary px-4 py-2 text-sm">
+            Check my deal
+          </Link>
+        </div>
       </div>
     </header>
   );

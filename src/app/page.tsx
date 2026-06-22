@@ -76,10 +76,12 @@ export default function LandingPage() {
             <Door
               title="Help me buy"
               who="You haven't picked the car yet and want a pro in your corner from the start."
+              href="/services"
             />
             <Door
               title="Fix my credit first"
               who="Your score is about to cost you thousands. Credit-to-Keys preps it before you buy."
+              href="/services"
             />
           </div>
         </section>
@@ -230,6 +232,13 @@ function Door({
       {live && href && cta ? (
         <Link href={href} className="btn-primary mt-5">
           {cta}
+        </Link>
+      ) : href ? (
+        <Link
+          href={href}
+          className="mt-5 inline-flex items-center justify-center rounded-xl border border-navy/20 px-6 py-3 text-sm font-semibold text-navy transition hover:border-navy/40"
+        >
+          See options
         </Link>
       ) : (
         <span className="mt-5 inline-flex items-center justify-center rounded-xl border border-navy/15 px-6 py-3 text-sm font-semibold text-navy/45">
