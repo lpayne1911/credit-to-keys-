@@ -30,9 +30,9 @@ export default function LandingPage() {
                 <Link href="/check" className="btn-primary">
                   Upload my deal
                 </Link>
-                <a href="#paths" className="btn-secondary">
+                <Link href="/credit-to-keys" className="btn-secondary">
                   I&apos;m 3–9 months from buying
-                </a>
+                </Link>
               </div>
               <p className="mt-4 text-sm text-navy/50">
                 Free first scan. No account needed. About a minute.
@@ -81,7 +81,7 @@ export default function LandingPage() {
             <Door
               title="Fix my credit first"
               who="Your score is about to cost you thousands. Credit-to-Keys preps it before you buy."
-              href="/services"
+              href="/credit-to-keys"
             />
           </div>
         </section>

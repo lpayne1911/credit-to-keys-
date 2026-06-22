@@ -13,6 +13,7 @@ type Service = {
   blurb: string;
   price: string;
   live?: boolean;
+  href?: string; // a "learn more" destination for products with their own page
 };
 
 type Group = { tier: string; note?: string; services: Service[] };
@@ -106,6 +107,7 @@ const GROUPS: Group[] = [
         blurb:
           "The denied-to-driving journey for buyers 3–9 months out: prepare the credit so it stops costing you, then the full buyer-side treatment when the score qualifies.",
         price: "Billed in stages",
+        href: "/credit-to-keys",
       },
     ],
   },
@@ -197,6 +199,13 @@ function ServiceCard({ s }: { s: Service }) {
         {s.live ? (
           <Link href="/check" className="btn-primary px-5 py-2 text-sm">
             Start now
+          </Link>
+        ) : s.href ? (
+          <Link
+            href={s.href}
+            className="inline-flex items-center rounded-xl border border-navy/20 px-5 py-2 text-sm font-semibold text-navy transition hover:border-navy/40"
+          >
+            Learn more
           </Link>
         ) : (
           <span className="inline-flex items-center rounded-xl border border-navy/15 px-5 py-2 text-sm font-semibold text-navy/45">
