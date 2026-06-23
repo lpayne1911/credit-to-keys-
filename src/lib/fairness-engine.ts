@@ -40,6 +40,8 @@
  * ============================================================================
  */
 
+import { principalFromPayment, impliedAprPct } from "./loan-math";
+
 // ---------------------------------------------------------------------------
 //  INPUT TYPES
 // ---------------------------------------------------------------------------
@@ -127,6 +129,7 @@ export type FlagType =
   | "overpriced_addon"
   | "redundant_addon"
   | "overpriced_warranty"
+  | "payment_packing"
   | "missing_info"
   | "info";
 
@@ -301,6 +304,24 @@ const LIKELY_APR_BAND: Record<CreditBand, { low: number; high: number }> = {
 const APR_MARKUP_MARGIN_PCT = 2.0;
 
 /**
+ * Monthly-payment "reality check" — detects payment packing, the F&I trick of
+ * burying add-ons, gap insurance, or rate markup inside a monthly number the
+ * buyer fixates on. We recover the principal the quoted payment actually
+ * supports (at the stated APR + term) and compare it to what the buyer told us
+ * they're financing.
+ *
+ * A buyer rarely itemizes sales tax / title, which ARE legitimately financed —
+ * so we extend an allowance (a generous % of the price) before calling any
+ * surplus "unexplained." Only padding ABOVE that cushion is flagged, which
+ * keeps honest tax-heavy deals from tripping a false alarm.
+ */
+// PLACEHOLDER — replace with real engine value
+const TAX_TITLE_ALLOWANCE_PCT = 0.1; // assume up to ~10% of price may be tax/title
+// Padding must clear BOTH an absolute floor and a share of the price to flag.
+const PACKING_MIN_ABS = 1_200;
+const PACKING_MIN_PCT_OF_PRICE = 0.05;
+
+/**
  * Junk/padded-fee detection. Legitimate fees exist (real doc, title, registry),
  * but several line items are pure profit padding or have a typical reasonable
  * ceiling. We match fee labels heuristically.
@@ -395,6 +416,10 @@ export function scoreDeal(input: FairnessInput): FairnessResult {
   // --- APR markup --------------------------------------------------------
   const aprFlag = assessApr(input.deal, assumptions);
   if (aprFlag) flags.push(aprFlag);
+
+  // --- Monthly-payment reality check (payment packing) -------------------
+  const paymentFlag = assessPayment(input.deal, input.warranty ?? null, assumptions);
+  if (paymentFlag) flags.push(paymentFlag);
 
   // --- Fees & add-ons ----------------------------------------------------
   flags.push(...assessFees(input.deal.fees ?? [], assumptions));
@@ -631,6 +656,115 @@ function assessApr(deal: DealInput, assumptions: string[]): Flag | null {
 }
 
 // ---------------------------------------------------------------------------
+//  Monthly-payment reality check (payment packing)
+// ---------------------------------------------------------------------------
+
+/** Dollars the buyer has explicitly told us are part of the financed deal. */
+function knownFinanced(deal: DealInput, warranty: WarrantyInput | null): number {
+  const price = deal.vehiclePrice ?? 0;
+  const down = deal.downPayment ?? 0;
+  const feeTotal = (deal.fees ?? []).reduce((sum, f) => sum + (f.amount || 0), 0);
+  const warrantyPrice = warranty?.priceQuoted ?? 0;
+  return Math.max(0, price - down) + feeTotal + warrantyPrice;
+}
+
+/**
+ * Cross-check the quoted monthly payment against the rest of the deal. Two
+ * complementary reads, depending on whether the buyer knows their APR:
+ *
+ *  1. APR known  → recover the principal the payment really supports and flag
+ *     when it exceeds price − down + fees + warranty + a tax/title cushion.
+ *     That surplus is money being financed that the buyer never accounted for.
+ *  2. APR unknown → recover the APR the payment implies (treating the known
+ *     financed amount, plus the same cushion, as principal) and flag when it
+ *     lands well above the buyer's likely qualifying band.
+ *
+ * Needs a payment, a term, and a vehicle price to say anything; otherwise it
+ * stays silent (no false precision).
+ */
+function assessPayment(
+  deal: DealInput,
+  warranty: WarrantyInput | null,
+  assumptions: string[],
+): Flag | null {
+  const payment = deal.monthlyPayment ?? null;
+  const term = deal.termMonths ?? null;
+  const price = deal.vehiclePrice ?? null;
+  if (!payment || payment <= 0) return null;
+  if (!term || term <= 0) return null;
+  if (!price || price <= 0) return null;
+
+  const known = knownFinanced(deal, warranty);
+  // Cushion for taxes/registration a buyer rarely itemizes but legitimately
+  // finances. Surplus is only "unexplained" once it clears this.
+  const cushion = price * TAX_TITLE_ALLOWANCE_PCT;
+
+  // --- Path 1: APR known → look for an unexplained financed balance --------
+  if (deal.apr !== null && deal.apr !== undefined) {
+    const impliedPrincipal = principalFromPayment(payment, deal.apr, term);
+    const unexplained = impliedPrincipal - known - cushion;
+    const floor = Math.max(PACKING_MIN_ABS, price * PACKING_MIN_PCT_OF_PRICE);
+    if (unexplained <= floor) return null;
+
+    assumptions.push(
+      `Monthly-payment check assumes up to ~${Math.round(
+        TAX_TITLE_ALLOWANCE_PCT * 100,
+      )}% of the price (~${money(cushion)}) could be legitimate taxes/registration you didn't itemize — only financing beyond that is treated as unexplained.`,
+    );
+
+    return {
+      type: "payment_packing",
+      severity: unexplained >= 3_500 ? "high" : "medium",
+      title: "Monthly payment is higher than the numbers add up to",
+      explanation: `At the ${deal.apr}% APR and ${term}-month term you entered, a payment of ${money(
+        payment,
+      )} only makes sense if about ${money(
+        impliedPrincipal,
+      )} is being financed — roughly ${money(
+        Math.round(unexplained),
+      )} more than the price, fees, and warranty you listed (even after allowing for taxes). That gap is often packed-in add-ons, gap insurance, or a higher balance than you agreed to. Ask for the "amount financed" line and an itemized breakdown before you sign.`,
+      estimatedImpact: {
+        low: Math.round((unexplained * 0.4) / 25) * 25,
+        high: Math.round(unexplained / 25) * 25,
+        confidence: "medium",
+        basis:
+          "Estimated balance financed beyond the price, down payment, fees, and warranty you entered (after a tax/title allowance). Some may be legitimate items you didn't list — confirm against the amount financed.",
+      },
+    };
+  }
+
+  // --- Path 2: APR unknown → infer the rate the payment implies ------------
+  // Use the generous principal (known + cushion) so we only flag a rate that is
+  // high even after crediting every dollar that could legitimately be financed.
+  const assumedPrincipal = known + cushion;
+  if (assumedPrincipal <= 0) return null;
+  const apr = impliedAprPct(payment, assumedPrincipal, term);
+  if (apr === null || apr === 0) return null;
+
+  const band = LIKELY_APR_BAND[deal.creditBand ?? "unknown"];
+  const threshold = band.high + APR_MARKUP_MARGIN_PCT;
+  if (apr <= threshold) return null;
+
+  assumptions.push(
+    `With no APR entered, the interest rate was estimated from your payment, term, and the amounts you listed (plus a tax/title allowance) — about ${apr.toFixed(
+      1,
+    )}%. This is a rough inference, not a rate quote.`,
+  );
+
+  return {
+    type: "payment_packing",
+    severity: apr - band.high > 6 ? "high" : "medium",
+    title: "Your payment implies a high interest rate",
+    explanation: `You didn't enter an APR, but a ${money(
+      payment,
+    )} payment over ${term} months on what you've listed works out to roughly ${apr.toFixed(
+      1,
+    )}% — above the ${band.low}%–${band.high}% a buyer with your stated credit would likely qualify for. The rate may be marked up, or more may be financed than you realize. Ask for the APR and the amount financed in writing, and compare a pre-approval from your own bank or credit union.`,
+    estimatedImpact: null,
+  };
+}
+
+// ---------------------------------------------------------------------------
 //  Fees & add-ons
 // ---------------------------------------------------------------------------
 
@@ -800,6 +934,15 @@ function rollUp(
 
 function dedupe(items: string[]): string[] {
   return Array.from(new Set(items));
+}
+
+/** Whole-dollar currency formatting for buyer-facing explanation copy. */
+function money(n: number): string {
+  return n.toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  });
 }
 
 /**

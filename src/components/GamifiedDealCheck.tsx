@@ -81,6 +81,8 @@ type State = {
   downPayment: number;
   apr: number;
   termMonths: number;
+  hasPayment: boolean;
+  monthlyPayment: number;
   addOns: Record<string, { amount: number }>;
   hasWarranty: boolean | null;
   warrantyCoverageTier: string;
@@ -100,6 +102,8 @@ const INITIAL: State = {
   downPayment: 2_000,
   apr: 9.9,
   termMonths: 72,
+  hasPayment: false,
+  monthlyPayment: 525,
   addOns: {},
   hasWarranty: null,
   warrantyCoverageTier: "unknown",
@@ -160,6 +164,7 @@ export function GamifiedDealCheck() {
         downPayment: s.downPayment,
         apr: s.apr,
         termMonths: s.termMonths,
+        monthlyPayment: s.hasPayment ? s.monthlyPayment : undefined,
         creditBand: s.creditBand || "unknown",
         fees,
       },
@@ -227,6 +232,8 @@ export function GamifiedDealCheck() {
         vehiclePrice: numOr(ex.vehiclePrice, prev.vehiclePrice),
         apr: numOr(ex.apr, prev.apr),
         termMonths: numOr(ex.termMonths, prev.termMonths),
+        monthlyPayment: numOr(ex.monthlyPayment, prev.monthlyPayment),
+        hasPayment: ex.monthlyPayment ? true : prev.hasPayment,
         warrantyPrice: numOr(ex.warrantyPrice, prev.warrantyPrice),
         hasWarranty: ex.warrantyPrice ? true : prev.hasWarranty,
         addOns: Array.isArray(ex.fees) ? feesToAddOns(ex.fees) : prev.addOns,
@@ -406,6 +413,29 @@ export function GamifiedDealCheck() {
                   {(s.termMonths / 12).toFixed(0)} years
                   {s.termMonths >= 72 ? " — long terms quietly raise total cost." : ""}
                 </p>
+              </div>
+              <div className="mt-9">
+                <p className="field-label">Monthly payment they quoted</p>
+                <div className="flex flex-wrap gap-2">
+                  <button type="button" onClick={() => set("hasPayment", false)}
+                    className={`pill ${!s.hasPayment ? "pill--on" : ""}`}>
+                    Don&apos;t know
+                  </button>
+                  <button type="button" onClick={() => set("hasPayment", true)}
+                    className={`pill ${s.hasPayment ? "pill--on" : ""}`}>
+                    Enter it
+                  </button>
+                </div>
+                {s.hasPayment && (
+                  <div className="mt-6 animate-step-in">
+                    <Slider label="Monthly payment" value={s.monthlyPayment} min={100} max={1_500} step={10}
+                      onChange={(v) => set("monthlyPayment", v)} format={money} big />
+                    <p className="mt-2 text-xs text-navy/50">
+                      We&apos;ll check this against the price, rate, and term — a payment
+                      that&apos;s too high for the numbers is how add-ons get hidden.
+                    </p>
+                  </div>
+                )}
               </div>
             </Step>
           )}
@@ -708,6 +738,7 @@ function Analyzing() {
     "Checking the price & financing…",
     "Scanning fees for junk…",
     "Comparing your rate to your credit…",
+    "Checking the math behind your payment…",
     "Pricing the warranty…",
   ];
   return (

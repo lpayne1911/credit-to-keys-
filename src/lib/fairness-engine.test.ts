@@ -114,6 +114,86 @@ describe("scoreDeal — APR markup", () => {
   });
 });
 
+describe("scoreDeal — monthly-payment reality check", () => {
+  // A clean, fully-financed baseline whose deal numbers actually agree with the
+  // monthly payment, so the packing check should stay silent.
+  function financedDeal(overrides: Record<string, unknown> = {}) {
+    return baseInput({
+      deal: {
+        vehiclePrice: 26_000,
+        downPayment: 2_000,
+        apr: 7,
+        termMonths: 72,
+        creditBand: "good",
+        fees: [{ label: "Title / registration", amount: 300 }],
+        ...overrides,
+      },
+    });
+  }
+
+  it("stays silent when no monthly payment is entered", () => {
+    const r = scoreDeal(financedDeal());
+    expect(flagTypes(r.flags)).not.toContain("payment_packing");
+  });
+
+  it("flags a payment that implies far more financed than the deal lists", () => {
+    // $600/mo at 7% over 72 mo supports ~$35k of principal — well above the
+    // ~$24.3k financed here, even after the tax/title cushion.
+    const r = scoreDeal(financedDeal({ monthlyPayment: 600 }));
+    const flag = r.flags.find((f) => f.type === "payment_packing");
+    expect(flag).toBeTruthy();
+    expect(flag!.severity).toBe("high");
+    expect(flag!.estimatedImpact).toBeTruthy();
+    expect(flag!.estimatedImpact!.low).toBeLessThanOrEqual(
+      flag!.estimatedImpact!.high,
+    );
+  });
+
+  it("does NOT flag a payment that matches the financed amount", () => {
+    // ~$420/mo at 7% over 72 mo lines up with ~$24.6k financed → no surplus.
+    const r = scoreDeal(financedDeal({ monthlyPayment: 420 }));
+    expect(flagTypes(r.flags)).not.toContain("payment_packing");
+  });
+
+  it("does NOT flag a small surplus the tax/title allowance can absorb", () => {
+    // ~$470/mo implies ~$27.6k financed; the ~$2.6k cushion covers the gap.
+    const r = scoreDeal(financedDeal({ monthlyPayment: 470 }));
+    expect(flagTypes(r.flags)).not.toContain("payment_packing");
+  });
+
+  it("infers a high rate from the payment when no APR is given", () => {
+    const r = scoreDeal(
+      baseInput({
+        deal: {
+          vehiclePrice: 20_000,
+          downPayment: 0,
+          termMonths: 72,
+          creditBand: "good",
+          monthlyPayment: 600, // implies a very high APR on $22k principal
+        },
+      }),
+    );
+    const flag = r.flags.find((f) => f.type === "payment_packing");
+    expect(flag).toBeTruthy();
+    expect(flag!.title).toMatch(/interest rate/i);
+  });
+
+  it("does NOT infer a high rate when the payment is reasonable", () => {
+    const r = scoreDeal(
+      baseInput({
+        deal: {
+          vehiclePrice: 20_000,
+          downPayment: 0,
+          termMonths: 72,
+          creditBand: "good",
+          monthlyPayment: 385, // ~8% implied → within the likely band
+        },
+      }),
+    );
+    expect(flagTypes(r.flags)).not.toContain("payment_packing");
+  });
+});
+
 describe("scoreDeal — fees", () => {
   it("flags an always-junk add-on (nitrogen)", () => {
     const r = scoreDeal(
