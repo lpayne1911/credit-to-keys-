@@ -75,8 +75,9 @@ create table if not exists public.deals (
   auto_verdict            text check (auto_verdict in ('green', 'amber', 'red')),
   auto_result             jsonb,
 
-  -- Human-reviewed verdict (null until an operator publishes one)
-  reviewed_verdict        text check (reviewed_verdict in ('green', 'amber', 'red')),
+  -- Human-reviewed verdict (null until an operator publishes one). Includes
+  -- 'black' (walk away — fraud/legal), a human-reviewer-only escalation.
+  reviewed_verdict        text check (reviewed_verdict in ('green', 'amber', 'red', 'black')),
   reviewed_headline       text,
   reviewed_flags          jsonb,
   reviewed_at             timestamptz,
