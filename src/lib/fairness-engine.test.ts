@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   scoreDeal,
+  auditFees,
   type FairnessInput,
   type Flag,
 } from "./fairness-engine";
@@ -228,5 +229,51 @@ describe("scoreDeal — determinism & shape", () => {
     );
     expect(r.engineVersion).toMatch(/placeholder/);
     expect(r.assumptions.length).toBeGreaterThan(0);
+  });
+});
+
+describe("auditFees — standalone Junk Fee Audit entry point", () => {
+  it("flags always-junk items and estimates savings", () => {
+    const r = auditFees([
+      { label: "Nitrogen tire fill", amount: 199 },
+      { label: "Dealer prep", amount: 499 },
+    ]);
+    expect(r.challengeCount).toBe(2);
+    expect(r.flags.length).toBe(2);
+    expect(r.estimatedSavings).not.toBeNull();
+    expect(r.estimatedSavings!.high).toBeGreaterThan(0);
+    expect(r.estimatedSavings!.low).toBeLessThanOrEqual(r.estimatedSavings!.high);
+  });
+
+  it("does not flag a legitimate pass-through fee within its ceiling", () => {
+    const r = auditFees([{ label: "Title / registration", amount: 300 }]);
+    expect(r.challengeCount).toBe(0);
+    expect(r.estimatedSavings).toBeNull();
+  });
+
+  it("flags a doc fee above its reasonable ceiling", () => {
+    const r = auditFees([{ label: "Documentation fee", amount: 900 }]);
+    expect(r.challengeCount).toBe(1);
+    expect(r.flags[0].title).toMatch(/high/i);
+  });
+
+  it("uses the same logic as scoreDeal for the same fees", () => {
+    const fees = [{ label: "VIN etching", amount: 350 }];
+    const audit = auditFees(fees);
+    const full = scoreDeal({
+      vehicle: { year: 2021, make: "Toyota", model: "Camry" },
+      deal: { fees },
+    });
+    const fullFeeFlags = full.flags.filter(
+      (f) => f.type === "junk_fee" || f.type === "overpriced_addon",
+    );
+    expect(audit.flags).toEqual(fullFeeFlags);
+  });
+
+  it("returns an empty, safe result for no fees", () => {
+    const r = auditFees([]);
+    expect(r.challengeCount).toBe(0);
+    expect(r.flags).toEqual([]);
+    expect(r.estimatedSavings).toBeNull();
   });
 });

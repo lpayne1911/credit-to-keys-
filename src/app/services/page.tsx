@@ -47,8 +47,10 @@ const GROUPS: Group[] = [
         name: "Junk Fee Audit",
         fear: "What can I challenge?",
         blurb:
-          "A line-by-line challenge list of padded and bogus fees, with what each one should actually be — so you know exactly what to strike.",
-        price: "$149–$249",
+          "A line-by-line challenge list of padded and bogus fees, with what each one should actually be — so you know exactly what to strike. Try the instant version free.",
+        price: "Free–$249",
+        live: true,
+        href: "/junk-fee-audit",
       },
       {
         name: "F&I Product Review",
@@ -197,7 +199,7 @@ function ServiceCard({ s }: { s: Service }) {
       <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
         <span className="font-serif text-lg font-bold text-navy">{s.price}</span>
         {s.live ? (
-          <Link href="/check" className="btn-primary px-5 py-2 text-sm">
+          <Link href={s.href ?? "/check"} className="btn-primary px-5 py-2 text-sm">
             Start now
           </Link>
         ) : s.href ? (

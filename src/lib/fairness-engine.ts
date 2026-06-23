@@ -634,6 +634,44 @@ function assessApr(deal: DealInput, assumptions: string[]): Flag | null {
 //  Fees & add-ons
 // ---------------------------------------------------------------------------
 
+export interface FeeAuditResult {
+  /** One flag per fee we'd challenge — junk items and padded amounts. */
+  flags: Flag[];
+  /** Transparency notes about the ceilings/assumptions we applied. */
+  assumptions: string[];
+  /** How many of the entered fees we'd push back on. */
+  challengeCount: number;
+  /** Estimated dollars on the table if every flag is challenged. A range. */
+  estimatedSavings: { low: number; high: number } | null;
+}
+
+/**
+ * Focused public entry point for the standalone Junk Fee Audit tool. Runs the
+ * EXACT same fee logic {@link scoreDeal} uses, on a fee list alone, so the free
+ * audit and the full Deal Check can never drift apart. No vehicle, APR, or
+ * warranty needed — just the line items.
+ */
+export function auditFees(fees: ItemizedFee[]): FeeAuditResult {
+  const assumptions: string[] = [];
+  const flags = assessFees(fees, assumptions);
+  let low = 0;
+  let high = 0;
+  let any = false;
+  for (const f of flags) {
+    if (f.estimatedImpact) {
+      low += f.estimatedImpact.low;
+      high += f.estimatedImpact.high;
+      any = true;
+    }
+  }
+  return {
+    flags,
+    assumptions: dedupe(assumptions),
+    challengeCount: flags.length,
+    estimatedSavings: any && high > 0 ? { low, high } : null,
+  };
+}
+
 function assessFees(fees: ItemizedFee[], assumptions: string[]): Flag[] {
   const out: Flag[] = [];
   for (const fee of fees) {

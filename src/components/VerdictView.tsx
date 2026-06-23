@@ -204,7 +204,7 @@ const SEVERITY_ORDER: Record<string, number> = {
   info: 3,
 };
 
-function FlagCard({ flag }: { flag: Flag }) {
+export function FlagCard({ flag }: { flag: Flag }) {
   const isInfo = flag.severity === "info";
   return (
     <li
