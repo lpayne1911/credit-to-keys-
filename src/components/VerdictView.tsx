@@ -17,6 +17,7 @@ import {
   WARRANTY_RATING_LABEL,
 } from "@/lib/fairness-engine";
 import { compareTerm } from "@/lib/loan-math";
+import { savingsRange } from "@/lib/verdict-summary";
 import { NegotiationScriptCard } from "@/components/NegotiationScriptCard";
 
 /** The loan numbers needed to show what financing really costs over the term. */
@@ -145,27 +146,14 @@ export function dealScore(result: FairnessResult): number {
   return Math.max(8, Math.min(100, Math.round(score)));
 }
 
-/** Sum the dollar impact across all flags that carry an estimate. */
-function totalImpact(result: FairnessResult): { low: number; high: number } | null {
-  let low = 0;
-  let high = 0;
-  let any = false;
-  for (const f of result.flags) {
-    if (f.estimatedImpact) {
-      low += f.estimatedImpact.low;
-      high += f.estimatedImpact.high;
-      any = true;
-    }
-  }
-  return any && high > 0 ? { low, high } : null;
-}
-
 /**
  * The big "value-forward" number a KBB-style report leads with: the money we
  * estimate is on the table across every red flag. Honest range, never a promise.
+ * Uses {@link savingsRange}, which excludes pre-existing debt (negative equity)
+ * so the headline reflects only what the buyer can actually claw back.
  */
 export function SavingsHero({ result }: { result: FairnessResult }) {
-  const impact = totalImpact(result);
+  const impact = savingsRange(result);
   if (!impact) {
     return (
       <div className="border-t border-navy/10 bg-white/55 px-6 py-4 text-sm text-navy/65">
