@@ -11,8 +11,14 @@ import { useState } from "react";
 import type { FairnessResult } from "@/lib/fairness-engine";
 import { buildNegotiationScript } from "@/lib/negotiation";
 
-export function NegotiationScriptCard({ result }: { result: FairnessResult }) {
-  const script = buildNegotiationScript(result);
+export function NegotiationScriptCard({
+  result,
+  offeredApr,
+}: {
+  result: FairnessResult;
+  offeredApr?: number | null;
+}) {
+  const script = buildNegotiationScript(result, { offeredApr });
   const [copied, setCopied] = useState(false);
 
   async function copy() {

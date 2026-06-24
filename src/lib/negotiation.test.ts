@@ -115,4 +115,112 @@ describe("buildNegotiationScript", () => {
     const r = scoreDeal(baseInput({ deal: { apr: 16.9, creditBand: "good", fees: [] } }));
     expect(buildNegotiationScript(r)).toEqual(buildNegotiationScript(r));
   });
+
+  it("names the actual quoted APR when context provides it", () => {
+    const r = scoreDeal(
+      baseInput({
+        deal: {
+          apr: 18,
+          creditBand: "good",
+          vehiclePrice: 26_000,
+          downPayment: 2_000,
+          termMonths: 60,
+          fees: [],
+        },
+      }),
+    );
+    const withApr = buildNegotiationScript(r, { offeredApr: 18 });
+    const line = withApr.points.find((p) => /qualify for/i.test(p.say))!;
+    expect(line.say).toContain("18% APR");
+    // Without context it falls back to a generic but clean line.
+    const generic = buildNegotiationScript(r);
+    expect(generic.points.find((p) => /qualify for/i.test(p.say))!.say).toContain(
+      "This APR",
+    );
+  });
+
+  it("names the warranty's quoted price and fair range", () => {
+    const r = scoreDeal(
+      baseInput({
+        warranty: { coverageTier: "powertrain", termMonths: 36, priceQuoted: 50_000 },
+      }),
+    );
+    const line = buildNegotiationScript(r).points.find((p) =>
+      /service contract/i.test(p.say),
+    )!;
+    expect(line.say).toContain("$50,000");
+    expect(line.say).toMatch(/fair price is closer to \$/);
+  });
+});
+
+describe("buildNegotiationScript — integrity across every flag type", () => {
+  // Deals chosen so that, together, they trigger every real flag type the
+  // engine emits: apr_markup, overpriced_addon, junk_fee (always + over-ceiling),
+  // overpriced_warranty, and payment_packing.
+  const deals: FairnessInput[] = [
+    baseInput({
+      deal: {
+        vehiclePrice: 26_000,
+        downPayment: 2_000,
+        apr: 18,
+        termMonths: 72,
+        creditBand: "good",
+        fees: [
+          { label: "Nitrogen tires", amount: 399 }, // overpriced_addon
+          { label: "Dealer prep", amount: 499 }, // junk_fee (always)
+          { label: "Market adjustment", amount: 1995 }, // junk_fee (always)
+          { label: "Documentation fee", amount: 900 }, // junk_fee (over-ceiling, "looks high")
+          { label: "Title / registration", amount: 800 }, // junk_fee (over-ceiling, "looks high")
+        ],
+      },
+      warranty: { coverageTier: "exclusionary", termMonths: 72, priceQuoted: 50_000 },
+    }),
+    baseInput({
+      deal: {
+        vehiclePrice: 26_000,
+        downPayment: 2_000,
+        apr: 7,
+        termMonths: 72,
+        creditBand: "good",
+        monthlyPayment: 600, // payment_packing
+        fees: [{ label: "Title / registration", amount: 300 }],
+      },
+    }),
+  ];
+
+  const BANNED = [/looks?\s+high/i, /likely junk fee/i, /possible marked/i, /::/];
+
+  it("covers every real flag type the engine can emit", () => {
+    const seen = new Set<string>();
+    for (const d of deals) {
+      for (const f of scoreDeal(d).flags) {
+        if (f.type !== "missing_info" && f.type !== "info") seen.add(f.type);
+      }
+    }
+    for (const t of [
+      "apr_markup",
+      "overpriced_addon",
+      "junk_fee",
+      "overpriced_warranty",
+      "payment_packing",
+    ]) {
+      expect(seen.has(t)).toBe(true);
+    }
+  });
+
+  it("never leaks a raw title fragment into any say-line or heading", () => {
+    for (const d of deals) {
+      const script = buildNegotiationScript(scoreDeal(d), { offeredApr: d.deal.apr });
+      for (const p of script.points) {
+        for (const bad of BANNED) {
+          expect(p.say, `say: "${p.say}"`).not.toMatch(bad);
+          expect(p.heading, `heading: "${p.heading}"`).not.toMatch(bad);
+        }
+        // Every line is a real, complete sentence.
+        expect(p.say.length).toBeGreaterThan(15);
+        expect(p.say.trim().endsWith(".")).toBe(true);
+        expect(p.heading.length).toBeGreaterThan(0);
+      }
+    }
+  });
 });

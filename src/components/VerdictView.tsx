@@ -468,7 +468,7 @@ export function VerdictView({
       </div>
 
       {/* Primary action — the words to use, right under the verdict. */}
-      <NegotiationScriptCard result={result} />
+      <NegotiationScriptCard result={result} offeredApr={loan?.apr ?? null} />
 
       {/* Depth on demand — the detailed red flags, warranty, loan cost, gaps,
           and assumptions all live one tap away so the verdict + script lead.

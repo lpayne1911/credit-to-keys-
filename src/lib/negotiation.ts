@@ -17,7 +17,12 @@
  * buyer's power to walk.
  * ============================================================================
  */
-import type { FairnessResult, Flag, Verdict } from "./fairness-engine";
+import type {
+  FairnessResult,
+  Flag,
+  Verdict,
+  WarrantyAssessment,
+} from "./fairness-engine";
 
 export interface ScriptPoint {
   /** Short label for the issue, e.g. "Nitrogen tire fill". */
@@ -35,6 +40,18 @@ export interface NegotiationScript {
   closer: string;
   /** Flat plain-text version for copy-to-clipboard / screenshot. */
   asText: string;
+}
+
+/** Optional real-world figures that make the high-value lines specific. */
+export interface ScriptContext {
+  /** The APR the dealer actually quoted, so the rate line can name it. */
+  offeredApr?: number | null;
+}
+
+/** Internal context the say-lines draw on — built from the result + caller. */
+interface SayContext {
+  offeredApr: number | null;
+  warranty: WarrantyAssessment | null;
 }
 
 function money(n: number): string {
@@ -64,8 +81,22 @@ function impactNote(flag: Flag): string {
   return ` (about ${money(i.low)}–${money(i.high)})`;
 }
 
+/** A short, stable label for a flag — never leaks raw title fragments. */
+function headingFor(flag: Flag): string {
+  switch (flag.type) {
+    case "apr_markup":
+      return "Interest rate";
+    case "payment_packing":
+      return "Monthly payment";
+    case "overpriced_warranty":
+      return "Extended warranty";
+    default:
+      return itemName(flag);
+  }
+}
+
 /** The line a buyer can say for one flag, by type. */
-function sayFor(flag: Flag): string {
+function sayFor(flag: Flag, ctx: SayContext): string {
   const impact = impactNote(flag);
   switch (flag.type) {
     case "junk_fee":
@@ -73,12 +104,26 @@ function sayFor(flag: Flag): string {
     case "overpriced_addon":
     case "redundant_addon":
       return `I don't want the ${itemName(flag)}${impact}. Please remove it from the numbers.`;
-    case "apr_markup":
-      return `This APR is higher than I qualify for${impact}. Show me the lender's buy rate, or I'll go with my own pre-approval.`;
+    case "apr_markup": {
+      // Name the actual rate when we have it — concrete numbers carry weight.
+      const lead =
+        ctx.offeredApr != null
+          ? `The ${ctx.offeredApr}% APR you're quoting me`
+          : "This APR";
+      return `${lead} is higher than I qualify for${impact}. Show me the lender's buy rate, or I'll go with my own pre-approval.`;
+    }
     case "payment_packing":
-      return `Before we talk about the monthly payment, show me the full amount financed and the APR in writing — the payment looks higher than these numbers add up to.`;
-    case "overpriced_warranty":
-      return `I'm not paying this price for the service contract${impact}. Bring it to a fair price or I'll pass — I can buy coverage elsewhere.`;
+      return `Before we talk about the monthly payment, show me the full amount financed and the APR in writing — the payment is higher than these numbers add up to.`;
+    case "overpriced_warranty": {
+      const w = ctx.warranty;
+      const quoted =
+        w && w.quotedPrice ? ` ${money(w.quotedPrice)}` : " this price";
+      const fair =
+        w && w.fairRange && w.fairRange.high > 0
+          ? ` — a fair price is closer to ${money(w.fairRange.low)}–${money(w.fairRange.high)}`
+          : "";
+      return `I'm not paying${quoted} for the service contract${fair}. Bring it to a fair price or I'll pass — I can buy coverage elsewhere.`;
+    }
     default:
       return `I'd like to go over "${itemName(flag)}" before I sign anything.`;
   }
@@ -112,14 +157,22 @@ function closerFor(verdict: Verdict): string {
  * missing-info/info notes are ignored. A clean deal still gets a short,
  * confidence-preserving script.
  */
-export function buildNegotiationScript(result: FairnessResult): NegotiationScript {
+export function buildNegotiationScript(
+  result: FairnessResult,
+  context: ScriptContext = {},
+): NegotiationScript {
+  const ctx: SayContext = {
+    offeredApr: context.offeredApr ?? null,
+    warranty: result.warranty,
+  };
+
   const realFlags = result.flags.filter(
     (f) => f.type !== "missing_info" && f.type !== "info",
   );
 
   const points: ScriptPoint[] = realFlags.map((f) => ({
-    heading: itemName(f),
-    say: sayFor(f),
+    heading: headingFor(f),
+    say: sayFor(f, ctx),
   }));
 
   if (points.length === 0) {
