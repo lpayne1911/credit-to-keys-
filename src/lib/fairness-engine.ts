@@ -102,11 +102,26 @@ export interface WarrantyInput {
   priceQuoted?: number | null;
 }
 
+export interface TradeInInput {
+  /** What the dealer offered for the buyer's trade-in. */
+  offer?: number | null;
+  /**
+   * The buyer's own researched value for their trade (e.g. KBB / Edmunds
+   * trade-in value). Required to judge a lowball — we never price the trade
+   * ourselves. Optional.
+   */
+  estimatedValue?: number | null;
+  /** Remaining loan balance on the trade, if it's still financed. */
+  loanPayoff?: number | null;
+}
+
 export interface FairnessInput {
   vehicle: VehicleInput;
   deal: DealInput;
   /** Optional — many buyers check a deal with no warranty attached. */
   warranty?: WarrantyInput | null;
+  /** Optional — present only when the buyer is trading in a vehicle. */
+  tradeIn?: TradeInInput | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -130,6 +145,8 @@ export type FlagType =
   | "redundant_addon"
   | "overpriced_warranty"
   | "payment_packing"
+  | "trade_lowball"
+  | "negative_equity"
   | "missing_info"
   | "info";
 
@@ -322,6 +339,16 @@ const PACKING_MIN_ABS = 1_200;
 const PACKING_MIN_PCT_OF_PRICE = 0.05;
 
 /**
+ * Trade-in lowball detection. A dealer's trade offer legitimately runs somewhat
+ * below clean retail (they recondition and resell at a margin), so we only flag
+ * a gap that clears BOTH a percentage and an absolute floor below the buyer's
+ * OWN researched value. We never price the trade ourselves — no false precision.
+ */
+// PLACEHOLDER — replace with real engine value (owner's trade valuation model)
+const TRADE_LOWBALL_MIN_PCT = 0.1; // offer >10% under the buyer's value, and…
+const TRADE_LOWBALL_MIN_ABS = 500; // …at least $500 under, before we flag.
+
+/**
  * Junk/padded-fee detection. Legitimate fees exist (real doc, title, registry),
  * but several line items are pure profit padding or have a typical reasonable
  * ceiling. We match fee labels heuristically.
@@ -420,6 +447,11 @@ export function scoreDeal(input: FairnessInput): FairnessResult {
   // --- Monthly-payment reality check (payment packing) -------------------
   const paymentFlag = assessPayment(input.deal, input.warranty ?? null, assumptions);
   if (paymentFlag) flags.push(paymentFlag);
+
+  // --- Trade-in (lowball + negative equity) ------------------------------
+  if (input.tradeIn && hasTradeSignal(input.tradeIn)) {
+    flags.push(...assessTradeIn(input.tradeIn, assumptions));
+  }
 
   // --- Fees & add-ons ----------------------------------------------------
   flags.push(...assessFees(input.deal.fees ?? [], assumptions));
@@ -762,6 +794,97 @@ function assessPayment(
     )}% — above the ${band.low}%–${band.high}% a buyer with your stated credit would likely qualify for. The rate may be marked up, or more may be financed than you realize. Ask for the APR and the amount financed in writing, and compare a pre-approval from your own bank or credit union.`,
     estimatedImpact: null,
   };
+}
+
+// ---------------------------------------------------------------------------
+//  Trade-in: lowball offer + negative equity
+// ---------------------------------------------------------------------------
+
+function hasTradeSignal(t: TradeInInput): boolean {
+  return Boolean(t.offer || t.estimatedValue || t.loanPayoff);
+}
+
+const round25 = (n: number): number => Math.round(n / 25) * 25;
+
+/**
+ * Two independent trade-in checks:
+ *  - LOWBALL needs the buyer's own researched value; we flag an offer that sits
+ *    well below it (beyond normal dealer margin).
+ *  - NEGATIVE EQUITY needs only the loan payoff vs. the offer; owing more than
+ *    the trade is worth is a serious trap when it's rolled into the new loan.
+ * When a trade is present but no value was entered, we add a buyer-side nudge
+ * to look it up (type "info" — never affects the verdict or confidence).
+ */
+function assessTradeIn(t: TradeInInput, assumptions: string[]): Flag[] {
+  const flags: Flag[] = [];
+  const offer = t.offer ?? null;
+  const value = t.estimatedValue ?? null;
+  const payoff = t.loanPayoff ?? null;
+
+  // --- Lowball: dealer offer vs. the buyer's researched value -------------
+  if (offer != null && value != null && value > 0) {
+    const gap = value - offer;
+    const floor = Math.max(TRADE_LOWBALL_MIN_ABS, value * TRADE_LOWBALL_MIN_PCT);
+    if (gap > floor) {
+      assumptions.push(
+        "Trade-in lowball check compares the dealer's offer to the value you entered; real trade offers run somewhat below clean retail for reconditioning and resale margin.",
+      );
+      flags.push({
+        type: "trade_lowball",
+        severity: gap >= 2_000 ? "high" : "medium",
+        title: "Trade-in offer looks low",
+        explanation: `The dealer offered ${money(offer)} for your trade, but you valued it around ${money(
+          value,
+        )} — about ${money(
+          gap,
+        )} less. Some gap is normal (the dealer resells at a margin), but this is wide enough to push on. Get a couple of competing offers (e.g. CarMax, Carvana) to use as leverage, or sell it yourself.`,
+        estimatedImpact: {
+          low: round25(gap * 0.4),
+          high: round25(gap),
+          confidence: "low",
+          basis:
+            "Estimated room between the offer and the value you entered — depends on your car's real condition and local demand.",
+        },
+      });
+    }
+  } else if (offer != null && offer > 0 && (value == null || value <= 0)) {
+    // Have an offer but nothing to compare it to — nudge, don't score.
+    flags.push({
+      type: "info",
+      severity: "info",
+      title: "Look up your trade's value",
+      explanation:
+        "You entered a trade-in offer but no value to compare it against. Look up your car's trade-in value (KBB, Edmunds) or get a quick quote from CarMax/Carvana, then re-check — that's how you'll know if the offer is fair.",
+    });
+  }
+
+  // --- Negative equity: owe more than the trade is worth ------------------
+  if (offer != null && payoff != null && payoff > offer) {
+    const neg = payoff - offer;
+    flags.push({
+      type: "negative_equity",
+      severity: neg >= 3_000 ? "high" : "medium",
+      title: "You owe more on your trade than it's worth",
+      explanation: `Your loan payoff (${money(
+        payoff,
+      )}) is about ${money(
+        neg,
+      )} more than the ${money(
+        offer,
+      )} the dealer is offering. That ${money(
+        neg,
+      )} of "negative equity" usually gets rolled into your new loan — so you'd finance part of a car you no longer own, often at the new car's rate. Ask exactly how the payoff is handled, and avoid rolling it in if you can.`,
+      estimatedImpact: {
+        low: round25(neg),
+        high: round25(neg * 1.2),
+        confidence: "medium",
+        basis:
+          "The negative equity that may be added to your new loan — the high end allows for interest if it's financed.",
+      },
+    });
+  }
+
+  return flags;
 }
 
 // ---------------------------------------------------------------------------

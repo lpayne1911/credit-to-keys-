@@ -186,6 +186,10 @@ describe("buildNegotiationScript — integrity across every flag type", () => {
         fees: [{ label: "Title / registration", amount: 300 }],
       },
     }),
+    baseInput({
+      // trade_lowball + negative_equity
+      tradeIn: { offer: 7_000, estimatedValue: 10_000, loanPayoff: 11_000 },
+    }),
   ];
 
   const BANNED = [/looks?\s+high/i, /likely junk fee/i, /possible marked/i, /::/];
@@ -203,6 +207,8 @@ describe("buildNegotiationScript — integrity across every flag type", () => {
       "junk_fee",
       "overpriced_warranty",
       "payment_packing",
+      "trade_lowball",
+      "negative_equity",
     ]) {
       expect(seen.has(t)).toBe(true);
     }

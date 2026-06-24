@@ -294,6 +294,45 @@ describe("scoreDeal — warranty pricing", () => {
   });
 });
 
+describe("scoreDeal — trade-in", () => {
+  it("flags a lowball offer well below the buyer's researched value", () => {
+    const r = scoreDeal(baseInput({ tradeIn: { offer: 7_000, estimatedValue: 10_000 } }));
+    const flag = r.flags.find((f) => f.type === "trade_lowball");
+    expect(flag).toBeTruthy();
+    expect(flag!.severity).toBe("high"); // $3k gap
+    expect(flag!.estimatedImpact!.low).toBeLessThanOrEqual(flag!.estimatedImpact!.high);
+  });
+
+  it("does NOT flag an offer within normal dealer margin", () => {
+    const r = scoreDeal(baseInput({ tradeIn: { offer: 9_500, estimatedValue: 10_000 } }));
+    expect(flagTypes(r.flags)).not.toContain("trade_lowball");
+  });
+
+  it("flags negative equity from payoff above the offer", () => {
+    const r = scoreDeal(baseInput({ tradeIn: { offer: 7_000, loanPayoff: 11_000 } }));
+    const flag = r.flags.find((f) => f.type === "negative_equity");
+    expect(flag).toBeTruthy();
+    expect(flag!.estimatedImpact).toBeTruthy();
+  });
+
+  it("does NOT flag negative equity when the trade has positive equity", () => {
+    const r = scoreDeal(baseInput({ tradeIn: { offer: 9_000, loanPayoff: 8_000 } }));
+    expect(flagTypes(r.flags)).not.toContain("negative_equity");
+  });
+
+  it("nudges (info only) when there's an offer but no value to compare", () => {
+    const r = scoreDeal(baseInput({ tradeIn: { offer: 7_000 } }));
+    expect(r.flags.some((f) => f.title === "Look up your trade's value")).toBe(true);
+    expect(flagTypes(r.flags)).not.toContain("trade_lowball");
+  });
+
+  it("adds no trade flags when no trade-in is present", () => {
+    const r = scoreDeal(baseInput());
+    expect(flagTypes(r.flags)).not.toContain("trade_lowball");
+    expect(flagTypes(r.flags)).not.toContain("negative_equity");
+  });
+});
+
 describe("scoreDeal — determinism & shape", () => {
   it("is deterministic for identical input", () => {
     const a = scoreDeal(baseInput());

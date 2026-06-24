@@ -90,6 +90,10 @@ function headingFor(flag: Flag): string {
       return "Monthly payment";
     case "overpriced_warranty":
       return "Extended warranty";
+    case "trade_lowball":
+      return "Trade-in offer";
+    case "negative_equity":
+      return "Trade-in payoff";
     default:
       return itemName(flag);
   }
@@ -124,6 +128,10 @@ function sayFor(flag: Flag, ctx: SayContext): string {
           : "";
       return `I'm not paying${quoted} for the service contract${fair}. Bring it to a fair price or I'll pass — I can buy coverage elsewhere.`;
     }
+    case "trade_lowball":
+      return `Your offer on my trade-in is low${impact}. Please come up to a fair number, or I'll get competing offers and sell it myself.`;
+    case "negative_equity":
+      return `I owe more on my trade than you're offering${impact}. I don't want that negative equity rolled into the new payment — let's handle the payoff separately.`;
     default:
       return `I'd like to go over "${itemName(flag)}" before I sign anything.`;
   }

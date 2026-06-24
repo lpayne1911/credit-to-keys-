@@ -88,6 +88,12 @@ type State = {
   warrantyCoverageTier: string;
   warrantyTermMonths: number;
   warrantyPrice: number;
+  hasTrade: boolean | null;
+  tradeOffer: number;
+  knowsTradeValue: boolean;
+  tradeValue: number;
+  tradeStillOwe: boolean;
+  tradePayoff: number;
 };
 
 const NOW = new Date().getFullYear();
@@ -109,6 +115,12 @@ const INITIAL: State = {
   warrantyCoverageTier: "unknown",
   warrantyTermMonths: 60,
   warrantyPrice: 2_500,
+  hasTrade: null,
+  tradeOffer: 8_000,
+  knowsTradeValue: false,
+  tradeValue: 10_000,
+  tradeStillOwe: false,
+  tradePayoff: 9_000,
 };
 
 type StepKey =
@@ -119,6 +131,7 @@ type StepKey =
   | "price"
   | "financing"
   | "addons"
+  | "trade"
   | "warranty";
 const STEPS: StepKey[] = [
   "start",
@@ -128,6 +141,7 @@ const STEPS: StepKey[] = [
   "price",
   "financing",
   "addons",
+  "trade",
   "warranty",
 ];
 const PROGRESS_STEPS = STEPS.length - 1;
@@ -190,6 +204,13 @@ export function GamifiedDealCheck() {
             coverageTier: s.warrantyCoverageTier,
             termMonths: s.warrantyTermMonths,
             priceQuoted: s.warrantyPrice,
+          }
+        : undefined,
+      tradeIn: s.hasTrade
+        ? {
+            offer: s.tradeOffer,
+            estimatedValue: s.knowsTradeValue ? s.tradeValue : undefined,
+            loanPayoff: s.tradeStillOwe ? s.tradePayoff : undefined,
           }
         : undefined,
       inputPath: uploadedPath ? "upload" : "manual",
@@ -282,6 +303,12 @@ export function GamifiedDealCheck() {
           label: Object.keys(s.addOns).length ? "Continue" : "None of these — continue",
           onClick: next,
           enabled: true,
+        };
+      case "trade":
+        return {
+          label: s.hasTrade ? "Continue" : "No trade — continue",
+          onClick: next,
+          enabled: s.hasTrade !== null,
         };
       case "warranty":
         return { label: "See my verdict →", onClick: submit, enabled: s.hasWarranty !== null };
@@ -514,6 +541,70 @@ export function GamifiedDealCheck() {
                   );
                 })}
               </div>
+            </Step>
+          )}
+
+          {step === "trade" && (
+            <Step title="Trading in a car?" sub="Where dealers quietly take back what they gave you. Let's check the trade.">
+              <div className="grid grid-cols-2 gap-2.5">
+                <button type="button" onClick={() => set("hasTrade", false)}
+                  className={`choice justify-center !py-5 ${s.hasTrade === false ? "choice--on" : ""}`}>
+                  <span className="font-semibold text-navy">No / skip</span>
+                </button>
+                <button type="button" onClick={() => set("hasTrade", true)}
+                  className={`choice justify-center !py-5 ${s.hasTrade === true ? "choice--on" : ""}`}>
+                  <span className="font-semibold text-navy">Yes, I have one</span>
+                </button>
+              </div>
+              {s.hasTrade && (
+                <div className="mt-7 space-y-7 animate-step-in">
+                  <Slider label="Their offer for your trade" value={s.tradeOffer} min={0} max={60_000} step={250}
+                    onChange={(v) => set("tradeOffer", v)} format={money} big />
+                  <div>
+                    <p className="field-label">Know what it&apos;s really worth?</p>
+                    <div className="flex flex-wrap gap-2">
+                      <button type="button" onClick={() => set("knowsTradeValue", false)}
+                        className={`pill ${!s.knowsTradeValue ? "pill--on" : ""}`}>
+                        Not sure
+                      </button>
+                      <button type="button" onClick={() => set("knowsTradeValue", true)}
+                        className={`pill ${s.knowsTradeValue ? "pill--on" : ""}`}>
+                        I looked it up
+                      </button>
+                    </div>
+                    {s.knowsTradeValue ? (
+                      <div className="mt-5">
+                        <Slider label="What it's really worth" value={s.tradeValue} min={0} max={60_000} step={250}
+                          onChange={(v) => set("tradeValue", v)} format={money} />
+                        <p className="mt-2 text-xs text-navy/50">
+                          A ballpark from KBB, Edmunds, or a CarMax/Carvana quote.
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="mt-2 text-xs text-navy/50">
+                        No worries — look up its trade-in value later and re-check. We&apos;ll still flag negative equity.
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <p className="field-label">Still owe money on it?</p>
+                    <div className="flex flex-wrap gap-2">
+                      <button type="button" onClick={() => set("tradeStillOwe", false)}
+                        className={`pill ${!s.tradeStillOwe ? "pill--on" : ""}`}>
+                        Paid off
+                      </button>
+                      <button type="button" onClick={() => set("tradeStillOwe", true)}
+                        className={`pill ${s.tradeStillOwe ? "pill--on" : ""}`}>
+                        Still owe
+                      </button>
+                    </div>
+                  </div>
+                  {s.tradeStillOwe && (
+                    <Slider label="Loan payoff amount" value={s.tradePayoff} min={0} max={60_000} step={250}
+                      onChange={(v) => set("tradePayoff", v)} format={money} big />
+                  )}
+                </div>
+              )}
             </Step>
           )}
 
