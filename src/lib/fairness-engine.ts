@@ -332,8 +332,19 @@ const APR_MARKUP_MARGIN_PCT = 2.0;
  * surplus "unexplained." Only padding ABOVE that cushion is flagged, which
  * keeps honest tax-heavy deals from tripping a false alarm.
  */
-// PLACEHOLDER — replace with real engine value
-const TAX_TITLE_ALLOWANCE_PCT = 0.1; // assume up to ~10% of price may be tax/title
+/**
+ * Typical combined sales tax + title/registration as a share of the sale price.
+ * Buyers rarely itemize it but commonly finance it, so it is the ONE assumption
+ * behind both the payment-packing tax cushion (below) and the loan-cost panel's
+ * "if you also finance taxes" estimate. Exported as the single source of truth
+ * so those two surfaces can never silently disagree.
+ */
+// PLACEHOLDER — replace with real engine value (varies widely by state)
+export const TYPICAL_TAX_TITLE_PCT = 0.1;
+// The packing check allows up to this share of price as legitimate unitemized
+// tax/title before calling a financed surplus "unexplained". Derived from the
+// shared assumption above (a real engine may make the cushion more generous).
+const TAX_TITLE_ALLOWANCE_PCT = TYPICAL_TAX_TITLE_PCT;
 // Padding must clear BOTH an absolute floor and a share of the price to flag.
 const PACKING_MIN_ABS = 1_200;
 const PACKING_MIN_PCT_OF_PRICE = 0.05;

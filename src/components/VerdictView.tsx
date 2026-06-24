@@ -15,6 +15,7 @@ import {
   type WarrantyAssessment,
   VERDICT_LABEL,
   WARRANTY_RATING_LABEL,
+  TYPICAL_TAX_TITLE_PCT,
 } from "@/lib/fairness-engine";
 import { compareTerm, paymentBreakdown } from "@/lib/loan-math";
 import { savingsRange } from "@/lib/verdict-summary";
@@ -294,14 +295,6 @@ export function WarrantyCard({ warranty }: { warranty: WarrantyAssessment }) {
     </div>
   );
 }
-
-/**
- * Display-only assumption: in many US states tax + title runs on the order of
- * ~10% of the sale price and is commonly financed. We never claim a precise
- * figure (rates vary widely; a few states are ~0%), so it's surfaced as a
- * clearly-labeled estimate — never folded silently into the headline numbers.
- */
-const TYPICAL_TAX_TITLE_PCT = 0.1;
 
 /**
  * "What this loan really costs" — turns the deal's numbers into total interest
