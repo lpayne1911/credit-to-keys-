@@ -2,11 +2,7 @@ import { describe, it, expect } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { VerdictView } from "@/components/VerdictView";
-import {
-  scoreDeal,
-  TYPICAL_TAX_TITLE_PCT,
-  type FairnessInput,
-} from "@/lib/fairness-engine";
+import { scoreDeal, type FairnessInput } from "@/lib/fairness-engine";
 
 /**
  * Render-to-HTML smoke test. This sandbox can't run a browser, but server-
@@ -68,18 +64,15 @@ describe("VerdictView renders", () => {
     // The detailed flags live in the disclosure, not the default view.
     expect(html).toMatch(/See all \d+ red flags/);
 
-    // Loan-cost panel quantifies the tax it leaves out (not just hand-waves it),
-    // and the figure is driven by the engine's shared constant — if the panel
-    // and engine ever diverge on the tax assumption, this fails.
+    // Loan-cost panel quantifies the tax it leaves out, pinned to independently
+    // computed values so a math/format regression (round25, currency, the tax %)
+    // fails here — not just a panel/engine divergence (which the shared constant
+    // already prevents structurally). On a $28k price: ~$2,800 tax, ~$4,600 more
+    // over the 72-mo / 18% loan if that's financed.
     expect(html).toContain("finance the sale price");
     expect(html).toContain("more over the loan");
-    const taxEstimate = Math.round((28_000 * TYPICAL_TAX_TITLE_PCT) / 25) * 25;
-    const taxText = taxEstimate.toLocaleString("en-US", {
-      style: "currency",
-      currency: "USD",
-      maximumFractionDigits: 0,
-    });
-    expect(html).toContain(taxText);
+    expect(html).toContain("$2,800");
+    expect(html).toContain("$4,600");
   });
 
   it("a clean deal: no-flags reassurance, no crash", () => {
