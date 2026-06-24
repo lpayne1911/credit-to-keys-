@@ -58,6 +58,19 @@ describe("buildNegotiationScript", () => {
     expect(nitro!.say).toMatch(/\$/); // carries an impact figure
   });
 
+  it("names a fee-over-ceiling cleanly, without the 'looks high' suffix", () => {
+    const result = scoreDeal(
+      baseInput({
+        deal: { apr: 7, creditBand: "good", fees: [{ label: "Documentation fee", amount: 900 }] },
+      }),
+    );
+    const script = buildNegotiationScript(result);
+    const docPoint = script.points.find((p) => /documentation/i.test(p.say));
+    expect(docPoint).toBeTruthy();
+    expect(docPoint!.say).not.toMatch(/looks high/i);
+    expect(docPoint!.heading).toBe("Documentation fee");
+  });
+
   it("gives a clean deal a single confirm-the-price point", () => {
     const script = buildNegotiationScript(scoreDeal(baseInput()));
     expect(script.points).toHaveLength(1);

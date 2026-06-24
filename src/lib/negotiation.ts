@@ -47,12 +47,14 @@ function money(n: number): string {
 
 /** The specific item a fee/add-on flag is about, pulled from its title. */
 function itemName(flag: Flag): string {
-  // Fee titles read like "Likely junk fee: Nitrogen tire fill" or
-  // "Documentation fee looks high" — the part after a colon is the cleanest.
-  const afterColon = flag.title.includes(":")
-    ? flag.title.slice(flag.title.indexOf(":") + 1).trim()
-    : flag.title.trim();
-  return afterColon || flag.title.trim();
+  // Fee titles read like "Likely junk fee: Nitrogen tire fill" (prefix before a
+  // colon) or "Documentation fee looks high" (a "looks high" suffix). Strip both
+  // so the talking point names the item cleanly.
+  let name = flag.title.includes(":")
+    ? flag.title.slice(flag.title.indexOf(":") + 1)
+    : flag.title;
+  name = name.replace(/\s+looks?\s+high$/i, "").trim();
+  return name || flag.title.trim();
 }
 
 /** A parenthetical dollar range for a flag's impact, or "" when unknown. */

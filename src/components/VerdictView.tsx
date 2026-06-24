@@ -470,92 +470,93 @@ export function VerdictView({
       {/* Primary action — the words to use, right under the verdict. */}
       <NegotiationScriptCard result={result} />
 
-      {/* Red flags — the answer-first substance. What to actually push back on. */}
-      <div>
-        <h3 className="mb-3 text-lg font-semibold text-navy">
-          {realFlags.length > 0
-            ? `Red flags we found (${realFlags.length})`
-            : "Red flags"}
-        </h3>
-        {realFlags.length > 0 ? (
-          <ul className="space-y-3">
-            {realFlags.map((f, i) => (
-              <FlagCard key={i} flag={f} />
-            ))}
-          </ul>
-        ) : (
-          <p className="rounded-xl border border-verdict-green/20 bg-verdict-green/5 p-4 text-sm text-navy/70">
-            Nothing in what you entered tripped a red flag. That doesn&apos;t
-            guarantee the deal is perfect — it means the numbers you gave us look
-            reasonable against our estimates.
-          </p>
-        )}
-      </div>
-
-      {/* Depth on demand — warranty, loan cost, gaps, and assumptions stay one
-          tap away so the verdict + red flags lead, instead of burying them. */}
-      {(result.warranty ||
-        loan ||
-        infoFlags.length > 0 ||
-        result.assumptions.length > 0) && (
-        <details className="group overflow-hidden rounded-2xl border border-navy/10 bg-white">
-          <summary className="flex cursor-pointer list-none items-center justify-between px-5 py-4 text-sm font-semibold text-navy hover:bg-cream-100">
-            <span>See the full breakdown</span>
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              className="text-navy/40 transition-transform group-open:rotate-180"
-              aria-hidden
-            >
-              <path
-                d="M6 9l6 6 6-6"
-                stroke="currentColor"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </summary>
-          <div className="space-y-6 border-t border-navy/10 p-5">
-            {result.warranty && <WarrantyCard warranty={result.warranty} />}
-            {loan && <LoanCostPanel loan={loan} />}
-
-            {infoFlags.length > 0 && (
-              <div>
-                <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-navy/50">
-                  To make this check stronger
-                </h3>
-                <ul className="space-y-2">
-                  {infoFlags.map((f, i) => (
-                    <li
-                      key={i}
-                      className="rounded-lg border border-navy/10 bg-cream-100 px-4 py-3 text-sm text-navy/65"
-                    >
-                      <span className="font-medium text-navy/80">{f.title}.</span>{" "}
-                      {f.explanation}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {result.assumptions.length > 0 && (
-              <div>
-                <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-navy/50">
-                  How we estimated this
-                </h3>
-                <ul className="list-disc space-y-2 pl-5 text-xs text-navy/60">
-                  {result.assumptions.map((a, i) => (
-                    <li key={i}>{a}</li>
-                  ))}
-                </ul>
-              </div>
+      {/* Depth on demand — the detailed red flags, warranty, loan cost, gaps,
+          and assumptions all live one tap away so the verdict + script lead.
+          The script already enumerates every issue as an action; this is the
+          evidence and the math behind it. */}
+      <details className="group overflow-hidden rounded-2xl border border-navy/10 bg-white">
+        <summary className="flex cursor-pointer list-none items-center justify-between px-5 py-4 text-sm font-semibold text-navy hover:bg-cream-100">
+          <span>
+            {realFlags.length > 0
+              ? `See all ${realFlags.length} red flag${realFlags.length > 1 ? "s" : ""} & the full breakdown`
+              : "See the full breakdown"}
+          </span>
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            className="text-navy/40 transition-transform group-open:rotate-180"
+            aria-hidden
+          >
+            <path
+              d="M6 9l6 6 6-6"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </summary>
+        <div className="space-y-6 border-t border-navy/10 p-5">
+          {/* Red flags — the detailed evidence behind each talking point. */}
+          <div>
+            <h3 className="mb-3 text-lg font-semibold text-navy">
+              {realFlags.length > 0
+                ? `Red flags we found (${realFlags.length})`
+                : "Red flags"}
+            </h3>
+            {realFlags.length > 0 ? (
+              <ul className="space-y-3">
+                {realFlags.map((f, i) => (
+                  <FlagCard key={i} flag={f} />
+                ))}
+              </ul>
+            ) : (
+              <p className="rounded-xl border border-verdict-green/20 bg-verdict-green/5 p-4 text-sm text-navy/70">
+                Nothing in what you entered tripped a red flag. That doesn&apos;t
+                guarantee the deal is perfect — it means the numbers you gave us
+                look reasonable against our estimates.
+              </p>
             )}
           </div>
-        </details>
-      )}
+
+          {result.warranty && <WarrantyCard warranty={result.warranty} />}
+          {loan && <LoanCostPanel loan={loan} />}
+
+          {infoFlags.length > 0 && (
+            <div>
+              <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-navy/50">
+                To make this check stronger
+              </h3>
+              <ul className="space-y-2">
+                {infoFlags.map((f, i) => (
+                  <li
+                    key={i}
+                    className="rounded-lg border border-navy/10 bg-cream-100 px-4 py-3 text-sm text-navy/65"
+                  >
+                    <span className="font-medium text-navy/80">{f.title}.</span>{" "}
+                    {f.explanation}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {result.assumptions.length > 0 && (
+            <div>
+              <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-navy/50">
+                How we estimated this
+              </h3>
+              <ul className="list-disc space-y-2 pl-5 text-xs text-navy/60">
+                {result.assumptions.map((a, i) => (
+                  <li key={i}>{a}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      </details>
     </div>
   );
 }
