@@ -18,6 +18,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { FairnessResult } from "@/lib/fairness-engine";
 import type { DealSubmission } from "@/lib/deal-mapper";
+import {
+  STEPS,
+  PROGRESS_STEPS,
+  progressPercent,
+  continueEnabled,
+  type StepKey,
+} from "@/lib/deal-check-flow";
 import { VerdictView } from "@/components/VerdictView";
 
 /* ---------------------------------------------------------------------------
@@ -123,29 +130,6 @@ const INITIAL: State = {
   tradePayoff: 9_000,
 };
 
-type StepKey =
-  | "start"
-  | "brand"
-  | "specs"
-  | "credit"
-  | "price"
-  | "financing"
-  | "addons"
-  | "trade"
-  | "warranty";
-const STEPS: StepKey[] = [
-  "start",
-  "brand",
-  "specs",
-  "credit",
-  "price",
-  "financing",
-  "addons",
-  "trade",
-  "warranty",
-];
-const PROGRESS_STEPS = STEPS.length - 1;
-
 type Cta = { label: string; onClick: () => void; enabled: boolean };
 
 /* ---------------------------------------------------------------------------
@@ -166,7 +150,7 @@ export function GamifiedDealCheck() {
   const set = <K extends keyof State>(k: K, v: State[K]) =>
     setS((prev) => ({ ...prev, [k]: v }));
 
-  const percent = stepIdx === 0 ? 0 : Math.round((stepIdx / PROGRESS_STEPS) * 100);
+  const percent = progressPercent(stepIdx);
 
   function next() {
     setError(null);
@@ -285,33 +269,30 @@ export function GamifiedDealCheck() {
     }
   }
 
-  /* ----- the sticky CTA for the current step (null = no footer button) ----- */
+  /* ----- the sticky CTA for the current step (null = no footer button) -----
+     The `enabled` gate comes from the shared, tested `continueEnabled`; only the
+     label/action are UI concerns that stay here. */
   function cta(): Cta | null {
     switch (step) {
       case "brand":
-        return {
-          label: "Continue",
-          onClick: next,
-          enabled: Boolean(s.make && (s.make !== "Other" || s.makeOther.trim())),
-        };
       case "specs":
       case "price":
       case "financing":
-        return { label: "Continue", onClick: next, enabled: true };
+        return { label: "Continue", onClick: next, enabled: continueEnabled(step, s) };
       case "addons":
         return {
           label: Object.keys(s.addOns).length ? "Continue" : "None of these — continue",
           onClick: next,
-          enabled: true,
+          enabled: continueEnabled(step, s),
         };
       case "trade":
         return {
           label: s.hasTrade ? "Continue" : "No trade — continue",
           onClick: next,
-          enabled: s.hasTrade !== null,
+          enabled: continueEnabled(step, s),
         };
       case "warranty":
-        return { label: "See my verdict →", onClick: submit, enabled: s.hasWarranty !== null };
+        return { label: "See my verdict →", onClick: submit, enabled: continueEnabled(step, s) };
       default:
         return null; // start + credit auto-advance on tap
     }

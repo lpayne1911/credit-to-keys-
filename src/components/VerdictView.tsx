@@ -16,7 +16,7 @@ import {
   VERDICT_LABEL,
   WARRANTY_RATING_LABEL,
 } from "@/lib/fairness-engine";
-import { compareTerm } from "@/lib/loan-math";
+import { compareTerm, paymentBreakdown } from "@/lib/loan-math";
 import { savingsRange } from "@/lib/verdict-summary";
 import { NegotiationScriptCard } from "@/components/NegotiationScriptCard";
 
@@ -296,11 +296,23 @@ export function WarrantyCard({ warranty }: { warranty: WarrantyAssessment }) {
 }
 
 /**
+ * Display-only assumption: in many US states tax + title runs on the order of
+ * ~10% of the sale price and is commonly financed. We never claim a precise
+ * figure (rates vary widely; a few states are ~0%), so it's surfaced as a
+ * clearly-labeled estimate — never folded silently into the headline numbers.
+ */
+const TYPICAL_TAX_TITLE_PCT = 0.1;
+
+/**
  * "What this loan really costs" — turns the deal's numbers into total interest
  * over the term, and shows the trade-off of a shorter loan. The finance office
  * leads with the monthly payment; this panel leads with the total, where long
  * terms quietly hide their cost. Presentation-only (kept out of the engine so
  * its tests stay stable), driven by the tested `compareTerm` helper.
+ *
+ * The headline figures finance only what the buyer entered (sale price − down +
+ * fees + warranty); taxes aren't in them. Rather than hand-wave that, we
+ * quantify it: an estimated tax/title amount and the extra it adds if financed.
  */
 export function LoanCostPanel({ loan }: { loan: LoanInputs }) {
   const price = loan.vehiclePrice ?? 0;
@@ -316,6 +328,17 @@ export function LoanCostPanel({ loan }: { loan: LoanInputs }) {
   if (!cmp) return null;
 
   const showShorter = cmp.shorter !== null && cmp.interestSaved >= 100;
+
+  // Quantify the tax/title that the headline figures leave out.
+  const round25 = (n: number) => Math.round(n / 25) * 25;
+  const taxEstimate = round25(price * TYPICAL_TAX_TITLE_PCT);
+  const extraIfTaxFinanced =
+    taxEstimate > 0
+      ? round25(
+          paymentBreakdown(financed + taxEstimate, apr, term).totalPaid -
+            cmp.current.monthlyPayment * term,
+        )
+      : 0;
 
   return (
     <div className="card">
@@ -353,8 +376,19 @@ export function LoanCostPanel({ loan }: { loan: LoanInputs }) {
       )}
 
       <p className="mt-3 text-xs text-navy/50">
-        Estimated from the numbers you entered. Sales tax and any fees you
-        didn&apos;t list aren&apos;t included, so your real total may be higher.
+        These figures finance the sale price
+        {feeTotal > 0 ? " and the fees listed above" : ""} only.
+        {taxEstimate > 0 && (
+          <>
+            {" "}
+            If you also finance taxes &amp; registration — roughly{" "}
+            {money(taxEstimate)} in many states — expect about{" "}
+            <span className="font-medium text-navy/70">
+              {money(extraIfTaxFinanced)}
+            </span>{" "}
+            more over the loan.
+          </>
+        )}
       </p>
     </div>
   );

@@ -63,6 +63,10 @@ describe("VerdictView renders", () => {
 
     // The detailed flags live in the disclosure, not the default view.
     expect(html).toMatch(/See all \d+ red flags/);
+
+    // Loan-cost panel quantifies the tax it leaves out (not just hand-waves it).
+    expect(html).toContain("finance the sale price");
+    expect(html).toContain("more over the loan");
   });
 
   it("a clean deal: no-flags reassurance, no crash", () => {
