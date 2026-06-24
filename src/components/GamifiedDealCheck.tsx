@@ -294,6 +294,14 @@ export function GamifiedDealCheck() {
                 year: s.year,
                 make: s.make === "Other" ? s.makeOther : s.make === "VW" ? "Volkswagen" : s.make,
               }}
+              loan={{
+                vehiclePrice: s.vehiclePrice,
+                downPayment: s.downPayment,
+                apr: s.apr,
+                termMonths: s.termMonths,
+                fees: Object.entries(s.addOns).map(([, v]) => ({ amount: v.amount })),
+                warrantyPrice: s.hasWarranty ? s.warrantyPrice : 0,
+              }}
             />
           </div>
         </Scroll>

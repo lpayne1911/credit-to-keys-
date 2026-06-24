@@ -129,3 +129,66 @@ export function paymentBreakdown(
     totalInterest: Math.max(0, totalPaid - Math.max(0, principal)),
   };
 }
+
+/** Standard financing-term rungs, longest first, for "what if it were shorter?" */
+const TERM_RUNGS = [84, 72, 60, 48, 36];
+/** Don't bother comparing to a term that's barely shorter than the current one. */
+const MIN_TERM_GAP_MONTHS = 6;
+
+/** The cost of a loan at one specific term. */
+export interface TermCost {
+  termMonths: number;
+  monthlyPayment: number;
+  totalInterest: number;
+}
+
+export interface TermComparison {
+  /** Cost at the buyer's actual term. */
+  current: TermCost;
+  /** Cost at the nearest standard shorter term, or null if already short. */
+  shorter: TermCost | null;
+  /** Interest the shorter term would save (>= 0; 0 when no shorter term). */
+  interestSaved: number;
+  /** Extra monthly cost the shorter term would add (>= 0). */
+  extraPerMonth: number;
+}
+
+/**
+ * Compare the buyer's term against the nearest standard shorter term, so we can
+ * show — concretely — how much a longer loan's lower payment costs in interest.
+ * Returns null when inputs are unusable. `shorter` is null when the buyer is
+ * already at/under the shortest rung.
+ */
+export function compareTerm(
+  principal: number,
+  aprPct: number,
+  termMonths: number,
+): TermComparison | null {
+  if (!(principal > 0) || !(termMonths > 0)) return null;
+
+  const costAt = (n: number): TermCost => {
+    const b = paymentBreakdown(principal, aprPct, n);
+    return {
+      termMonths: n,
+      monthlyPayment: b.monthlyPayment,
+      totalInterest: b.totalInterest,
+    };
+  };
+
+  const current = costAt(termMonths);
+  const shorterTerm = TERM_RUNGS.find(
+    (t) => t < termMonths && termMonths - t >= MIN_TERM_GAP_MONTHS && t >= 36,
+  );
+  const shorter = shorterTerm ? costAt(shorterTerm) : null;
+
+  return {
+    current,
+    shorter,
+    interestSaved: shorter
+      ? Math.max(0, current.totalInterest - shorter.totalInterest)
+      : 0,
+    extraPerMonth: shorter
+      ? Math.max(0, shorter.monthlyPayment - current.monthlyPayment)
+      : 0,
+  };
+}

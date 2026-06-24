@@ -33,11 +33,13 @@ export default async function VerdictPage({
                     "An advocate reviewed and adjusted this verdict."
                   }
                   vehicle={vehicleOf(deal)}
+                  loan={loanOf(deal)}
                 />
               ) : deal.auto_result ? (
                 <VerdictView
                   result={deal.auto_result as FairnessResult}
                   vehicle={vehicleOf(deal)}
+                  loan={loanOf(deal)}
                 />
               ) : (
                 <p className="text-navy/60">
@@ -112,6 +114,24 @@ function vehicleOf(deal: {
     year: deal.vehicle_year,
     make: deal.vehicle_make,
     model: deal.vehicle_model,
+  };
+}
+
+function loanOf(deal: {
+  vehicle_price: number | null;
+  down_payment: number | null;
+  apr: number | null;
+  term_months: number | null;
+  fees: { label: string; amount: number }[] | null;
+  warranty_price: number | null;
+}) {
+  return {
+    vehiclePrice: deal.vehicle_price,
+    downPayment: deal.down_payment,
+    apr: deal.apr,
+    termMonths: deal.term_months,
+    fees: deal.fees,
+    warrantyPrice: deal.warranty_price,
   };
 }
 

@@ -4,6 +4,7 @@ import {
   principalFromPayment,
   impliedAprPct,
   paymentBreakdown,
+  compareTerm,
 } from "./loan-math";
 
 /**
@@ -85,5 +86,35 @@ describe("paymentBreakdown", () => {
   it("has zero interest at 0% APR", () => {
     const b = paymentBreakdown(12_000, 0, 24);
     expect(b.totalInterest).toBeCloseTo(0, 6);
+  });
+});
+
+describe("compareTerm", () => {
+  it("picks the nearest shorter standard term and quantifies the trade-off", () => {
+    const c = compareTerm(28_000, 9, 72)!;
+    expect(c).not.toBeNull();
+    expect(c.current.termMonths).toBe(72);
+    expect(c.shorter!.termMonths).toBe(60);
+    // Shorter term: higher monthly, but less total interest.
+    expect(c.extraPerMonth).toBeGreaterThan(0);
+    expect(c.interestSaved).toBeGreaterThan(0);
+    expect(c.shorter!.monthlyPayment).toBeGreaterThan(c.current.monthlyPayment);
+    expect(c.shorter!.totalInterest).toBeLessThan(c.current.totalInterest);
+  });
+
+  it("snaps a non-standard term down to the nearest rung", () => {
+    expect(compareTerm(20_000, 8, 66)!.shorter!.termMonths).toBe(60);
+  });
+
+  it("offers no shorter term once at the shortest rung", () => {
+    const c = compareTerm(20_000, 8, 36)!;
+    expect(c.shorter).toBeNull();
+    expect(c.interestSaved).toBe(0);
+    expect(c.extraPerMonth).toBe(0);
+  });
+
+  it("returns null for unusable inputs", () => {
+    expect(compareTerm(0, 8, 60)).toBeNull();
+    expect(compareTerm(20_000, 8, 0)).toBeNull();
   });
 });

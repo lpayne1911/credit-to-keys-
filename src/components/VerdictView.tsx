@@ -16,6 +16,17 @@ import {
   VERDICT_LABEL,
   WARRANTY_RATING_LABEL,
 } from "@/lib/fairness-engine";
+import { compareTerm } from "@/lib/loan-math";
+
+/** The loan numbers needed to show what financing really costs over the term. */
+export interface LoanInputs {
+  vehiclePrice?: number | null;
+  downPayment?: number | null;
+  apr?: number | null;
+  termMonths?: number | null;
+  fees?: { amount: number }[] | null;
+  warrantyPrice?: number | null;
+}
 
 const VERDICT_STYLES: Record<
   Verdict,
@@ -295,14 +306,106 @@ export function WarrantyCard({ warranty }: { warranty: WarrantyAssessment }) {
   );
 }
 
+/**
+ * "What this loan really costs" — turns the deal's numbers into total interest
+ * over the term, and shows the trade-off of a shorter loan. The finance office
+ * leads with the monthly payment; this panel leads with the total, where long
+ * terms quietly hide their cost. Presentation-only (kept out of the engine so
+ * its tests stay stable), driven by the tested `compareTerm` helper.
+ */
+export function LoanCostPanel({ loan }: { loan: LoanInputs }) {
+  const price = loan.vehiclePrice ?? 0;
+  const down = loan.downPayment ?? 0;
+  const apr = loan.apr ?? 0;
+  const term = loan.termMonths ?? 0;
+  const feeTotal = (loan.fees ?? []).reduce((s, f) => s + (f.amount || 0), 0);
+  const financed = Math.max(0, price - down) + feeTotal + (loan.warrantyPrice ?? 0);
+
+  // Only meaningful with a real interest rate, a term, and something financed.
+  if (!(apr > 0) || !(term > 0) || !(financed > 0)) return null;
+  const cmp = compareTerm(financed, apr, term);
+  if (!cmp) return null;
+
+  const showShorter = cmp.shorter !== null && cmp.interestSaved >= 100;
+
+  return (
+    <div className="card">
+      <h3 className="text-lg font-semibold text-navy">
+        What this loan really costs
+      </h3>
+      <p className="mt-1 text-sm text-navy/60">
+        The desk leads with the monthly payment. Here&apos;s the total — where a
+        longer loan quietly hides its cost.
+      </p>
+
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        <Stat label="Est. amount financed" value={money(financed)} />
+        <Stat label={`Payment (${term} mo)`} value={`${money(cmp.current.monthlyPayment)}/mo`} />
+        <Stat label="Total interest" value={money(cmp.current.totalInterest)} accent />
+        <Stat
+          label="Total of payments"
+          value={money(cmp.current.monthlyPayment * term)}
+        />
+      </div>
+
+      {showShorter && (
+        <div className="mt-4 rounded-xl border border-verdict-green/25 bg-verdict-green/5 p-4">
+          <p className="text-sm text-navy/75">
+            Paying it off in <span className="font-semibold">{cmp.shorter!.termMonths} months</span>{" "}
+            instead would run about{" "}
+            <span className="font-semibold">{money(cmp.extraPerMonth)}/mo</span> more, but
+            save roughly{" "}
+            <span className="font-semibold text-verdict-green">
+              {money(cmp.interestSaved)}
+            </span>{" "}
+            in interest over the life of the loan.
+          </p>
+        </div>
+      )}
+
+      <p className="mt-3 text-xs text-navy/50">
+        Estimated from the numbers you entered. Sales tax and any fees you
+        didn&apos;t list aren&apos;t included, so your real total may be higher.
+      </p>
+    </div>
+  );
+}
+
+function Stat({
+  label,
+  value,
+  accent = false,
+}: {
+  label: string;
+  value: string;
+  accent?: boolean;
+}) {
+  return (
+    <div className="rounded-lg bg-cream-100 px-3 py-2.5">
+      <p className="text-[11px] font-medium uppercase tracking-wide text-navy/50">
+        {label}
+      </p>
+      <p
+        className={`mt-0.5 font-serif text-lg font-semibold ${
+          accent ? "text-gold-dark" : "text-navy"
+        }`}
+      >
+        {value}
+      </p>
+    </div>
+  );
+}
+
 export function VerdictView({
   result,
   reviewedNote,
   vehicle,
+  loan,
 }: {
   result: FairnessResult;
   reviewedNote?: string | null;
   vehicle?: { year?: number | null; make?: string | null; model?: string | null };
+  loan?: LoanInputs | null;
 }) {
   const s = VERDICT_STYLES[result.overallVerdict];
   // A "walk away" verdict pins the score to the bottom regardless of how many
@@ -365,6 +468,9 @@ export function VerdictView({
 
       {/* Warranty */}
       {result.warranty && <WarrantyCard warranty={result.warranty} />}
+
+      {/* True cost of the loan */}
+      {loan && <LoanCostPanel loan={loan} />}
 
       {/* Red flags */}
       <div>
