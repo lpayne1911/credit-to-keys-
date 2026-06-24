@@ -17,6 +17,7 @@ import {
   WARRANTY_RATING_LABEL,
 } from "@/lib/fairness-engine";
 import { compareTerm } from "@/lib/loan-math";
+import { NegotiationScriptCard } from "@/components/NegotiationScriptCard";
 
 /** The loan numbers needed to show what financing really costs over the term. */
 export interface LoanInputs {
@@ -465,6 +466,9 @@ export function VerdictView({
         </div>
         <SavingsHero result={result} />
       </div>
+
+      {/* Primary action — the words to use, right under the verdict. */}
+      <NegotiationScriptCard result={result} />
 
       {/* Red flags — the answer-first substance. What to actually push back on. */}
       <div>
