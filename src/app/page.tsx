@@ -26,16 +26,22 @@ export default function LandingPage() {
                 <strong>sign, push back, or walk away</strong> — before the
                 paperwork becomes permanent.
               </p>
-              <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+              <div className="mt-7">
                 <Link href="/check" className="btn-primary">
-                  Upload my deal
-                </Link>
-                <Link href="/credit-to-keys" className="btn-secondary">
-                  I&apos;m 3–9 months from buying
+                  Check my deal — it&apos;s free
                 </Link>
               </div>
-              <p className="mt-4 text-sm text-navy/50">
+              <p className="mt-3 text-sm text-navy/50">
                 Free first scan. No account needed. About a minute.
+              </p>
+              <p className="mt-4 text-sm text-navy/55">
+                Not buying yet?{" "}
+                <Link
+                  href="/credit-to-keys"
+                  className="font-semibold text-gold-dark hover:underline"
+                >
+                  If you&apos;re 3–9 months out, start here →
+                </Link>
               </p>
             </div>
             <ReportPreview />

@@ -111,8 +111,25 @@ const INITIAL: State = {
   warrantyPrice: 2_500,
 };
 
-type StepKey = "start" | "car" | "credit" | "price" | "financing" | "addons" | "warranty";
-const STEPS: StepKey[] = ["start", "car", "credit", "price", "financing", "addons", "warranty"];
+type StepKey =
+  | "start"
+  | "brand"
+  | "specs"
+  | "credit"
+  | "price"
+  | "financing"
+  | "addons"
+  | "warranty";
+const STEPS: StepKey[] = [
+  "start",
+  "brand",
+  "specs",
+  "credit",
+  "price",
+  "financing",
+  "addons",
+  "warranty",
+];
 const PROGRESS_STEPS = STEPS.length - 1;
 
 type Cta = { label: string; onClick: () => void; enabled: boolean };
@@ -250,12 +267,13 @@ export function GamifiedDealCheck() {
   /* ----- the sticky CTA for the current step (null = no footer button) ----- */
   function cta(): Cta | null {
     switch (step) {
-      case "car":
+      case "brand":
         return {
           label: "Continue",
           onClick: next,
           enabled: Boolean(s.make && (s.make !== "Other" || s.makeOther.trim())),
         };
+      case "specs":
       case "price":
       case "financing":
         return { label: "Continue", onClick: next, enabled: true };
@@ -337,14 +355,17 @@ export function GamifiedDealCheck() {
         <div className="animate-step-in">
           {step === "start" && <StartStep parsing={parsing} onTap={next} onFile={handleParse} />}
 
-          {step === "car" && (
-            <Step title="What are you buying?" sub="Tap the brand, slide the year and miles.">
+          {step === "brand" && (
+            <Step title="What are you buying?" sub="Tap the brand. One thing at a time.">
               <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
                 {[...MAKES, "Other"].map((m) => (
                   <button
                     key={m}
                     type="button"
-                    onClick={() => set("make", m)}
+                    onClick={() => {
+                      set("make", m);
+                      if (m !== "Other") next();
+                    }}
                     className={`pill !rounded-xl py-3 ${s.make === m ? "pill--on" : ""}`}
                   >
                     {m}
@@ -360,9 +381,14 @@ export function GamifiedDealCheck() {
                   onChange={(e) => set("makeOther", e.target.value)}
                 />
               )}
-              <div className="mt-8 space-y-7">
+            </Step>
+          )}
+
+          {step === "specs" && (
+            <Step title="Year &amp; miles" sub="A ballpark is fine — slide to the closest. Not sure? Just continue.">
+              <div className="space-y-9">
                 <Slider label="Model year" value={s.year} min={2005} max={NOW + 1} step={1}
-                  onChange={(v) => set("year", v)} format={(v) => String(v)} />
+                  onChange={(v) => set("year", v)} format={(v) => String(v)} big />
                 <Slider label="Mileage" value={s.mileage} min={0} max={200_000} step={2_500}
                   onChange={(v) => set("mileage", v)} format={(v) => `${v.toLocaleString()} mi`} />
               </div>
@@ -370,7 +396,7 @@ export function GamifiedDealCheck() {
           )}
 
           {step === "credit" && (
-            <Step title="How's your credit?" sub="A ballpark is plenty — it lets us spot rate markup. We never pull your credit.">
+            <Step title="How's your credit?" sub="Just a ballpark — it's how we catch a marked-up rate in your favor. We never pull your credit, and it's never shared.">
               <div className="space-y-2.5">
                 {CREDIT_BANDS.map((b) => (
                   <button
@@ -449,7 +475,7 @@ export function GamifiedDealCheck() {
           )}
 
           {step === "addons" && (
-            <Step title="See any of these?" sub="Tap every add-on or fee on the paperwork. Tap the amount to adjust. We'll flag the junk.">
+            <Step title="See any of these?" sub="Tap any add-on or fee on the paperwork. Don't have the breakdown yet? Skip it — we'll tell you what to ask for.">
               <div className="grid grid-cols-2 gap-2.5">
                 {ADD_ONS.map((a) => {
                   const on = a.key in s.addOns;
@@ -667,31 +693,41 @@ function StartStep({
         Let&apos;s check your deal.
       </h1>
       <p className="mt-2 text-[15px] text-navy/60">
-        A few quick taps — no forms. Takes about a minute.
+        One quick question at a time. No forms, about a minute.
       </p>
-      <div className="mt-7 space-y-3">
-        <button type="button" onClick={onTap} className="choice !py-5">
-          <span className="text-3xl">⚡</span>
-          <span className="flex-1">
-            <span className="block font-serif text-lg font-semibold text-navy">Tap it through</span>
-            <span className="block text-sm text-navy/55">~6 quick taps, no typing.</span>
-          </span>
-          <Chevron />
+      <div className="mt-8">
+        <button
+          type="button"
+          onClick={onTap}
+          disabled={parsing}
+          className="btn-primary w-full !py-4 text-base"
+        >
+          Start — it&apos;s free →
         </button>
-        <label className={`choice !py-5 ${parsing ? "opacity-70" : "cursor-pointer"}`}>
-          <span className="text-3xl">{parsing ? "⏳" : "📸"}</span>
-          <span className="flex-1">
-            <span className="block font-serif text-lg font-semibold text-navy">
-              {parsing ? "Reading your quote…" : "Snap the quote"}
-            </span>
-            <span className="block text-sm text-navy/55">
-              {parsing ? "Pulling the numbers — confirm by sliding." : "Photo or PDF. Not instant."}
-            </span>
-          </span>
-          {!parsing && <Chevron />}
-          <input type="file" accept="image/*,application/pdf" className="sr-only" disabled={parsing}
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); }} />
+      </div>
+      <div className="mt-5 text-center">
+        <label
+          className={`inline-flex items-center gap-2 text-sm font-semibold ${
+            parsing ? "text-navy/40" : "cursor-pointer text-gold-dark hover:underline"
+          }`}
+        >
+          {parsing ? "⏳ Reading your quote…" : "📸 Or snap a photo of the quote"}
+          <input
+            type="file"
+            accept="image/*,application/pdf"
+            className="sr-only"
+            disabled={parsing}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) onFile(f);
+            }}
+          />
         </label>
+        <p className="mt-1 text-xs text-navy/45">
+          {parsing
+            ? "Pulling the numbers — you'll confirm them next."
+            : "Photo or PDF — takes a few extra seconds."}
+        </p>
       </div>
     </div>
   );
