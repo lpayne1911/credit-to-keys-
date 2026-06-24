@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   scoreDeal,
   auditFees,
+  FLAG_TYPES,
   type FairnessInput,
   type Flag,
 } from "./fairness-engine";
@@ -330,6 +331,44 @@ describe("scoreDeal — trade-in", () => {
     const r = scoreDeal(baseInput());
     expect(flagTypes(r.flags)).not.toContain("trade_lowball");
     expect(flagTypes(r.flags)).not.toContain("negative_equity");
+  });
+});
+
+describe("FLAG_TYPES — canonical list stays complete", () => {
+  it("has no duplicates", () => {
+    expect(new Set(FLAG_TYPES).size).toBe(FLAG_TYPES.length);
+  });
+
+  it("contains every flag type the engine can emit", () => {
+    // Deals chosen to trigger the full spread, including the trade nudge (info)
+    // and missing-info notes.
+    const inputs: FairnessInput[] = [
+      baseInput({
+        deal: {
+          vehiclePrice: 26_000,
+          downPayment: 2_000,
+          apr: 18,
+          termMonths: 72,
+          creditBand: "good",
+          monthlyPayment: 600,
+          fees: [
+            { label: "Nitrogen tires", amount: 399 },
+            { label: "Documentation fee", amount: 900 },
+          ],
+        },
+        warranty: { coverageTier: "exclusionary", termMonths: 72, priceQuoted: 50_000 },
+        tradeIn: { offer: 6_000, estimatedValue: 10_000, loanPayoff: 9_000 },
+      }),
+      baseInput({ deal: { creditBand: "unknown" } }), // missing-info notes
+      baseInput({ tradeIn: { offer: 7_000 } }), // trade nudge → info
+    ];
+    const seen = new Set<string>();
+    for (const i of inputs) for (const f of scoreDeal(i).flags) seen.add(f.type);
+    for (const t of seen) {
+      expect(FLAG_TYPES, `engine emitted "${t}" but it's missing from FLAG_TYPES`).toContain(
+        t as (typeof FLAG_TYPES)[number],
+      );
+    }
   });
 });
 

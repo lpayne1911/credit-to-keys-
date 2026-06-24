@@ -138,12 +138,17 @@ function sayFor(flag: Flag, ctx: SayContext): string {
 }
 
 function openerFor(verdict: Verdict, hasPoints: boolean): string {
+  // "Black" is a reviewer's walk-away call (fraud / legal concern). It is NOT a
+  // negotiation — frame it as disengaging, regardless of how many points there
+  // are, and never invite the buyer to keep dealing.
+  if (verdict === "black") {
+    return "I've had this deal reviewed, and I'm not comfortable moving forward with it.";
+  }
   if (!hasPoints) {
     return "Thanks — this looks close to fair. Before I sign, I just want to confirm a couple of things.";
   }
   switch (verdict) {
     case "red":
-    case "black":
       return "Before I sign anything, I need to go through a few items on this deal.";
     case "amber":
       return "I'm interested, but there are a few things I'd like to fix before we finish the paperwork.";
@@ -153,6 +158,9 @@ function openerFor(verdict: Verdict, hasPoints: boolean): string {
 }
 
 function closerFor(verdict: Verdict): string {
+  if (verdict === "black") {
+    return "I'm going to walk away from this one — please cancel the paperwork. Thanks for your time.";
+  }
   if (verdict === "green") {
     return "If those check out, I'm ready to move forward today. I'd just like the out-the-door total in writing first.";
   }
@@ -183,7 +191,9 @@ export function buildNegotiationScript(
     say: sayFor(f, ctx),
   }));
 
-  if (points.length === 0) {
+  // A clean deal still gets a useful point — but never on a walk-away verdict,
+  // where "nothing looks off" would contradict the disengage message.
+  if (points.length === 0 && result.overallVerdict !== "black") {
     points.push({
       heading: "Confirm the out-the-door price",
       say: "Nothing here looks off to me. Can I get the full out-the-door price in writing so I can confirm it matches what we discussed?",

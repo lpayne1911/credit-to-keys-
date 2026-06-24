@@ -1080,6 +1080,24 @@ export const VERDICT_LABEL: Record<Verdict, string> = {
   black: "Walk away",
 };
 
+/**
+ * Every flag type, in a sensible operator-facing order. Single source of truth
+ * so UI lists (e.g. the review editor's type picker) can't silently drift when
+ * a new flag type is added to the engine.
+ */
+export const FLAG_TYPES: FlagType[] = [
+  "junk_fee",
+  "apr_markup",
+  "overpriced_addon",
+  "redundant_addon",
+  "overpriced_warranty",
+  "payment_packing",
+  "trade_lowball",
+  "negative_equity",
+  "missing_info",
+  "info",
+];
+
 export const WARRANTY_RATING_LABEL: Record<WarrantyPriceRating, string> = {
   fair: "Fair price",
   high: "Overpriced",

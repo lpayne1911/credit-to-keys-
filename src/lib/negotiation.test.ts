@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { buildNegotiationScript } from "./negotiation";
-import { scoreDeal, type FairnessInput } from "./fairness-engine";
+import { scoreDeal, type FairnessInput, type FairnessResult } from "./fairness-engine";
 
 /**
  * The script is a pure rephrasing of the verdict's flags, so these tests pin
@@ -114,6 +114,45 @@ describe("buildNegotiationScript", () => {
   it("is deterministic", () => {
     const r = scoreDeal(baseInput({ deal: { apr: 16.9, creditBand: "good", fees: [] } }));
     expect(buildNegotiationScript(r)).toEqual(buildNegotiationScript(r));
+  });
+
+  it("frames a reviewer's 'black' walk-away as disengaging, not buying", () => {
+    // Black is operator-assigned, so we build the result shape directly.
+    const black: FairnessResult = {
+      overallVerdict: "black",
+      headline: "Walk away — this deal has a serious problem.",
+      confidence: "high",
+      flags: [
+        {
+          type: "junk_fee",
+          severity: "high",
+          title: "Contract terms don't match what you were told",
+          explanation: "The signed figures differ from the verbal offer.",
+        },
+      ],
+      warranty: null,
+      assumptions: [],
+      engineVersion: "reviewed",
+    };
+    const s = buildNegotiationScript(black);
+    expect(s.opener).toMatch(/not comfortable moving forward/i);
+    expect(s.closer).toMatch(/walk away/i);
+    expect(s.asText).not.toMatch(/ready to buy today/i);
+  });
+
+  it("does not add a 'nothing looks off' point to a walk-away with no flags", () => {
+    const black: FairnessResult = {
+      overallVerdict: "black",
+      headline: "Walk away.",
+      confidence: "high",
+      flags: [],
+      warranty: null,
+      assumptions: [],
+      engineVersion: "reviewed",
+    };
+    const s = buildNegotiationScript(black);
+    expect(s.points).toHaveLength(0);
+    expect(s.opener).toMatch(/not comfortable/i);
   });
 
   it("names the actual quoted APR when context provides it", () => {
