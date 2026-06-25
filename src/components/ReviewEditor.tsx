@@ -10,7 +10,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Flag, FlagSeverity, FlagType, Verdict } from "@/lib/fairness-engine";
-import { VERDICT_LABEL } from "@/lib/fairness-engine";
+import { VERDICT_LABEL, FLAG_TYPES } from "@/lib/fairness-engine";
 
 const VERDICTS: Verdict[] = ["green", "amber", "red", "black"];
 
@@ -22,14 +22,8 @@ const VERDICT_BTN: Record<Verdict, string> = {
   black: "border-navy-900 bg-navy-900/10 text-navy-900",
 };
 const SEVERITIES: FlagSeverity[] = ["info", "low", "medium", "high"];
-const TYPES: FlagType[] = [
-  "junk_fee",
-  "apr_markup",
-  "overpriced_addon",
-  "redundant_addon",
-  "overpriced_warranty",
-  "info",
-];
+// Canonical list from the engine — stays complete as new flag types are added.
+const TYPES: FlagType[] = FLAG_TYPES;
 
 export function ReviewEditor({
   dealId,

@@ -171,7 +171,17 @@ export default async function ConsoleDealPage({
               <h2 className="mb-2 font-serif text-lg font-semibold text-navy">
                 Automatic verdict
               </h2>
-              <VerdictView result={auto} />
+              <VerdictView
+                result={auto}
+                loan={{
+                  vehiclePrice: deal.vehicle_price,
+                  downPayment: deal.down_payment,
+                  apr: deal.apr,
+                  termMonths: deal.term_months,
+                  fees: deal.fees,
+                  warrantyPrice: deal.warranty_price,
+                }}
+              />
             </section>
           )}
         </div>

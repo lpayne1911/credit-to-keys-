@@ -53,6 +53,13 @@ export const dealSubmissionSchema = z.object({
       priceQuoted: numLike,
     })
     .optional(),
+  tradeIn: z
+    .object({
+      offer: numLike,
+      estimatedValue: numLike,
+      loanPayoff: numLike,
+    })
+    .optional(),
   inputPath: z.enum(["manual", "upload"]).optional(),
   uploadedFilePath: z.string().max(400).optional(),
 });

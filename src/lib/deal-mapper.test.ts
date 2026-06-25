@@ -53,4 +53,17 @@ describe("toFairnessInput", () => {
     });
     expect(input.deal.fees).toEqual([{ label: "Nitrogen", amount: 299 }]);
   });
+
+  it("coerces trade-in fields and leaves omitted ones null", () => {
+    const input = toFairnessInput({
+      tradeIn: { offer: "$7,000", loanPayoff: "11000" },
+    });
+    expect(input.tradeIn?.offer).toBe(7_000);
+    expect(input.tradeIn?.loanPayoff).toBe(11_000);
+    expect(input.tradeIn?.estimatedValue).toBeNull();
+  });
+
+  it("maps trade-in to null when the buyer has no trade", () => {
+    expect(toFairnessInput({}).tradeIn).toBeNull();
+  });
 });

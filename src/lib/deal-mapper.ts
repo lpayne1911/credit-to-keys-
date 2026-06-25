@@ -36,6 +36,11 @@ export interface DealSubmission {
     termMiles?: number | string;
     priceQuoted?: number | string;
   };
+  tradeIn?: {
+    offer?: number | string;
+    estimatedValue?: number | string;
+    loanPayoff?: number | string;
+  };
   inputPath?: "manual" | "upload";
   uploadedFilePath?: string;
 }
@@ -105,6 +110,13 @@ export function toFairnessInput(s: DealSubmission): FairnessInput {
       termMiles: num(s.warranty?.termMiles),
       priceQuoted: num(s.warranty?.priceQuoted),
     },
+    tradeIn: s.tradeIn
+      ? {
+          offer: num(s.tradeIn.offer),
+          estimatedValue: num(s.tradeIn.estimatedValue),
+          loanPayoff: num(s.tradeIn.loanPayoff),
+        }
+      : null,
   };
 }
 
