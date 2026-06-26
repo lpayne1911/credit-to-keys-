@@ -582,11 +582,14 @@ function rateWarrantyPrice(
   quoted: number | null,
   fair: PriceRange,
 ): { rating: WarrantyPriceRating; explanation: string } {
+  // A plain-language fair-range phrase reused across cases ("$1,800–$2,400").
+  const range = `${money(fair.low)}–${money(fair.high)}`;
+
   if (quoted === null) {
     return {
       rating: "negotiable",
       explanation:
-        "You didn't enter a warranty price, so we can't compare it. Whatever the dealer quotes, treat it as negotiable — these contracts carry large markups and the price is rarely fixed.",
+        `For this vehicle and coverage, a fair price is roughly ${range}. You didn't enter the dealer's number — whatever they quote, treat it as negotiable. These contracts carry some of the largest markups in the finance office.`,
     };
   }
   if (quoted <= fair.high) {
@@ -594,34 +597,35 @@ function rateWarrantyPrice(
       return {
         rating: "fair",
         explanation:
-          "The quoted price is at or below our estimated fair range. That's a good sign — still confirm exactly what's covered and the deductible.",
+          `At ${money(quoted)}, you're at or below the typical ${range} for this coverage — a good sign. Still confirm exactly what's covered and the deductible before you sign.`,
       };
     }
     return {
       rating: "fair",
       explanation:
-        "The quoted price sits within our estimated fair range. It looks reasonable, but the price is still negotiable and worth a counter-offer.",
+        `Your ${money(quoted)} quote is within the typical ${range} for this coverage. Reasonable — but the price is still negotiable; it's worth countering toward ${money(fair.low)}.`,
     };
   }
   const ratio = quoted / fair.high;
+  const over = quoted - fair.high; // dollars above the top of the fair range
   if (ratio > WARRANTY_VERY_OVERPRICED_THRESHOLD) {
     return {
       rating: "very_overpriced",
       explanation:
-        "The quoted price is far above our estimated fair range. Extended warranties carry some of the largest markups in the finance office — there is usually a lot of room to negotiate, or to buy a comparable contract elsewhere for much less.",
+        `At ${money(quoted)}, you're about ${money(over)} above the typical ${range} for this coverage — roughly ${ratio.toFixed(1)}× the top of fair. Extended warranties carry some of the biggest markups in the finance office. Counter at ${money(fair.high)} or below, or buy comparable coverage elsewhere for far less.`,
     };
   }
   if (ratio > WARRANTY_HIGH_THRESHOLD) {
     return {
       rating: "high",
       explanation:
-        "The quoted price is above our estimated fair range. Consider countering toward the fair range, or shopping the same coverage from another provider before agreeing.",
+        `At ${money(quoted)}, you're about ${money(over)} above the typical ${range} for this coverage. Counter toward ${money(fair.high)}, or shop the same coverage from another provider before agreeing.`,
     };
   }
   return {
     rating: "negotiable",
     explanation:
-      "The quoted price is a little above our estimated fair range. It's close, but still worth a counter-offer — the price is rarely fixed.",
+      `At ${money(quoted)}, you're about ${money(over)} over the typical ${range} for this coverage — close, but still worth countering to ${money(fair.high)}. The price is rarely fixed.`,
   };
 }
 

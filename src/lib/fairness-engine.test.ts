@@ -261,6 +261,18 @@ describe("scoreDeal — warranty pricing", () => {
     );
     expect(r.warranty!.rating).toBe("very_overpriced");
     expect(flagTypes(r.flags)).toContain("overpriced_warranty");
+    // The verdict copy must name specifics, not just "above our fair range":
+    // the quoted price, the dollar gap, and a concrete counter target.
+    const exp = r.warranty!.explanation;
+    const usd = (n: number) =>
+      n.toLocaleString("en-US", {
+        style: "currency",
+        currency: "USD",
+        maximumFractionDigits: 0,
+      });
+    expect(exp).toContain("$50,000"); // the quote, in plain numbers
+    expect(exp).toMatch(/\bcounter\b/i); // a concrete next action
+    expect(exp).toContain(usd(r.warranty!.fairRange.high)); // the counter target
   });
 
   it("rates a very low quote as fair", () => {
