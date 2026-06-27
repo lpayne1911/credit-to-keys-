@@ -18,28 +18,35 @@ export function AnimatedScore({
   durationMs?: number;
 }) {
   const [display, setDisplay] = useState(value);
-  const started = useRef(false);
+  // Where the next animation starts: 0 on first mount, otherwise the value last
+  // shown — so live edits (e.g. an operator adjusting flags) tween smoothly.
+  const fromRef = useRef(0);
+  const firstRun = useRef(true);
 
   useEffect(() => {
-    if (started.current) return;
-    started.current = true;
+    const from = firstRun.current ? 0 : fromRef.current;
+    firstRun.current = false;
 
     if (
       typeof window !== "undefined" &&
       window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
     ) {
       setDisplay(value);
+      fromRef.current = value;
       return;
     }
 
-    setDisplay(0);
     const start = performance.now();
     let raf = 0;
     const tick = (now: number) => {
       const p = Math.min(1, (now - start) / durationMs);
       const eased = 1 - Math.pow(1 - p, 3); // easeOutCubic
-      setDisplay(Math.round(eased * value));
-      if (p < 1) raf = requestAnimationFrame(tick);
+      setDisplay(Math.round(from + (value - from) * eased));
+      if (p < 1) {
+        raf = requestAnimationFrame(tick);
+      } else {
+        fromRef.current = value;
+      }
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
