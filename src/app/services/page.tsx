@@ -58,6 +58,7 @@ const GROUPS: Group[] = [
         blurb:
           "We price-check the finance-office products against fair ranges and tell you what's worth keeping and what to drop.",
         price: "$149–$299",
+        href: "/services/fi-product-review",
       },
       {
         name: "Used-Car Risk Report",
@@ -65,6 +66,7 @@ const GROUPS: Group[] = [
         blurb:
           "Condition, history, title, and pricing red flags on a used vehicle — before you commit to a problem car.",
         price: "$199–$399",
+        href: "/services/used-car-risk-report",
       },
     ],
   },
@@ -77,6 +79,7 @@ const GROUPS: Group[] = [
         blurb:
           "The full teardown: buyer's-order audit, junk-fee challenge list, F&I review, trade-in analysis, finance-term review, a target counteroffer, a word-for-word dealer script, and a coaching call.",
         price: "$349–$599",
+        href: "/services/deal-rescue",
       },
     ],
   },
@@ -89,6 +92,7 @@ const GROUPS: Group[] = [
         blurb:
           "For buyers who haven't picked the car yet: shortlist, market pricing, dealer-outreach strategy, quote comparison, a negotiation plan, and final paperwork review.",
         price: "$899–$1,499",
+        href: "/services/buyer-advocate",
       },
       {
         name: "Concierge",
@@ -96,6 +100,7 @@ const GROUPS: Group[] = [
         blurb:
           "We manage the process directly, within legal limits — sourcing through signing, with you in control the whole way.",
         price: "$1,999+",
+        href: "/services/concierge",
       },
     ],
   },
