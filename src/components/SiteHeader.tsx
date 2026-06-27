@@ -1,6 +1,9 @@
 import Link from "next/link";
+import { NAV_LINKS } from "@/lib/products/product-catalog";
 
 export function SiteHeader() {
+  const links = NAV_LINKS.filter((l) => !l.primary);
+  const primary = NAV_LINKS.find((l) => l.primary);
   return (
     <header className="border-b border-navy/10 bg-cream/90 backdrop-blur">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
@@ -11,15 +14,20 @@ export function SiteHeader() {
           </span>
         </Link>
         <div className="flex items-center gap-4">
-          <Link
-            href="/#how-it-works"
-            className="hidden text-sm font-semibold text-navy/70 hover:text-navy sm:block"
-          >
-            How it works
-          </Link>
-          <Link href="/check" className="btn-primary px-4 py-2 text-sm">
-            Check my deal
-          </Link>
+          {links.map((l) => (
+            <Link
+              key={l.href}
+              href={l.href}
+              className="hidden text-sm font-semibold text-navy/70 hover:text-navy sm:block"
+            >
+              {l.label}
+            </Link>
+          ))}
+          {primary && (
+            <Link href={primary.href} className="btn-primary px-4 py-2 text-sm">
+              {primary.label}
+            </Link>
+          )}
         </div>
       </div>
     </header>

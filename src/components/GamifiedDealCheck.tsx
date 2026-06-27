@@ -19,11 +19,10 @@ import { useRouter } from "next/navigation";
 import type { FairnessResult } from "@/lib/fairness-engine";
 import type { DealSubmission } from "@/lib/deal-mapper";
 import {
-  STEPS,
-  PROGRESS_STEPS,
-  progressPercent,
   continueEnabled,
+  stepsForFocus,
   type StepKey,
+  type Focus,
 } from "@/lib/deal-check-flow";
 import { VerdictView } from "@/components/VerdictView";
 import { WARRANTY_DISPLAY_GROUPS } from "@/lib/warranty/warranty-catalog";
@@ -177,7 +176,7 @@ type Cta = { label: string; onClick: () => void; enabled: boolean };
  *  Component
  * ------------------------------------------------------------------------- */
 
-export function GamifiedDealCheck() {
+export function GamifiedDealCheck({ focus = "full" }: { focus?: Focus } = {}) {
   const router = useRouter();
   const [stepIdx, setStepIdx] = useState(0);
   const [s, setS] = useState<State>(INITIAL);
@@ -187,53 +186,77 @@ export function GamifiedDealCheck() {
   const [parsing, setParsing] = useState(false);
   const [uploadedPath, setUploadedPath] = useState<string | null>(null);
 
-  const step = STEPS[stepIdx];
+  // The focused product routes (/warranty-check, /apr-check, /add-on-check)
+  // reuse this flow but only walk the steps relevant to their intent.
+  const steps = stepsForFocus(focus);
+  const step = steps[stepIdx];
+  const isLastStep = stepIdx === steps.length - 1;
   const set = <K extends keyof State>(k: K, v: State[K]) =>
     setS((prev) => ({ ...prev, [k]: v }));
 
-  const percent = progressPercent(stepIdx);
+  const percent =
+    stepIdx <= 0 ? 0 : Math.round((Math.min(stepIdx, steps.length - 1) / (steps.length - 1)) * 100);
 
   function next() {
     setError(null);
-    setStepIdx((i) => Math.min(i + 1, STEPS.length - 1));
+    setStepIdx((i) => Math.min(i + 1, steps.length - 1));
   }
   function back() {
     setError(null);
     setStepIdx((i) => Math.max(i - 1, 0));
   }
 
-  /* ----- submission ----- */
+  /* ----- submission -----
+     Focus-aware: a focused check only submits the data it actually collected, so
+     unselected fields never reach the engine as defaults and produce spurious
+     flags (e.g. a warranty-only check must not flag a "marked-up APR"). */
   function buildSubmission(): DealSubmission {
     const fees = Object.entries(s.addOns).map(([key, v]) => {
       const def = ADD_ONS.find((a) => a.key === key);
       return { label: def?.label ?? key, amount: v.amount };
     });
-    return {
-      vehicle: {
-        year: s.year,
-        make: s.make === "Other" ? s.makeOther : s.make === "VW" ? "Volkswagen" : s.make,
-        model: s.model,
-        trim: s.trim,
-        vin: s.vin,
-        mileage: s.mileage,
-      },
+    const vehicle = {
+      year: s.year,
+      make: s.make === "Other" ? s.makeOther : s.make === "VW" ? "Volkswagen" : s.make,
+      model: s.model,
+      trim: s.trim,
+      vin: s.vin,
+      mileage: s.mileage,
+    };
+    const warranty = s.hasWarranty
+      ? {
+          coverageTier: s.warrantyCoverageTier,
+          termMonths: s.warrantyTermMonths,
+          priceQuoted: s.warrantyPrice,
+        }
+      : undefined;
+    const financing = {
+      vehiclePrice: s.vehiclePrice,
+      downPayment: s.downPayment,
+      apr: s.apr,
+      termMonths: s.termMonths,
+      monthlyPayment: s.hasPayment ? s.monthlyPayment : undefined,
+      creditBand: s.creditBand || "unknown",
+    };
+    const meta = {
+      inputPath: (uploadedPath ? "upload" : "manual") as "upload" | "manual",
+      uploadedFilePath: uploadedPath ?? undefined,
       buyerState: s.buyerState || undefined,
-      deal: {
-        vehiclePrice: s.vehiclePrice,
-        downPayment: s.downPayment,
-        apr: s.apr,
-        termMonths: s.termMonths,
-        monthlyPayment: s.hasPayment ? s.monthlyPayment : undefined,
-        creditBand: s.creditBand || "unknown",
-        fees,
-      },
-      warranty: s.hasWarranty
-        ? {
-            coverageTier: s.warrantyCoverageTier,
-            termMonths: s.warrantyTermMonths,
-            priceQuoted: s.warrantyPrice,
-          }
-        : undefined,
+    };
+
+    if (focus === "warranty") {
+      return { vehicle, deal: { creditBand: "unknown", fees: [] }, warranty, ...meta };
+    }
+    if (focus === "apr") {
+      return { vehicle, deal: { ...financing, fees: [] }, ...meta };
+    }
+    if (focus === "addons") {
+      return { vehicle, deal: { creditBand: "unknown", fees }, warranty, ...meta };
+    }
+    return {
+      vehicle,
+      deal: { ...financing, fees },
+      warranty,
       tradeIn: s.hasTrade
         ? {
             offer: s.tradeOffer,
@@ -241,8 +264,7 @@ export function GamifiedDealCheck() {
             loanPayoff: s.tradeStillOwe ? s.tradePayoff : undefined,
           }
         : undefined,
-      inputPath: uploadedPath ? "upload" : "manual",
-      uploadedFilePath: uploadedPath ?? undefined,
+      ...meta,
     };
   }
 
@@ -321,6 +343,12 @@ export function GamifiedDealCheck() {
      The `enabled` gate comes from the shared, tested `continueEnabled`; only the
      label/action are UI concerns that stay here. */
   function cta(): Cta | null {
+    // On the final step of any (focused or full) flow, the button submits.
+    const verdict = (enabled: boolean): Cta => ({
+      label: "See my verdict →",
+      onClick: submit,
+      enabled,
+    });
     switch (step) {
       case "brand":
       case "model":
@@ -328,13 +356,21 @@ export function GamifiedDealCheck() {
       case "state":
       case "price":
       case "financing":
-        return { label: "Continue", onClick: next, enabled: continueEnabled(step, s) };
+        return isLastStep
+          ? verdict(continueEnabled(step, s))
+          : { label: "Continue", onClick: next, enabled: continueEnabled(step, s) };
       case "addons":
-        return {
-          label: Object.keys(s.addOns).length ? "Continue" : "None of these — continue",
-          onClick: next,
-          enabled: continueEnabled(step, s),
-        };
+        return isLastStep
+          ? {
+              label: Object.keys(s.addOns).length ? "See my verdict →" : "None of these — see my verdict →",
+              onClick: submit,
+              enabled: true,
+            }
+          : {
+              label: Object.keys(s.addOns).length ? "Continue" : "None of these — continue",
+              onClick: next,
+              enabled: continueEnabled(step, s),
+            };
       case "trade":
         return {
           label: s.hasTrade ? "Continue" : "No trade — continue",
@@ -342,7 +378,7 @@ export function GamifiedDealCheck() {
           enabled: continueEnabled(step, s),
         };
       case "warranty":
-        return { label: "See my verdict →", onClick: submit, enabled: continueEnabled(step, s) };
+        return verdict(continueEnabled(step, s));
       default:
         return null; // start + credit auto-advance on tap
     }
@@ -389,7 +425,7 @@ export function GamifiedDealCheck() {
   if (submitting) {
     return (
       <AppShell>
-        <TopBar showProgress percent={100} stepIdx={PROGRESS_STEPS} onBack={() => {}} hideBack />
+        <TopBar showProgress percent={100} stepIdx={steps.length - 1} onBack={() => {}} hideBack />
         <Center>
           <Analyzing />
         </Center>
@@ -411,7 +447,14 @@ export function GamifiedDealCheck() {
 
       <Center key={step}>
         <div className="animate-step-in">
-          {step === "start" && <StartStep parsing={parsing} onTap={next} onFile={handleParse} />}
+          {step === "start" && (
+            <StartStep
+              parsing={parsing}
+              onTap={next}
+              onFile={handleParse}
+              focus={focus}
+            />
+          )}
 
           {step === "brand" && (
             <Step title="What are you buying?" sub="Tap the brand. One thing at a time.">
@@ -906,23 +949,46 @@ function ServiceContractNames() {
   );
 }
 
+/** Per-focus intro copy so each product route opens tailored to the intent. */
+const START_COPY: Record<Focus, { title: string; sub: string }> = {
+  full: {
+    title: "Let's check your deal.",
+    sub: "One quick question at a time. No forms, about a minute.",
+  },
+  warranty: {
+    title: "Let's price-check your warranty.",
+    sub: "Just a few questions about the service contract — not the whole deal. About 30 seconds.",
+  },
+  apr: {
+    title: "Let's check your rate & payment.",
+    sub: "A few questions about the financing — not the whole deal. About 30 seconds.",
+  },
+  addons: {
+    title: "Let's review your add-ons & fees.",
+    sub: "Tap the dealer fees and F&I add-ons on your paperwork. About 30 seconds.",
+  },
+};
+
 function StartStep({
   parsing,
   onTap,
   onFile,
+  focus = "full",
 }: {
   parsing: boolean;
   onTap: () => void;
   onFile: (f: File) => void;
+  focus?: Focus;
 }) {
+  const copy = START_COPY[focus];
+  // Upload is the deal-inspector's superpower; the focused checks are quick taps.
+  const showUpload = focus === "full";
   return (
     <div>
       <h1 className="font-serif text-[1.9rem] font-semibold leading-tight text-navy">
-        Let&apos;s check your deal.
+        {copy.title}
       </h1>
-      <p className="mt-2 text-[15px] text-navy/60">
-        One quick question at a time. No forms, about a minute.
-      </p>
+      <p className="mt-2 text-[15px] text-navy/60">{copy.sub}</p>
       <div className="mt-8">
         <button
           type="button"
@@ -933,30 +999,32 @@ function StartStep({
           Start — it&apos;s free →
         </button>
       </div>
-      <div className="mt-5 text-center">
-        <label
-          className={`inline-flex items-center gap-2 text-sm font-semibold ${
-            parsing ? "text-navy/40" : "cursor-pointer text-gold-dark hover:underline"
-          }`}
-        >
-          {parsing ? "⏳ Reading your quote…" : "📸 Or snap a photo of the quote"}
-          <input
-            type="file"
-            accept="image/*,application/pdf"
-            className="sr-only"
-            disabled={parsing}
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) onFile(f);
-            }}
-          />
-        </label>
-        <p className="mt-1 text-xs text-navy/45">
-          {parsing
-            ? "Pulling the numbers — you'll confirm them next."
-            : "Photo or PDF — takes a few extra seconds."}
-        </p>
-      </div>
+      {showUpload && (
+        <div className="mt-5 text-center">
+          <label
+            className={`inline-flex items-center gap-2 text-sm font-semibold ${
+              parsing ? "text-navy/40" : "cursor-pointer text-gold-dark hover:underline"
+            }`}
+          >
+            {parsing ? "⏳ Reading your quote…" : "📸 Or snap a photo of the quote"}
+            <input
+              type="file"
+              accept="image/*,application/pdf"
+              className="sr-only"
+              disabled={parsing}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) onFile(f);
+              }}
+            />
+          </label>
+          <p className="mt-1 text-xs text-navy/45">
+            {parsing
+              ? "Pulling the numbers — you'll confirm them next."
+              : "Photo or PDF — takes a few extra seconds."}
+          </p>
+        </div>
+      )}
     </div>
   );
 }

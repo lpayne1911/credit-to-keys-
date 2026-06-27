@@ -2,6 +2,8 @@ import Link from "next/link";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { VerdictGauge } from "@/components/VerdictView";
+import { ProductCard } from "@/components/products/ProductCard";
+import { PRODUCT_CARDS } from "@/lib/products/product-catalog";
 
 export default function LandingPage() {
   return (
@@ -62,33 +64,30 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Three doors — every buyer gets a clear entry point */}
-        <section id="paths" className="mx-auto max-w-5xl px-4 py-14">
+        {/* Choose what you need help with — every product, its own path */}
+        <section id="products" className="mx-auto max-w-5xl px-4 py-14 scroll-mt-20">
           <h2 className="font-serif text-3xl font-semibold text-navy">
-            Where are you in the process?
+            Choose what you need help with
           </h2>
-          <p className="mt-2 text-navy/60">
-            Three ways we can help — wherever you are, there&apos;s a door for you.
+          <p className="mt-2 max-w-2xl text-navy/60">
+            The free deal inspector checks everything — but if you only need one
+            thing reviewed, go straight to it.
           </p>
-          <div className="mt-8 grid gap-5 sm:grid-cols-3">
-            <Door
-              live
-              title="Check my deal"
-              who="You have a quote, worksheet, or payment in hand — and a bad feeling."
-              cta="Check my deal"
-              href="/check"
-            />
-            <Door
-              title="Help me buy"
-              who="You haven't picked the car yet and want a pro in your corner from the start."
-              href="/services"
-            />
-            <Door
-              title="Fix my credit first"
-              who="Your score is about to cost you thousands. Credit-to-Keys preps it before you buy."
-              href="/credit-to-keys"
-            />
+          <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {PRODUCT_CARDS.map((p) => (
+              <ProductCard key={p.id} product={p} />
+            ))}
           </div>
+          <p className="mt-6 text-sm text-navy/55">
+            Earlier in the journey?{" "}
+            <Link href="/services" className="font-semibold text-gold-dark hover:underline">
+              Help me buy
+            </Link>{" "}
+            ·{" "}
+            <Link href="/credit-to-keys" className="font-semibold text-gold-dark hover:underline">
+              Fix my credit first
+            </Link>
+          </p>
         </section>
 
         {/* What we check — the Red Flag Matrix */}
@@ -200,54 +199,6 @@ function ReportPreview() {
           </p>
         </div>
       </div>
-    </div>
-  );
-}
-
-function Door({
-  title,
-  who,
-  cta,
-  href,
-  live = false,
-}: {
-  title: string;
-  who: string;
-  cta?: string;
-  href?: string;
-  live?: boolean;
-}) {
-  return (
-    <div className="flex flex-col rounded-2xl border border-navy/10 bg-white p-6 shadow-card">
-      <div className="flex items-center justify-between">
-        <h3 className="font-serif text-xl font-semibold text-navy">{title}</h3>
-        {live ? (
-          <span className="rounded-full bg-verdict-green/10 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-verdict-green">
-            Live
-          </span>
-        ) : (
-          <span className="rounded-full bg-navy-50 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-navy/45">
-            Soon
-          </span>
-        )}
-      </div>
-      <p className="mt-2 flex-1 text-sm leading-relaxed text-navy/65">{who}</p>
-      {live && href && cta ? (
-        <Link href={href} className="btn-primary mt-5">
-          {cta}
-        </Link>
-      ) : href ? (
-        <Link
-          href={href}
-          className="mt-5 inline-flex items-center justify-center rounded-xl border border-navy/20 px-6 py-3 text-sm font-semibold text-navy transition hover:border-navy/40"
-        >
-          See options
-        </Link>
-      ) : (
-        <span className="mt-5 inline-flex items-center justify-center rounded-xl border border-navy/15 px-6 py-3 text-sm font-semibold text-navy/45">
-          Coming soon
-        </span>
-      )}
     </div>
   );
 }
