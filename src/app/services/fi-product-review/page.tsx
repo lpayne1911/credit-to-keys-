@@ -71,17 +71,26 @@ export default function FiProductReviewPage() {
             ranges and tell you, plainly, what&apos;s worth keeping and what to
             drop — so you decide on the numbers, not the pressure.
           </p>
-          <div className="mt-6 flex flex-wrap items-center gap-4">
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
             <span className="font-serif text-2xl font-bold text-navy">
               $149–$299
             </span>
+            <Link
+              href="/services/fi-product-review/check"
+              className="btn-primary"
+            >
+              Preview the F&amp;I review flow
+            </Link>
             <Link href="/services" className="btn-secondary">
               See all services
             </Link>
           </div>
           <p className="mt-4 max-w-2xl text-sm text-navy/55">
-            This product is coming soon. It isn&apos;t purchasable yet — there&apos;s
-            nothing to buy or book on this page.
+            The full paid review is coming soon, and isn&apos;t purchasable yet —
+            there&apos;s nothing to buy or book on this page. You can try the free{" "}
+            <strong>pilot preview</strong> now: it&apos;s a buyer-side
+            decision-support tool, collects no payment, and doesn&apos;t replace
+            the full F&amp;I Product Review.
           </p>
         </section>
 
