@@ -68,17 +68,26 @@ export default function UsedCarRiskReportPage() {
             and listing signals into one buyer-side read on the risk — before you
             commit to a car you can&apos;t un-buy.
           </p>
-          <div className="mt-6 flex flex-wrap items-center gap-4">
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
             <span className="font-serif text-2xl font-bold text-navy">
               $199–$399
             </span>
+            <Link
+              href="/services/used-car-risk-report/check"
+              className="btn-primary"
+            >
+              Preview the used-car risk flow
+            </Link>
             <Link href="/services" className="btn-secondary">
               See all services
             </Link>
           </div>
           <p className="mt-4 max-w-2xl text-sm text-navy/55">
-            This product is coming soon. It isn&apos;t purchasable yet — there&apos;s
-            nothing to buy or book on this page.
+            The full paid report is coming soon, and isn&apos;t purchasable yet —
+            there&apos;s nothing to buy or book on this page. You can try the free{" "}
+            <strong>pilot preview</strong> now: it&apos;s a buyer-side
+            decision-support tool, collects no payment, and doesn&apos;t replace
+            the full Used-Car Risk Report.
           </p>
         </section>
 
