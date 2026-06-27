@@ -17,6 +17,7 @@ import { useState } from "react";
 import Link from "next/link";
 import {
   reviewFiProducts,
+  parseNumericInput,
   CATEGORY_DISPLAY,
   type FiReviewInput,
   type FiReviewResult,
@@ -100,10 +101,9 @@ function blankProduct(): ProductRow {
   };
 }
 
-function num(s: string): number | null {
-  const n = Number(s);
-  return s.trim() !== "" && Number.isFinite(n) ? n : null;
-}
+// Tolerant parse shared with the engine: strips $ , % and ignores negatives,
+// so a placeholder like "$26,000" or a stray "-5" never becomes a bad number.
+const num = parseNumericInput;
 
 const CONCERN_STYLES: Record<ConcernLevel, { wrap: string; badge: string }> = {
   high: {
@@ -141,21 +141,36 @@ export function FiProductReview() {
   const [products, setProducts] = useState<ProductRow[]>([blankProduct()]);
   const [concerns, setConcerns] = useState<Concern[]>([]);
   const [result, setResult] = useState<FiReviewResult | null>(null);
+  // True once the intake changes after a preview was generated, so we can
+  // tell the buyer the shown preview is out of date.
+  const [stale, setStale] = useState(false);
 
+  function flagStale() {
+    setStale(true);
+  }
   function setVeh(patch: Partial<typeof vehicle>) {
     setVehicle((v) => ({ ...v, ...patch }));
+    flagStale();
   }
   function updateProduct(id: number, patch: Partial<ProductRow>) {
     setProducts((ps) => ps.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+    flagStale();
   }
   function addProduct() {
     setProducts((ps) => [...ps, blankProduct()]);
+    flagStale();
   }
   function removeProduct(id: number) {
     setProducts((ps) => (ps.length > 1 ? ps.filter((p) => p.id !== id) : ps));
+    flagStale();
   }
   function toggleConcern(c: Concern) {
     setConcerns((cs) => (cs.includes(c) ? cs.filter((x) => x !== c) : [...cs, c]));
+    flagStale();
+  }
+  function clearPreview() {
+    setResult(null);
+    setStale(false);
   }
 
   function generate() {
@@ -187,6 +202,7 @@ export function FiProductReview() {
       concerns,
     };
     setResult(reviewFiProducts(input));
+    setStale(false);
     if (typeof window !== "undefined") {
       // Bring the preview into view on mobile after generating.
       requestAnimationFrame(() => {
@@ -207,8 +223,9 @@ export function FiProductReview() {
         <p className="text-sm leading-relaxed text-navy/75">
           <span className="font-semibold text-gold-dark">Pilot preview.</span>{" "}
           This is a free, buyer-side decision-support tool — not a paid review,
-          not legal advice, and not a final report. Nothing is purchased,
-          uploaded, or saved. Everything runs in your browser.
+          not legal, financial, tax, or insurance advice, and not a final report.
+          It collects no payment, and nothing you enter is uploaded or saved —
+          everything runs in your browser.
         </p>
       </div>
 
@@ -219,13 +236,19 @@ export function FiProductReview() {
             label="Have you already signed?"
             value={signed}
             options={SIGNED_OPTIONS}
-            onChange={setSigned}
+            onChange={(v) => {
+              setSigned(v);
+              flagStale();
+            }}
           />
           <Segmented
             label="Is the vehicle…"
             value={condition}
             options={CONDITION_OPTIONS}
-            onChange={setCondition}
+            onChange={(v) => {
+              setCondition(v);
+              flagStale();
+            }}
           />
         </div>
       </SectionCard>
@@ -389,12 +412,34 @@ export function FiProductReview() {
         disabled={!canGenerate}
         className="btn-primary w-full disabled:cursor-not-allowed disabled:opacity-40"
       >
-        Generate review preview
+        {result ? "Update review preview" : "Generate review preview"}
       </button>
 
       {/* 5. Review preview */}
-      <div id="review-preview" className="scroll-mt-4">
+      <div id="review-preview" className="scroll-mt-4 space-y-4">
+        {result && stale && (
+          <div className="rounded-xl border border-verdict-amber/30 bg-verdict-amber/5 px-4 py-3 text-sm text-navy/75">
+            Your inputs changed since this preview was generated.{" "}
+            <button
+              type="button"
+              onClick={generate}
+              className="font-semibold text-gold-dark underline underline-offset-2"
+            >
+              Update the preview
+            </button>{" "}
+            to refresh it.
+          </div>
+        )}
         {result && <ReviewPreview result={result} />}
+        {result && (
+          <button
+            type="button"
+            onClick={clearPreview}
+            className="text-sm font-semibold text-navy/55 underline underline-offset-2 hover:text-navy"
+          >
+            Clear preview &amp; edit inputs
+          </button>
+        )}
       </div>
     </div>
   );
@@ -583,14 +628,19 @@ function ReviewPreview({ result }: { result: FiReviewResult }) {
       <div className="rounded-xl border border-navy/10 bg-cream-100 px-4 py-3">
         <p className="text-xs leading-relaxed text-navy/60">
           <span className="font-semibold text-navy/75">
-            This is a reference point, not a legal determination.
+            This is a buyer-side reference point, not a legal determination.
           </span>{" "}
-          It&apos;s a free pilot preview — decision support, not financial, legal,
-          tax, or insurance advice, and not a completed paid review. We&apos;re
-          strictly buyer-side: we never take money from, or steer you toward, any
-          dealer, lender, finance office, warranty company, or product provider,
-          and we earn no commissions. Estimates are ranges with a confidence
-          level — we never invent an exact &quot;fair price.&quot;
+          It&apos;s a free pilot preview that collects no payment and is not the
+          full paid F&amp;I Product Review. It is decision support — not
+          financial, legal, tax, or insurance advice. It does not determine
+          whether any product is legal or illegal, and it does not guarantee a
+          cancellation, refund, approval, or savings. Confirm every
+          product&apos;s terms with your contract, the provider, your lender, or
+          a qualified professional. We&apos;re strictly buyer-side: we never take
+          money from, or steer you toward, any dealer, lender, finance office,
+          warranty company, or product provider, and we earn no commissions.
+          Estimates are ranges with a confidence level — we never invent an exact{" "}
+          &quot;fair price.&quot;
         </p>
       </div>
     </div>
@@ -602,8 +652,8 @@ function ProductResultCard({ product }: { product: FiProductResult }) {
   return (
     <div className={`rounded-2xl border p-5 ${style.wrap}`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h4 className="font-serif text-lg font-semibold text-navy">
+        <div className="min-w-0">
+          <h4 className="break-words font-serif text-lg font-semibold text-navy">
             {product.name ?? product.categoryLabel}
           </h4>
           {product.name && (

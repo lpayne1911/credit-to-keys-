@@ -196,12 +196,35 @@ const LARGE_CHARGE: Record<ProductCategory, number> = {
  */
 const FACTORY_OVERLAP: ProductCategory[] = ["vsc", "maintenance", "key", "dent_windshield"];
 
+/**
+ * Category-specific questions for the finance office. These never advise — they
+ * point the buyer at the facts they'd need to decide, and never claim a product
+ * is good or bad in all cases.
+ */
+const CATEGORY_QUESTIONS: Partial<Record<ProductCategory, string>> = {
+  gap: "Do you have a small down payment or negative equity (owing more than the car is worth)? GAP may matter more then — confirm your loan-to-value and how it interacts with your insurer's payout before deciding.",
+  vsc: "How many months and miles of the manufacturer's warranty are still on this vehicle, and when would this contract actually start covering?",
+  maintenance: "Does this duplicate any scheduled maintenance the manufacturer already includes?",
+};
+
 function money(n: number): string {
   return n.toLocaleString("en-US", {
     style: "currency",
     currency: "USD",
     maximumFractionDigits: 0,
   });
+}
+
+/**
+ * Parse a user-typed numeric field that may carry "$", ",", "%", or stray
+ * spaces (the inputs show placeholders like "$26,000"). Returns null for blank,
+ * garbage, or negative input — never NaN, never a negative, never a stray 0.
+ */
+export function parseNumericInput(raw: string): number | null {
+  const cleaned = raw.replace(/[^0-9.-]/g, "");
+  if (cleaned === "" || cleaned === "-" || cleaned === ".") return null;
+  const n = Number(cleaned);
+  return Number.isFinite(n) && n >= 0 ? n : null;
 }
 
 function hasPrice(p: FiProductInput): p is FiProductInput & { price: number } {
@@ -255,7 +278,8 @@ function signalsFor(p: FiProductInput, input: FiReviewInput): ProductSignals {
 function labelFor(s: ProductSignals): ProductLabel {
   // 1) Misrepresentation is the most serious: an optional add-on presented as
   //    required, or a large packed charge already baked into a signed/contracted
-  //    deal. (Every F&I product here is optional — none is lender-required.)
+  //    deal. (These add-ons are typically optional; the engine never asserts a
+  //    lender's actual requirements — it tells the buyer to ask for written proof.)
   if (s.toldRequired) return "dangerous_or_misrepresented";
   if (s.packed && s.largeCharge && (s.signed || s.inContract)) {
     return "dangerous_or_misrepresented";
@@ -270,12 +294,18 @@ function labelFor(s: ProductSignals): ProductLabel {
     return "cancel_if_possible";
   }
 
-  // 3) Not yet committed, but expensive / pressured / unclear → challenge it now.
-  if (!s.signed && (s.largeCharge || s.maybeRequired || s.packed || s.unclearCoverage)) {
+  // 3) Not yet committed, with a pressure or clarity problem — a "required"
+  //    hint, payment-packing, unclear coverage, or no price to judge → challenge
+  //    it now, before signing.
+  if (
+    !s.signed &&
+    (s.maybeRequired || s.packed || s.unclearCoverage || s.priceMissing)
+  ) {
     return "challenge_hard";
   }
 
-  // 4) May have value but the price looks heavy and nothing is misrepresented.
+  // 4) Not committed and simply expensive, with no pressure or clarity flag —
+  //    it may have value, but only at a better price.
   if (!s.signed && s.largeCharge) return "only_if_discounted";
 
   // 5) Price entered and not obviously high, terms reasonably clear, no required
@@ -295,7 +325,7 @@ function reasonsFor(
 
   if (s.toldRequired) {
     out.push(
-      "You were told (or weren't sure whether) this was required. Add-ons like this aren't required by lenders — do not accept a \"required\" claim without written proof.",
+      "You were told (or weren't sure whether) this was required. Add-ons like this are typically optional — ask for written proof from your lender before accepting any \"required\" claim.",
     );
   }
   if (s.packed) {
@@ -305,12 +335,12 @@ function reasonsFor(
   }
   if (s.largeCharge && hasPrice(p)) {
     out.push(
-      `At ${money(p.price)}, this is a large add to your loan. Make the finance office itemize and justify it — this is a reference point, not a fair-price ruling.`,
+      `At ${money(p.price)}, this is a large add to your loan. Ask the finance office to itemize and justify it — this is a buyer-side reference point, not a fair-price ruling.`,
     );
   }
   if (s.priceMissing) {
     out.push(
-      "No price was entered, so we can't gauge the charge. Get the exact dollar amount in writing.",
+      "No price was entered, so we can't gauge the charge. Ask for the exact dollar amount in writing.",
     );
   }
   if (s.inContract) {
@@ -320,7 +350,7 @@ function reasonsFor(
   }
   if (s.unclearCoverage) {
     out.push(
-      "The coverage, term, or mileage limit isn't clear. Get the full contract before deciding what it's worth.",
+      "The coverage, term, or mileage limit isn't clear. Ask for the full contract before deciding what it's worth.",
     );
   }
   if (s.duplicatesFactory) {
@@ -340,7 +370,7 @@ function reasonsFor(
         "Nothing here tripped a concern, but still get the full terms and cancellation policy in writing before you commit.",
       );
     } else {
-      out.push("Get the full terms and price in writing before you decide.");
+      out.push("Ask for the full terms and price in writing before you decide.");
     }
   }
   return out;
@@ -358,7 +388,7 @@ function questionsFor(p: FiProductInput, s: ProductSignals): string[] {
   }
   if (s.signed || s.inContract) {
     q.push(
-      "What is the cancellation process, and how much would I be refunded if I cancel?",
+      "What is the cancellation process, and what refund, if any, would apply if I cancel?",
     );
   }
   if (s.duplicatesFactory) {
@@ -369,6 +399,8 @@ function questionsFor(p: FiProductInput, s: ProductSignals): string[] {
   if (s.packed) {
     q.push("Can you show me this product's price as a dollar amount, not a payment?");
   }
+  const catQ = CATEGORY_QUESTIONS[p.category];
+  if (catQ) q.push(catQ);
   return q;
 }
 
@@ -377,7 +409,7 @@ function scriptFor(label: ProductLabel): string {
     case "dangerous_or_misrepresented":
       return "I was told this was required. Please remove it, or show me written proof from the lender that it's required. Otherwise I won't sign with it included.";
     case "cancel_if_possible":
-      return "I'd like to cancel this product. Please give me the cancellation form and written confirmation of the refund amount and timing.";
+      return "I'd like to cancel this product. Please give me the cancellation form and written confirmation of any refund amount and timing.";
     case "challenge_hard":
       return "Take this off the deal, or show me the full coverage terms and a lower price in writing. I'm not paying for it as it stands.";
     case "only_if_discounted":
@@ -449,6 +481,10 @@ function confidenceFor(input: FiReviewInput): Confidence {
 
   note(input.signed !== "not_sure");
   note(typeof input.vehicle.price === "number" && input.vehicle.price > 0);
+  note(input.vehicle.year != null);
+  note(!!input.vehicle.make);
+  note(!!input.vehicle.model);
+  note(input.vehicle.mileage != null);
 
   for (const p of input.products) {
     note(hasPrice(p));
@@ -474,7 +510,7 @@ function nextStepsFor(input: FiReviewInput, products: FiProductResult[]): string
   }
   if (input.signed === "signed" || input.concerns.includes("already_signed_cancel")) {
     steps.push(
-      "If you've already signed, gather your contract and ask the finance office for each product's cancellation form and written refund confirmation.",
+      "If you've already signed, gather your contract and ask the finance office for each product's cancellation form and written confirmation of any refund.",
     );
   }
   if (input.concerns.includes("packed_into_payment")) {
@@ -525,10 +561,17 @@ export function reviewFiProducts(input: FiReviewInput): FiReviewResult {
 
   const overallLabel = rollUp(input, productResults, docStarved);
 
+  // With nothing entered, say plainly that a product is needed rather than the
+  // generic "documents missing" copy.
+  const overallSummary =
+    input.products.length === 0
+      ? "Add at least one finance-office product to get a preview — this flow reviews the warranty, GAP, and add-ons on your deal."
+      : OVERALL_SUMMARY[overallLabel];
+
   return {
     overallLabel,
     overallDisplayLabel: OVERALL_LABEL_DISPLAY[overallLabel],
-    overallSummary: OVERALL_SUMMARY[overallLabel],
+    overallSummary,
     confidence: confidenceFor(input),
     productResults,
     nextSteps: nextStepsFor(input, productResults),
