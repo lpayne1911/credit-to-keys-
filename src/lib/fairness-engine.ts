@@ -693,11 +693,14 @@ function assessApr(deal: DealInput, assumptions: string[]): Flag | null {
     };
   }
 
+  const costPhrase = impact
+    ? ` — that's roughly ${money(impact.low)}–${money(impact.high)} in extra interest over the loan`
+    : "";
   return {
     type: "apr_markup",
     severity: over > 4 ? "high" : "medium",
     title: "Possible marked-up interest rate",
-    explanation: `The ${deal.apr}% APR offered is above the ${band.low}%–${band.high}% range a buyer with your stated credit would likely qualify for. Dealers often mark up the lender's rate and keep the difference. Ask to see the "buy rate," or get a pre-approval from your own bank or credit union to compare.`,
+    explanation: `Your ${deal.apr}% APR is about ${over.toFixed(1)} points above the ${band.low}%–${band.high}% range a buyer with your stated credit would likely qualify for${costPhrase}. Dealers often mark up the lender's rate and keep the difference. Ask to see the "buy rate," or bring a pre-approval from your own bank or credit union to compare.`,
     estimatedImpact: impact,
   };
 }

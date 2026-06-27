@@ -102,6 +102,15 @@ describe("scoreDeal — APR markup", () => {
     expect(apr!.estimatedImpact!.low).toBeLessThanOrEqual(
       apr!.estimatedImpact!.high,
     );
+    // The copy must surface that dollar impact, not just the percentages.
+    const usd = (n: number) =>
+      n.toLocaleString("en-US", {
+        style: "currency",
+        currency: "USD",
+        maximumFractionDigits: 0,
+      });
+    expect(apr!.explanation).toContain(usd(apr!.estimatedImpact!.low));
+    expect(apr!.explanation).toMatch(/extra interest/i);
   });
 
   it("does not flag an APR within the likely band", () => {
