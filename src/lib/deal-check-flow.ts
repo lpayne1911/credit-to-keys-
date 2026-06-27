@@ -44,12 +44,17 @@ export type Focus = "full" | "warranty" | "apr" | "addons";
 
 export function stepsForFocus(focus: Focus = "full"): StepKey[] {
   switch (focus) {
+    // Warranty fair-pricing uses the brand's reliability tier + age/mileage, so
+    // the warranty check legitimately asks for the vehicle.
     case "warranty":
       return ["start", "brand", "specs", "warranty"];
+    // APR/payment scoring uses credit band + the loan numbers — NOT the make —
+    // so the brand picker is dropped; the flow diverges immediately.
     case "apr":
-      return ["start", "brand", "credit", "price", "financing"];
+      return ["start", "credit", "price", "financing"];
+    // Add-on/fee scoring keys off the fee labels (+ state), not the make.
     case "addons":
-      return ["start", "brand", "state", "addons", "warranty"];
+      return ["start", "state", "addons", "warranty"];
     case "full":
     default:
       return STEPS;

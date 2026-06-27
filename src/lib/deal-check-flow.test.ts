@@ -4,9 +4,33 @@ import {
   PROGRESS_STEPS,
   progressPercent,
   continueEnabled,
+  stepsForFocus,
   type StepKey,
   type FlowState,
 } from "./deal-check-flow";
+
+describe("focused flows diverge (not all funneled through the brand picker)", () => {
+  it("only the warranty check and full check ask for the brand", () => {
+    expect(stepsForFocus("warranty")).toContain("brand");
+    expect(stepsForFocus("full")).toContain("brand");
+    expect(stepsForFocus("apr")).not.toContain("brand");
+    expect(stepsForFocus("addons")).not.toContain("brand");
+  });
+  it("each focus has a distinct second screen after 'start'", () => {
+    const second = (f: Parameters<typeof stepsForFocus>[0]) => stepsForFocus(f)[1];
+    expect(second("warranty")).toBe("brand");
+    expect(second("apr")).toBe("credit");
+    expect(second("addons")).toBe("state");
+    expect(new Set([second("warranty"), second("apr"), second("addons")]).size).toBe(3);
+  });
+  it("every focused flow starts with 'start' and has a real step after", () => {
+    for (const f of ["warranty", "apr", "addons", "full"] as const) {
+      const s = stepsForFocus(f);
+      expect(s[0]).toBe("start");
+      expect(s.length).toBeGreaterThanOrEqual(3);
+    }
+  });
+});
 
 function flow(overrides: Partial<FlowState> = {}): FlowState {
   return { make: "", makeOther: "", hasWarranty: null, hasTrade: null, ...overrides };
