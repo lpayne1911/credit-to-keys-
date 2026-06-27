@@ -36,6 +36,20 @@ describe("POST /api/deals", () => {
     expect(res.status).toBe(422);
   });
 
+  it("accepts an optional VIN and internal location, still scoring inline", async () => {
+    const res = await POST(
+      jsonRequest({
+        vehicle: { make: "Honda", model: "Accord", vin: "1HGCV1F4XMA000000" },
+        deal: { apr: "7", creditBand: "good" },
+        location: { zip: "90210", state: "CA" },
+      }),
+    );
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.persisted).toBe(false);
+    expect(["green", "amber", "red"]).toContain(data.result.overallVerdict);
+  });
+
   it("rejects malformed JSON (400)", async () => {
     const bad = new Request("http://localhost/api/deals", {
       method: "POST",

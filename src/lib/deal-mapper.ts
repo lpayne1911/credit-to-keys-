@@ -41,6 +41,11 @@ export interface DealSubmission {
     estimatedValue?: number | string;
     loanPayoff?: number | string;
   };
+  /** Internal-only location signal (ZIP-derived). Not used for scoring. */
+  location?: {
+    zip?: string;
+    state?: string;
+  };
   inputPath?: "manual" | "upload";
   uploadedFilePath?: string;
 }
@@ -74,6 +79,8 @@ const CREDIT_BANDS: CreditBand[] = [
 ];
 
 export function toFairnessInput(s: DealSubmission): FairnessInput {
+  // NOTE: `s.location` (ZIP/state) is intentionally NOT mapped here — it's an
+  // internal analytics signal only and never feeds the fairness score.
   const fees = (s.deal?.fees ?? [])
     .map((f) => ({ label: str(f.label) ?? "", amount: num(f.amount) ?? 0 }))
     .filter((f) => f.label || f.amount);
@@ -149,6 +156,12 @@ export function toDealRow(
     warranty_price: input.warranty?.priceQuoted ?? null,
     uploaded_file_path: s.uploadedFilePath ?? null,
     input_path: s.inputPath ?? "manual",
+
+    // Internal-only location signal (ZIP-derived). Never scored, never shown to
+    // the buyer. `buyer_income_band` is a reserved seam, populated later.
+    buyer_zip: str(s.location?.zip),
+    buyer_state: str(s.location?.state),
+    buyer_income_band: null,
     auto_verdict: result.overallVerdict,
     auto_result: result,
     status: "new" as const,

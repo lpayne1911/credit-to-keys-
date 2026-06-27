@@ -13,6 +13,8 @@
  * single safe action button, stale-preview handling, and an on-page result.
  */
 import { useId, useState } from "react";
+import { VinAutofill } from "@/components/vehicle/VinAutofill";
+import type { DecodedVehicle } from "@/lib/vin";
 import {
   reviewUsedCar,
   OVERALL_DISPLAY,
@@ -122,6 +124,7 @@ const CONCERN_OPTIONS: { value: Concern; label: string }[] = [
  * ------------------------------------------------------------------------- */
 
 interface VehicleForm {
+  vin: string;
   year: string;
   make: string;
   model: string;
@@ -133,6 +136,7 @@ interface VehicleForm {
 }
 
 const BLANK_VEHICLE: VehicleForm = {
+  vin: "",
   year: "",
   make: "",
   model: "",
@@ -196,6 +200,17 @@ export function UsedCarRiskReview() {
   }
   function setVehField(patch: Partial<VehicleForm>) {
     setVeh((v) => ({ ...v, ...patch }));
+    flagStale();
+  }
+  // Prefill only the fields the buyer hasn't typed — never clobber their input.
+  function applyVin(d: DecodedVehicle) {
+    setVeh((v) => ({
+      ...v,
+      year: v.year || (d.year ? String(d.year) : ""),
+      make: v.make || (d.make ?? ""),
+      model: v.model || (d.model ?? ""),
+      trim: v.trim || (d.trim ?? ""),
+    }));
     flagStale();
   }
   function toggleConcern(c: Concern) {
@@ -269,6 +284,13 @@ export function UsedCarRiskReview() {
 
       {/* 2. Vehicle basics */}
       <SectionCard step={2} title="Vehicle basics">
+        <div className="mb-4">
+          <VinAutofill
+            value={veh.vin}
+            onChange={(vin) => setVehField({ vin })}
+            onDecoded={applyVin}
+          />
+        </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Year">
             <input className="field-input" inputMode="numeric" value={veh.year}

@@ -26,6 +26,9 @@ import {
   type StepKey,
 } from "@/lib/deal-check-flow";
 import { VerdictView } from "@/components/VerdictView";
+import { VinAutofill } from "@/components/vehicle/VinAutofill";
+import type { DecodedVehicle } from "@/lib/vin";
+import { deriveZipContext } from "@/lib/zip-context";
 
 /* ---------------------------------------------------------------------------
  *  Tap data
@@ -81,6 +84,13 @@ const ADD_ONS: AddOn[] = [
 type State = {
   make: string;
   makeOther: string;
+  // Optional VIN (autofill). vinModel/vinTrim carry decode-only fields the
+  // tap flow doesn't otherwise collect, so they can persist.
+  vin: string;
+  vinModel: string;
+  vinTrim: string;
+  // Optional ZIP — internal location signal, never shown back to the buyer.
+  zip: string;
   year: number;
   mileage: number;
   creditBand: string;
@@ -108,6 +118,10 @@ const NOW = new Date().getFullYear();
 const INITIAL: State = {
   make: "",
   makeOther: "",
+  vin: "",
+  vinModel: "",
+  vinTrim: "",
+  zip: "",
   year: NOW - 3,
   mileage: 40_000,
   creditBand: "",
@@ -161,18 +175,35 @@ export function GamifiedDealCheck() {
     setStepIdx((i) => Math.max(i - 1, 0));
   }
 
+  // VIN autofill (optional): VIN is authoritative for the year and supplies the
+  // model/trim the tap flow doesn't otherwise collect. Make is already chosen on
+  // the brand step, so it's only filled if somehow empty — never clobbered.
+  function applyVin(d: DecodedVehicle) {
+    setS((prev) => ({
+      ...prev,
+      year: d.year ?? prev.year,
+      make: prev.make || (d.make ?? ""),
+      vinModel: d.model ?? prev.vinModel,
+      vinTrim: d.trim ?? prev.vinTrim,
+    }));
+  }
+
   /* ----- submission ----- */
   function buildSubmission(): DealSubmission {
     const fees = Object.entries(s.addOns).map(([key, v]) => {
       const def = ADD_ONS.find((a) => a.key === key);
       return { label: def?.label ?? key, amount: v.amount };
     });
+    // Internal-only location signal (ZIP-derived). Never shown back to the buyer.
+    const zc = s.zip ? deriveZipContext(s.zip) : null;
     return {
       vehicle: {
         year: s.year,
         make: s.make === "Other" ? s.makeOther : s.make === "VW" ? "Volkswagen" : s.make,
-        model: "",
+        model: s.vinModel || "",
+        trim: s.vinTrim || undefined,
         mileage: s.mileage,
+        vin: s.vin.trim() || undefined,
       },
       deal: {
         vehiclePrice: s.vehiclePrice,
@@ -197,6 +228,7 @@ export function GamifiedDealCheck() {
             loanPayoff: s.tradeStillOwe ? s.tradePayoff : undefined,
           }
         : undefined,
+      location: zc ? { zip: zc.zip, state: zc.state ?? undefined } : undefined,
       inputPath: uploadedPath ? "upload" : "manual",
       uploadedFilePath: uploadedPath ?? undefined,
     };
@@ -399,6 +431,18 @@ export function GamifiedDealCheck() {
                   onChange={(v) => set("year", v)} format={(v) => String(v)} big />
                 <Slider label="Mileage" value={s.mileage} min={0} max={200_000} step={2_500}
                   onChange={(v) => set("mileage", v)} format={(v) => `${v.toLocaleString()} mi`} />
+                <details className="rounded-xl border border-navy/10 bg-white/60 px-4 py-3">
+                  <summary className="cursor-pointer text-sm font-semibold text-gold-dark">
+                    Have the VIN? Auto-fill the vehicle (optional)
+                  </summary>
+                  <div className="mt-3">
+                    <VinAutofill
+                      value={s.vin}
+                      onChange={(vin) => set("vin", vin)}
+                      onDecoded={applyVin}
+                    />
+                  </div>
+                </details>
               </div>
             </Step>
           )}
@@ -432,6 +476,20 @@ export function GamifiedDealCheck() {
                   onChange={(v) => set("vehiclePrice", v)} format={money} big />
                 <Slider label="Down payment" value={s.downPayment} min={0} max={25_000} step={250}
                   onChange={(v) => set("downPayment", v)} format={money} />
+                <div>
+                  <p className="field-label">ZIP code (optional)</p>
+                  <input
+                    className="field-input"
+                    inputMode="numeric"
+                    maxLength={5}
+                    value={s.zip}
+                    onChange={(e) => set("zip", e.target.value.replace(/[^0-9]/g, ""))}
+                    placeholder="e.g. 90210"
+                  />
+                  <p className="mt-1.5 text-xs text-navy/50">
+                    Helps us factor in local taxes and fees. Never shared with a dealer.
+                  </p>
+                </div>
               </div>
             </Step>
           )}

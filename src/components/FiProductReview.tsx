@@ -15,6 +15,8 @@
  */
 import { useId, useState } from "react";
 import Link from "next/link";
+import { VinAutofill } from "@/components/vehicle/VinAutofill";
+import type { DecodedVehicle } from "@/lib/vin";
 import {
   reviewFiProducts,
   parseNumericInput,
@@ -128,6 +130,7 @@ export function FiProductReview() {
   const [signed, setSigned] = useState<SignedStatus>("not_yet");
   const [condition, setCondition] = useState<VehicleCondition>("used");
   const [vehicle, setVehicle] = useState({
+    vin: "",
     year: "",
     make: "",
     model: "",
@@ -150,6 +153,16 @@ export function FiProductReview() {
   }
   function setVeh(patch: Partial<typeof vehicle>) {
     setVehicle((v) => ({ ...v, ...patch }));
+    flagStale();
+  }
+  // Prefill only the fields the buyer hasn't typed — never clobber their input.
+  function applyVin(d: DecodedVehicle) {
+    setVehicle((v) => ({
+      ...v,
+      year: v.year || (d.year ? String(d.year) : ""),
+      make: v.make || (d.make ?? ""),
+      model: v.model || (d.model ?? ""),
+    }));
     flagStale();
   }
   function updateProduct(id: number, patch: Partial<ProductRow>) {
@@ -259,6 +272,13 @@ export function FiProductReview() {
 
       {/* 2. Vehicle basics */}
       <SectionCard step={2} title="Vehicle basics">
+        <div className="mb-4">
+          <VinAutofill
+            value={vehicle.vin}
+            onChange={(vin) => setVeh({ vin })}
+            onDecoded={applyVin}
+          />
+        </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Year">
             <input
