@@ -280,10 +280,10 @@ export interface NavLink {
 }
 export const NAV_LINKS: NavLink[] = [
   { label: "How it works", href: "/#how-it-works" },
-  { label: "Products", href: "/products" },
+  { label: "What we catch", href: "/#what-we-catch" },
   { label: "Human review", href: "/human-review" },
-  { label: "Deal rescue", href: "/deal-rescue" },
-  { label: "Start free check", href: "/check", primary: true },
+  { label: "Already signed?", href: "/deal-rescue" },
+  { label: "Check my deal", href: "/check", primary: true },
 ];
 
 /** Analytics event names for CTA clicks / intake submissions. */

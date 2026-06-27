@@ -49,10 +49,10 @@ describe("product catalog routing", () => {
 
   it("nav links route correctly and include the free check as primary", () => {
     const byLabel = Object.fromEntries(NAV_LINKS.map((l) => [l.label, l]));
-    expect(byLabel["Products"].href).toBe("/products");
-    expect(byLabel["Human review"].href).toBe("/human-review");
-    expect(byLabel["Deal rescue"].href).toBe("/deal-rescue");
     expect(byLabel["How it works"].href).toBe("/#how-it-works");
+    expect(byLabel["What we catch"].href).toBe("/#what-we-catch");
+    expect(byLabel["Human review"].href).toBe("/human-review");
+    expect(byLabel["Already signed?"].href).toBe("/deal-rescue");
     const primary = NAV_LINKS.find((l) => l.primary);
     expect(primary?.href).toBe("/check");
   });

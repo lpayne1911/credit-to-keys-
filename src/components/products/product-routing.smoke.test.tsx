@@ -39,13 +39,13 @@ describe("product CTA routing (rendered markup)", () => {
     expect(markup).toContain('href="/deal-rescue"');
   });
 
-  it("header nav routes to products, human review, deal rescue, and free check", () => {
+  it("header nav routes to human review, deal rescue, and the free check", () => {
     const markup = html(createElement(SiteHeader));
-    expect(markup).toContain('href="/products"');
     expect(markup).toContain('href="/human-review"');
     expect(markup).toContain('href="/deal-rescue"');
     expect(markup).toContain('href="/check"');
     expect(markup).toContain("How it works");
+    expect(markup).toContain("What we catch");
     expect(markup).not.toContain("Pricing");
   });
 
