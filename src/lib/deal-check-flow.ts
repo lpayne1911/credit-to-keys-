@@ -9,7 +9,9 @@
 export type StepKey =
   | "start"
   | "brand"
+  | "model"
   | "specs"
+  | "state"
   | "credit"
   | "price"
   | "financing"
@@ -21,7 +23,9 @@ export type StepKey =
 export const STEPS: StepKey[] = [
   "start",
   "brand",
+  "model",
   "specs",
+  "state",
   "credit",
   "price",
   "financing",
@@ -48,6 +52,13 @@ export interface FlowState {
 }
 
 /**
+ * Steps that collect optional context (vehicle identity, buyer state). They
+ * always allow Continue — they're never required, but capturing them means we
+ * don't identify or score a deal on year/mileage alone, and unlocks
+ * state-aware copy (and later, state fee caps).
+ */
+
+/**
  * Whether the sticky footer button is enabled for a step. Steps with no footer
  * button (start, credit — they auto-advance on tap) return false. The choice
  * steps (trade, warranty) require an explicit yes/no so a buyer can't blow past
@@ -61,7 +72,9 @@ export function continueEnabled(step: StepKey, s: FlowState): boolean {
       return s.hasTrade !== null;
     case "warranty":
       return s.hasWarranty !== null;
+    case "model":
     case "specs":
+    case "state":
     case "price":
     case "financing":
     case "addons":

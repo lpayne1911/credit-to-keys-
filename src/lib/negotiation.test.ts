@@ -72,9 +72,46 @@ describe("buildNegotiationScript", () => {
   });
 
   it("gives a clean deal a single confirm-the-price point", () => {
-    const script = buildNegotiationScript(scoreDeal(baseInput()));
+    // Truly clean: no fees at all, so no government-fee itemization point either.
+    const script = buildNegotiationScript(
+      scoreDeal(
+        baseInput({
+          deal: { vehiclePrice: 26_000, apr: 7, termMonths: 60, creditBand: "good", fees: [] },
+        }),
+      ),
+    );
     expect(script.points).toHaveLength(1);
     expect(script.points[0].say).toMatch(/out-the-door/i);
+  });
+
+  it("treats government title/registration fees as legitimate, not junk", () => {
+    // Within ceiling → an INFO note (not a junk challenge), with the
+    // pay-but-itemize script line.
+    const ok = scoreDeal(
+      baseInput({
+        deal: { apr: 7, creditBand: "good", fees: [{ label: "Title / registration", amount: 350 }] },
+      }),
+    );
+    const govFlag = ok.flags.find((f) => f.type === "government_fee");
+    expect(govFlag).toBeTruthy();
+    expect(govFlag!.severity).toBe("info");
+    expect(ok.flags.some((f) => f.type === "junk_fee")).toBe(false);
+    const script = buildNegotiationScript(ok);
+    const govPoint = script.points.find((p) => p.heading === "Government fees");
+    expect(govPoint).toBeTruthy();
+    expect(govPoint!.say).toMatch(/itemized/i);
+  });
+
+  it("doc-fee script asks for an offsetting price cut, not removal", () => {
+    const r = scoreDeal(
+      baseInput({
+        deal: { apr: 7, creditBand: "good", fees: [{ label: "Documentation fee", amount: 900 }] },
+      }),
+    );
+    const doc = buildNegotiationScript(r).points.find((p) => /documentation/i.test(p.say));
+    expect(doc).toBeTruthy();
+    expect(doc!.say).toMatch(/reduce the car's selling price|out-the-door/i);
+    expect(doc!.say).not.toMatch(/take the .* charge off/i);
   });
 
   it("tunes the opener to a red verdict and always preserves the walk", () => {
@@ -122,6 +159,7 @@ describe("buildNegotiationScript", () => {
       overallVerdict: "black",
       headline: "Walk away — this deal has a serious problem.",
       confidence: "high",
+      confidenceReasons: [],
       flags: [
         {
           type: "junk_fee",
@@ -145,6 +183,7 @@ describe("buildNegotiationScript", () => {
       overallVerdict: "black",
       headline: "Walk away.",
       confidence: "high",
+      confidenceReasons: [],
       flags: [],
       warranty: null,
       assumptions: [],

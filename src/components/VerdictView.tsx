@@ -18,7 +18,7 @@ import {
   TYPICAL_TAX_TITLE_PCT,
 } from "@/lib/fairness-engine";
 import { compareTerm, paymentBreakdown } from "@/lib/loan-math";
-import { savingsRange } from "@/lib/verdict-summary";
+import { savingsRange, savingsBreakdown } from "@/lib/verdict-summary";
 import { NegotiationScriptCard } from "@/components/NegotiationScriptCard";
 
 /** The loan numbers needed to show what financing really costs over the term. */
@@ -140,7 +140,7 @@ export function VerdictGauge({ score }: { score: number }) {
 export function dealScore(result: FairnessResult): number {
   let score = 100;
   for (const f of result.flags) {
-    if (f.type === "missing_info" || f.type === "info") continue;
+    if (f.severity === "info") continue; // info notes (incl. legit gov fees) don't dock
     score -=
       f.severity === "high" ? 22 : f.severity === "medium" ? 11 : f.severity === "low" ? 5 : 0;
   }
@@ -163,6 +163,7 @@ export function SavingsHero({ result }: { result: FairnessResult }) {
       </div>
     );
   }
+  const lines = savingsBreakdown(result);
   return (
     <div className="border-t border-navy/10 bg-white/60 px-6 py-5">
       <p className="text-[11px] font-semibold uppercase tracking-wide text-navy/55">
@@ -171,7 +172,19 @@ export function SavingsHero({ result }: { result: FairnessResult }) {
       <p className="mt-0.5 font-serif text-3xl font-bold text-gold-dark">
         {money(impact.low)}–{money(impact.high)}
       </p>
-      <p className="mt-1 text-sm text-navy/60">
+      {lines.length > 0 && (
+        <ul className="mt-3 space-y-1.5">
+          {lines.map((l, i) => (
+            <li key={i} className="flex items-baseline justify-between gap-3 text-sm">
+              <span className="text-navy/70">{l.label}</span>
+              <span className="shrink-0 font-medium tabular-nums text-navy/80">
+                {money(l.low)}–{money(l.high)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="mt-2 text-sm text-navy/60">
         If you push back on the flags below. An estimate, not a guarantee.
       </p>
     </div>
@@ -434,12 +447,10 @@ export function VerdictView({
     (a, b) =>
       (SEVERITY_ORDER[a.severity] ?? 9) - (SEVERITY_ORDER[b.severity] ?? 9),
   );
-  const realFlags = sortedFlags.filter(
-    (f) => f.type !== "missing_info" && f.type !== "info",
-  );
-  const infoFlags = sortedFlags.filter(
-    (f) => f.type === "missing_info" || f.type === "info",
-  );
+  // Partition by SEVERITY, not type: info-severity flags (missing-info notes and
+  // legitimate government fees) are never shown as red flags.
+  const realFlags = sortedFlags.filter((f) => f.severity !== "info");
+  const infoFlags = sortedFlags.filter((f) => f.severity === "info");
 
   return (
     <div className="space-y-6">
@@ -553,6 +564,20 @@ export function VerdictView({
                     <span className="font-medium text-navy/80">{f.title}.</span>{" "}
                     {f.explanation}
                   </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {result.confidenceReasons && result.confidenceReasons.length > 0 && (
+            <div>
+              <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-navy/50">
+                Why we&apos;re {result.confidence} confidence
+                <ConfidenceBadge level={result.confidence} />
+              </h3>
+              <ul className="list-disc space-y-1.5 pl-5 text-xs text-navy/65">
+                {result.confidenceReasons.map((r, i) => (
+                  <li key={i}>{r}</li>
                 ))}
               </ul>
             </div>

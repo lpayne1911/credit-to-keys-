@@ -33,6 +33,10 @@ export interface DealRow {
   id: string;
   lead_id: string | null;
 
+  // Where the buyer is purchasing (two-letter state code). Drives state-aware
+  // copy and, later, state-specific fee caps.
+  buyer_state: string | null;
+
   // Vehicle
   vehicle_year: number | null;
   vehicle_make: string | null;

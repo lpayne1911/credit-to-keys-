@@ -12,10 +12,10 @@ export function SiteHeader() {
         </Link>
         <div className="flex items-center gap-4">
           <Link
-            href="/services"
+            href="/#how-it-works"
             className="hidden text-sm font-semibold text-navy/70 hover:text-navy sm:block"
           >
-            Pricing
+            How it works
           </Link>
           <Link href="/check" className="btn-primary px-4 py-2 text-sm">
             Check my deal

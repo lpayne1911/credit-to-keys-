@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
-import { Disclaimer } from "@/components/Disclaimer";
 import { VerdictGauge } from "@/components/VerdictView";
 
 export default function LandingPage() {
@@ -66,10 +65,10 @@ export default function LandingPage() {
         {/* Three doors — every buyer gets a clear entry point */}
         <section id="paths" className="mx-auto max-w-5xl px-4 py-14">
           <h2 className="font-serif text-3xl font-semibold text-navy">
-            Three ways in
+            Where are you in the process?
           </h2>
           <p className="mt-2 text-navy/60">
-            Wherever you are in the process, there&apos;s a door for you.
+            Three ways we can help — wherever you are, there&apos;s a door for you.
           </p>
           <div className="mt-8 grid gap-5 sm:grid-cols-3">
             <Door
@@ -119,7 +118,7 @@ export default function LandingPage() {
         </section>
 
         {/* How it works */}
-        <section className="mx-auto max-w-5xl px-4 py-14">
+        <section id="how-it-works" className="mx-auto max-w-5xl px-4 py-14 scroll-mt-20">
           <h2 className="font-serif text-3xl font-semibold text-navy">
             How it works
           </h2>
@@ -148,11 +147,9 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Disclaimer — persistent on landing */}
-        <section className="mx-auto max-w-5xl px-4 py-10">
-          <Disclaimer />
-        </section>
       </main>
+      {/* The persistent compliance disclaimer lives in SiteFooter (below) — a
+          single render, no duplicate near the bottom of the page. */}
       <SiteFooter />
     </>
   );
