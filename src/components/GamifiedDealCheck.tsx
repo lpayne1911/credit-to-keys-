@@ -26,6 +26,7 @@ import {
   type StepKey,
 } from "@/lib/deal-check-flow";
 import { VerdictView } from "@/components/VerdictView";
+import { SERVICE_CONTRACT_GROUPS } from "@/lib/service-contracts";
 
 /* ---------------------------------------------------------------------------
  *  Tap data
@@ -590,7 +591,7 @@ export function GamifiedDealCheck() {
           )}
 
           {step === "warranty" && (
-            <Step title="Extended warranty offered?" sub="The finance office's biggest markup. Let's price-check it.">
+            <Step title="Extended warranty offered?" sub="Service contract, VSC, Honda Care, Endurance — whatever it's called, it belongs here. It's the finance office's biggest markup; let's price-check it.">
               <div className="grid grid-cols-2 gap-2.5">
                 <button type="button" onClick={() => set("hasWarranty", false)}
                   className={`choice justify-center !py-5 ${s.hasWarranty === false ? "choice--on" : ""}`}>
@@ -601,6 +602,9 @@ export function GamifiedDealCheck() {
                   <span className="font-semibold text-navy">Yes, they did</span>
                 </button>
               </div>
+
+              <ServiceContractNames />
+
               {s.hasWarranty && (
                 <div className="mt-7 space-y-7 animate-step-in">
                   <div>
@@ -747,6 +751,38 @@ function Step({ title, sub, children }: { title: string; sub?: string; children:
       {sub && <p className="mt-2 text-[15px] leading-snug text-navy/60">{sub}</p>}
       <div className="mt-6">{children}</div>
     </div>
+  );
+}
+
+/**
+ * Reassurance for the warranty step: dealers sell the same service contract
+ * under dozens of names, so we spell them out. The point is that ANY buyer
+ * recognizes their product here and knows to price-check it — they shouldn't
+ * have to know it's technically a "vehicle service contract."
+ */
+function ServiceContractNames() {
+  return (
+    <details className="mt-4 rounded-xl border border-navy/10 bg-white/60 px-4 py-3">
+      <summary className="cursor-pointer list-none text-sm font-semibold text-gold-dark">
+        Not sure if you got one? See the names it goes by →
+      </summary>
+      <div className="mt-3 space-y-3">
+        {SERVICE_CONTRACT_GROUPS.map((g) => (
+          <div key={g.label}>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-navy/45">
+              {g.label}
+            </p>
+            <p className="mt-0.5 text-sm leading-relaxed text-navy/70">
+              {g.names.join(" · ")}
+            </p>
+          </div>
+        ))}
+        <p className="text-xs text-navy/50">
+          See any of these on your paperwork (or anything like them)? Tap
+          &ldquo;Yes&rdquo; above and enter the price — we&apos;ll price-check it.
+        </p>
+      </div>
+    </details>
   );
 }
 

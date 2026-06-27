@@ -14,6 +14,8 @@
  * own env (e.g. an API key) to enable a real extractor without touching the UI.
  */
 
+import { isServiceContract } from "../service-contracts";
+
 export interface ExtractedFields {
   year?: string;
   make?: string;
@@ -100,7 +102,7 @@ Return a single JSON object (no prose, no code fences) with these keys, omitting
   "apr": number,                     // financing APR as a percent, e.g. 9.9
   "termMonths": number,
   "monthlyPayment": number,
-  "warrantyPrice": number,           // price of any extended warranty / VSC / service contract
+  "warrantyPrice": number,           // price of any vehicle service contract / extended warranty, under ANY name: VSC, extended service plan/contract (ESP/ESC), mechanical breakdown insurance (MBI), a manufacturer plan (e.g. Honda Care, Ford Protect/PremiumCARE, GM Protection Plan, Mopar MaxCare, Nissan Security+Plus, Subaru Added Security), or a provider plan (e.g. Endurance, Zurich, Ally Premier Protection, Fidelity, Assurant, CarShield). NOT GAP, tire & wheel, key, or paint/fabric protection.
   "fees": [ { "label": string, "amount": number } ]  // every dealer fee & add-on line item: doc fee, nitrogen, VIN etch, paint/fabric protection, dealer prep, market adjustment, title/registration, etc.
 }
 Strip "$" and commas from all numbers. If the document is not a car quote, return {}.`;
@@ -156,7 +158,7 @@ function parseJsonObject(text: string): Record<string, unknown> {
 }
 
 /** Coerce the model's JSON into ExtractedFields (all strings; fees typed). */
-function normalize(raw: Record<string, unknown>): ExtractedFields {
+export function normalize(raw: Record<string, unknown>): ExtractedFields {
   const s = (v: unknown): string | undefined => {
     if (v === null || v === undefined || v === "") return undefined;
     return String(v).trim() || undefined;
@@ -175,7 +177,7 @@ function normalize(raw: Record<string, unknown>): ExtractedFields {
     warrantyPrice: s(raw.warrantyPrice),
   };
   if (Array.isArray(raw.fees)) {
-    const fees = raw.fees
+    let fees = raw.fees
       .map((f) => {
         const row = (f ?? {}) as Record<string, unknown>;
         const label = s(row.label) ?? "";
@@ -183,6 +185,21 @@ function normalize(raw: Record<string, unknown>): ExtractedFields {
         return { label, amount: Number.isFinite(amount) ? amount : 0 };
       })
       .filter((f) => f.label || f.amount);
+
+    // Recognize a service contract no matter where it landed: if the model
+    // listed an extended-warranty/VSC line as a fee (under any of its many
+    // names) and didn't already report a warranty price, promote it so the
+    // buyer's warranty actually gets price-checked instead of buried in fees.
+    if (!out.warrantyPrice) {
+      const idx = fees.findIndex(
+        (f) => f.amount > 0 && isServiceContract(f.label),
+      );
+      if (idx !== -1) {
+        out.warrantyPrice = String(fees[idx].amount);
+        fees = fees.filter((_, i) => i !== idx);
+      }
+    }
+
     if (fees.length) out.fees = fees;
   }
   // Drop undefined keys so the route's "got anything?" check is accurate.
