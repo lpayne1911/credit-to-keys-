@@ -122,6 +122,9 @@ describe("SAMPLE_FI_REPORT — no forbidden phrases in customer-facing data", ()
     /definitely cancel/i,
     /stop paying/i,
     /lender never requires/i,
+    /final report/i,
+    /official report/i,
+    /legal finding/i,
   ];
 
   it("contains none of the forbidden phrases", () => {

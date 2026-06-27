@@ -78,7 +78,9 @@ export default function SampleReportPage() {
               Every name, number, and finding on this page is fictional. This is{" "}
               <strong>not a real customer report</strong> and not a completed paid
               review — the full F&amp;I Product Review isn&apos;t purchasable yet.
-              It&apos;s here to show what the deliverable looks like.
+              It&apos;s here to show what the deliverable looks like. The pilot
+              preview it links to is free, collects no payment, and doesn&apos;t
+              replace the full review.
             </p>
           </div>
         </section>

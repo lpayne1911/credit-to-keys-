@@ -13,7 +13,7 @@
  * Mirrors the JunkFeeAudit pattern: local React state, a single safe action
  * button, and an on-page result panel. No server round-trip.
  */
-import { useState } from "react";
+import { useId, useState } from "react";
 import Link from "next/link";
 import {
   reviewFiProducts,
@@ -236,6 +236,8 @@ export function FiProductReview() {
             label="Have you already signed?"
             value={signed}
             options={SIGNED_OPTIONS}
+            variant="card"
+            columns="grid-cols-1 sm:grid-cols-3"
             onChange={(v) => {
               setSigned(v);
               flagStale();
@@ -245,6 +247,8 @@ export function FiProductReview() {
             label="Is the vehicle…"
             value={condition}
             options={CONDITION_OPTIONS}
+            variant="card"
+            columns="grid-cols-2 sm:grid-cols-3"
             onChange={(v) => {
               setCondition(v);
               flagStale();
@@ -382,7 +386,7 @@ export function FiProductReview() {
                 type="button"
                 aria-pressed={on}
                 onClick={() => toggleConcern(c.value)}
-                className={`flex items-start gap-3 rounded-xl border-2 px-4 py-3 text-left text-sm transition ${
+                className={`flex items-start gap-3 rounded-xl border-2 px-4 py-3 text-left text-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-1 ${
                   on
                     ? "border-gold bg-gold/[0.07] text-navy"
                     : "border-navy/10 bg-white text-navy/75 hover:border-gold/50"
@@ -750,15 +754,62 @@ function Segmented<T extends string>({
   value,
   options,
   onChange,
+  variant = "pill",
+  columns,
 }: {
   label: string;
   value: T;
   options: { value: T; label: string }[];
   onChange: (v: T) => void;
+  /** "pill" = compact segmented buttons; "card" = large tappable choice boxes. */
+  variant?: "pill" | "card";
+  /** Tailwind grid-cols utility for the card variant (e.g. "grid-cols-2"). */
+  columns?: string;
 }) {
+  // Name the group so screen-reader users hear the question, not just options.
+  const labelId = useId();
+
+  if (variant === "card") {
+    return (
+      <div role="group" aria-labelledby={labelId}>
+        <span id={labelId} className="field-label">
+          {label}
+        </span>
+        <div className={`grid gap-2 ${columns ?? "grid-cols-1 sm:grid-cols-3"}`}>
+          {options.map((o) => {
+            const on = o.value === value;
+            return (
+              <button
+                key={o.value}
+                type="button"
+                aria-pressed={on}
+                onClick={() => onChange(o.value)}
+                className={`choice justify-between ${on ? "choice--on" : ""}`}
+              >
+                <span className="text-sm font-semibold text-navy">{o.label}</span>
+                <span
+                  aria-hidden
+                  className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 text-xs font-bold ${
+                    on
+                      ? "border-gold bg-gold text-white"
+                      : "border-navy/25 text-transparent"
+                  }`}
+                >
+                  ✓
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div>
-      <span className="field-label">{label}</span>
+    <div role="group" aria-labelledby={labelId}>
+      <span id={labelId} className="field-label">
+        {label}
+      </span>
       <div className="flex flex-wrap gap-2">
         {options.map((o) => {
           const on = o.value === value;
@@ -768,7 +819,7 @@ function Segmented<T extends string>({
               type="button"
               aria-pressed={on}
               onClick={() => onChange(o.value)}
-              className={`rounded-full border-2 px-4 py-2 text-sm font-semibold transition active:scale-95 ${
+              className={`rounded-full border-2 px-4 py-2.5 text-sm font-semibold transition active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-1 ${
                 on
                   ? "border-gold bg-gold text-white shadow-sm"
                   : "border-navy/15 bg-white text-navy/75 hover:border-gold/50"

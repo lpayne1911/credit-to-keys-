@@ -13,7 +13,8 @@
  *  - Buyer-side only. No commissions, no kickbacks, no steering.
  *  - No false precision. Estimates are ranges with a confidence level; we never
  *    invent an exact "fair price."
- *  - No legal/fraud conclusions, no guaranteed cancellation/refund/savings.
+ *  - No legal conclusions or accusations; never a promise of a cancellation,
+ *    a refund, an approval, or a savings amount.
  *  - Decision support, not financial, legal, tax, or insurance advice.
  *
  * No AI, no network, no persistence — this is static, typed sample content.
