@@ -30,6 +30,14 @@ describe("detectWarrantyLineItem — matches service contracts under any name", 
     "Protective XtraRide",
     "SilverRock",
     "CarvanaCare",
+    // Regression (found by the full release matrix): brand-specific GM
+    // Protection Plan variants and Rivian Care were missed before.
+    "Chevrolet Protection Plan",
+    "GMC Protection Plan",
+    "Buick Protection Plan",
+    "Cadillac Protection Plan",
+    "Subaru Added Security Gold Plus",
+    "Rivian Care - $4,000",
     // a few generic forms too
     "Extended Warranty",
     "Vehicle Service Contract",
@@ -63,6 +71,9 @@ describe("detectWarrantyLineItem — excludes non-warranty F&I products", () => 
     "Anti-Theft",
     "Credit Life",
     "Roadside Assistance Plan",
+    // Regression (found by the full release matrix): a paint-protection-film
+    // "wrap coverage" must NOT read as a VSC wrap policy.
+    "Wrap Coverage for Paint Film",
   ];
 
   for (const name of NON_WARRANTY) {
@@ -90,6 +101,10 @@ describe("detectWarrantyLineItem — never matches ambiguous bare terms", () => 
     "MRC",
     "SGI",
     "especially clean carfax", // 'esp' inside a word must not match
+    // Regression: tier word "Gold Plus" on a detailing package must not match.
+    "Gold Plus Detailing Package",
+    "Platinum Interior Protection",
+    "Silver Exterior Bundle",
   ];
 
   for (const name of AMBIGUOUS) {
