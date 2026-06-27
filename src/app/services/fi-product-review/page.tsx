@@ -21,6 +21,17 @@ const REVIEWS = [
   "Dealer add-ons packed into the payment",
 ];
 
+const FULL_REVIEW_INCLUDES = [
+  "Product inventory",
+  "Price and term review",
+  "Coverage and duplication review",
+  "Required-claim check",
+  "Cancellation-language review",
+  "Buyer script",
+  "Document checklist",
+  "Human reviewer judgment layered on top of the pilot flow",
+];
+
 const LABELS = [
   {
     label: "Worth considering",
@@ -186,6 +197,36 @@ export default function FiProductReviewPage() {
                 or insurance advice — a reference point so you can decide for
                 yourself.
               </p>
+            </div>
+          </Block>
+
+          {/* What the full review will include */}
+          <Block title="What the full review will include">
+            <p className="-mt-1 mb-4 text-navy/70">
+              The paid review pairs the instant pilot flow with a human reviewer
+              who reads your actual paperwork and lays out a buyer-side plan:
+            </p>
+            <ul className="grid gap-2 sm:grid-cols-2">
+              {FULL_REVIEW_INCLUDES.map((it) => (
+                <li key={it} className="flex items-start gap-2 text-navy/75">
+                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-gold" />
+                  {it}
+                </li>
+              ))}
+            </ul>
+            <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+              <Link
+                href="/services/fi-product-review/sample-report"
+                className="btn-secondary"
+              >
+                View a sample report
+              </Link>
+              <Link
+                href="/services/fi-product-review/check"
+                className="btn-secondary"
+              >
+                Preview the pilot review flow
+              </Link>
             </div>
           </Block>
 
