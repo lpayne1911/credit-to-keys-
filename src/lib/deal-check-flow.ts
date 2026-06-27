@@ -34,6 +34,28 @@ export const STEPS: StepKey[] = [
   "warranty",
 ];
 
+/**
+ * Focused entry points. The product routes (/warranty-check, /apr-check,
+ * /add-on-check) reuse this same flow but only collect the steps relevant to
+ * the buyer's intent, so they aren't forced through the whole deal. The last
+ * step in each set submits.
+ */
+export type Focus = "full" | "warranty" | "apr" | "addons";
+
+export function stepsForFocus(focus: Focus = "full"): StepKey[] {
+  switch (focus) {
+    case "warranty":
+      return ["start", "brand", "specs", "warranty"];
+    case "apr":
+      return ["start", "brand", "credit", "price", "financing"];
+    case "addons":
+      return ["start", "brand", "state", "addons", "warranty"];
+    case "full":
+    default:
+      return STEPS;
+  }
+}
+
 /** Steps counted by the progress bar (everything after the intro). */
 export const PROGRESS_STEPS = STEPS.length - 1;
 

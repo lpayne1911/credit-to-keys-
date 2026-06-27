@@ -56,6 +56,8 @@ export default async function VerdictPage({
                 }
               />
 
+              <VerdictNextSteps />
+
               {/* Compact compliance line — required on every verdict. */}
               <Disclaimer />
 
@@ -69,6 +71,34 @@ export default async function VerdictPage({
           )}
         </div>
       </main>
+    </div>
+  );
+}
+
+/** Route the buyer by need, not just "request deeper review" (req 20). */
+function VerdictNextSteps() {
+  const items = [
+    { href: "/human-review", label: "Get human review" },
+    { href: "/warranty-check", label: "Check warranty details" },
+    { href: "/add-on-check", label: "Review add-ons" },
+    { href: "/deal-rescue", label: "I already signed" },
+  ];
+  return (
+    <div className="rounded-2xl border border-navy/10 bg-white p-4">
+      <p className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-navy/50">
+        What next?
+      </p>
+      <div className="grid grid-cols-2 gap-2">
+        {items.map((i) => (
+          <Link
+            key={i.href}
+            href={i.href}
+            className="rounded-xl border border-navy/15 px-3 py-2.5 text-center text-sm font-semibold text-navy hover:border-navy/40"
+          >
+            {i.label}
+          </Link>
+        ))}
+      </div>
     </div>
   );
 }
