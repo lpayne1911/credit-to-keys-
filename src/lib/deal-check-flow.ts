@@ -8,8 +8,7 @@
 
 export type StepKey =
   | "start"
-  | "brand"
-  | "model"
+  | "brand" // the vehicle step: make + model (dependent) + trim + VIN, via VehicleSelector
   | "specs"
   | "state"
   | "credit"
@@ -23,7 +22,6 @@ export type StepKey =
 export const STEPS: StepKey[] = [
   "start",
   "brand",
-  "model",
   "specs",
   "state",
   "credit",
@@ -93,13 +91,11 @@ export interface FlowState {
  */
 export function continueEnabled(step: StepKey, s: FlowState): boolean {
   switch (step) {
-    case "brand":
-      return Boolean(s.make && (s.make !== "Other" || s.makeOther.trim()));
     case "trade":
       return s.hasTrade !== null;
     case "warranty":
       return s.hasWarranty !== null;
-    case "model":
+    case "brand": // vehicle identity is optional (the selector offers "I don't know")
     case "specs":
     case "state":
     case "price":

@@ -5,17 +5,21 @@ describe("focused flows ask only product-relevant questions", () => {
   const ids = (focus: "warranty" | "apr" | "addons") =>
     FOCUSED_FLOWS[focus].questions.map((q) => q.id);
 
-  it("warranty asks for the make (warranty pricing uses brand reliability)", () => {
-    expect(ids("warranty")).toContain("make");
+  it("warranty asks for the vehicle (warranty pricing uses brand reliability)", () => {
+    expect(ids("warranty")).toContain("vehicle");
+    expect(FOCUSED_FLOWS.warranty.questions.find((q) => q.id === "vehicle")?.kind).toBe("vehicle");
   });
 
-  it("APR and add-on flows do NOT ask for the make/brand", () => {
-    expect(ids("apr")).not.toContain("make");
-    expect(ids("addons")).not.toContain("make");
+  it("APR and add-on flows do NOT ask for the vehicle/make/brand", () => {
+    for (const f of ["apr", "addons"] as const) {
+      expect(ids(f)).not.toContain("vehicle");
+      expect(ids(f)).not.toContain("make");
+      expect(FOCUSED_FLOWS[f].questions.some((q) => q.kind === "vehicle")).toBe(false);
+    }
   });
 
   it("each flow leads with its own first question", () => {
-    expect(FOCUSED_FLOWS.warranty.questions[0].id).toBe("make");
+    expect(FOCUSED_FLOWS.warranty.questions[0].id).toBe("vehicle");
     expect(FOCUSED_FLOWS.apr.questions[0].id).toBe("creditBand");
     expect(FOCUSED_FLOWS.addons.questions[0].id).toBe("state");
   });

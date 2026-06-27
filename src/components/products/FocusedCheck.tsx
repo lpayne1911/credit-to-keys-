@@ -10,6 +10,7 @@ import {
 } from "@/lib/products/focused-flows";
 import { getProduct, type ProductFocus } from "@/lib/products/product-catalog";
 import { FocusedResult } from "@/components/products/FocusedResult";
+import { VehicleSelector } from "@/components/vehicle/VehicleSelector";
 
 /**
  * Product-specific question runner for the warranty / APR / add-on checks.
@@ -117,8 +118,8 @@ export function FocusedCheck({ productId }: { productId: string }) {
       <div key={idx} className="animate-step-in">
         <QuestionView
           q={q}
-          value={answers[q.id]}
-          onChange={(v) => setAnswer(q.id, v)}
+          answers={answers}
+          setAnswer={setAnswer}
           onAutoAdvance={advance}
         />
 
@@ -191,15 +192,17 @@ function focusNoun(focus: ProductFocus): string {
 /* ---- one question, rendered by kind ---- */
 function QuestionView({
   q,
-  value,
-  onChange,
+  answers,
+  setAnswer,
   onAutoAdvance,
 }: {
   q: Question;
-  value: Answers[string];
-  onChange: (v: Answers[string]) => void;
+  answers: Answers;
+  setAnswer: (id: string, v: Answers[string]) => void;
   onAutoAdvance: () => void;
 }) {
+  const value = answers[q.id];
+  const onChange = (v: Answers[string]) => setAnswer(q.id, v);
   return (
     <div>
       <h1 className="font-serif text-[1.7rem] font-semibold leading-tight text-navy">
@@ -207,7 +210,20 @@ function QuestionView({
       </h1>
       {q.help && <p className="mt-2 text-[15px] leading-snug text-navy/60">{q.help}</p>}
       <div className="mt-6">
-        {q.id === "__addons" ? (
+        {q.kind === "vehicle" ? (
+          <VehicleSelector
+            value={{
+              make: (answers.make as string) ?? "",
+              model: (answers.model as string) ?? "",
+              trim: (answers.trim as string) ?? "",
+            }}
+            onChange={(v) => {
+              setAnswer("make", v.make ?? "");
+              setAnswer("model", v.model ?? "");
+              setAnswer("trim", v.trim ?? "");
+            }}
+          />
+        ) : q.id === "__addons" ? (
           <MultiChips q={q} value={value} onChange={onChange} />
         ) : q.kind === "chips" ? (
           <Chips

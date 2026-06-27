@@ -17,7 +17,7 @@
 import type { DealSubmission } from "@/lib/deal-mapper";
 import type { ProductFocus } from "./product-catalog";
 
-export type QuestionKind = "chips" | "money" | "number" | "yesno" | "text";
+export type QuestionKind = "chips" | "money" | "number" | "yesno" | "text" | "vehicle";
 
 export interface Choice {
   value: string;
@@ -62,15 +62,6 @@ export interface FocusedFlow {
 const num = (v: unknown): number | undefined =>
   v === undefined || v === "" || v === "idk" ? undefined : Number(v);
 
-const COMMON_MAKES = [
-  "Toyota", "Honda", "Ford", "Chevrolet", "Nissan", "Hyundai", "Kia", "Jeep",
-  "Subaru", "Mazda", "GMC", "RAM", "BMW", "Mercedes", "Tesla", "VW",
-];
-const makeChoices: Choice[] = COMMON_MAKES.map((m) => ({ value: m, label: m })).concat({
-  value: "Other",
-  label: "Other / not sure",
-});
-
 const COVERAGE_CHOICES: Choice[] = [
   { value: "powertrain", label: "Powertrain", hint: "engine/transmission only" },
   { value: "named_component", label: "Named parts", hint: "a listed set of parts" },
@@ -104,11 +95,11 @@ const warrantyFlow: FocusedFlow = {
   progressLabel: "Warranty check",
   questions: [
     {
-      id: "make",
+      id: "vehicle",
       label: "What's the vehicle?",
-      help: "We use the brand to estimate a fair warranty price — some brands cost more to cover.",
-      kind: "chips",
-      choices: makeChoices,
+      help: "Pick the make and model. We use the brand to estimate a fair warranty price — some brands cost more to cover. Not sure? Choose “I don't know”.",
+      kind: "vehicle",
+      optional: true,
     },
     {
       id: "year",
@@ -168,7 +159,9 @@ const warrantyFlow: FocusedFlow = {
   ],
   toSubmission: (a, uploadedFilePath) => ({
     vehicle: {
-      make: a.make === "Other" ? "" : (a.make as string) ?? "",
+      make: (a.make as string) ?? "",
+      model: (a.model as string) ?? "",
+      trim: (a.trim as string) ?? "",
       year: num(a.year),
       mileage: num(a.mileage),
     },

@@ -67,11 +67,11 @@ describe("progressPercent", () => {
 });
 
 describe("continueEnabled", () => {
-  it("requires a brand selection (and a typed value for Other)", () => {
-    expect(continueEnabled("brand", flow())).toBe(false);
+  it("lets the buyer continue past the vehicle step without forcing a make", () => {
+    // The vehicle step uses VehicleSelector with an explicit "I don't know",
+    // so it must never block a stressed buyer with a validation message.
+    expect(continueEnabled("brand", flow())).toBe(true);
     expect(continueEnabled("brand", flow({ make: "Toyota" }))).toBe(true);
-    expect(continueEnabled("brand", flow({ make: "Other", makeOther: "" }))).toBe(false);
-    expect(continueEnabled("brand", flow({ make: "Other", makeOther: "Rivian" }))).toBe(true);
   });
 
   it("requires an explicit yes/no on the trade and warranty questions", () => {
