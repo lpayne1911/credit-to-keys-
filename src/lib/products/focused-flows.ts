@@ -293,6 +293,20 @@ const ADDON_CHOICES: Choice[] = [
   { value: "title", label: "Title / registration" },
 ];
 
+/** Label lookup for an add-on key (shared by the renderer and the mapper). */
+export const ADDON_LABELS: Record<string, string> = Object.fromEntries(
+  ADDON_CHOICES.map((c) => [c.value, c.label]),
+);
+
+/**
+ * Typical fallback amount per add-on, used ONLY when the buyer leaves the amount
+ * blank. The renderer lets them enter the real figure off their paperwork.
+ */
+export const ADDON_DEFAULT_AMOUNT: Record<string, number> = {
+  "service contract": 2500, gap: 995, nitrogen: 299, etch: 299, paint: 799,
+  "tire and wheel": 1295, key: 399, prep: 399, doc: 499, market: 1995, title: 699,
+};
+
 const addonFlow: FocusedFlow = {
   focus: "addons",
   progressLabel: "Add-ons & fees check",
@@ -323,28 +337,30 @@ const addonFlow: FocusedFlow = {
     },
   ],
   toSubmission: (a, uploadedFilePath) => {
-    // The renderer stores selected add-on keys as a comma list under __addons.
+    // The renderer stores selected add-on keys as a comma list under __addons,
+    // and the buyer-entered amount for each under `amount_<key>` (optional — we
+    // fall back to a typical estimate when blank).
     const keys = String(a.__addons ?? "")
       .split(",")
       .map((k) => k.trim())
       .filter(Boolean);
-    const LABELS: Record<string, string> = Object.fromEntries(
-      ADDON_CHOICES.map((c) => [c.value, c.label]),
-    );
-    const DEFAULT_AMOUNT: Record<string, number> = {
-      "service contract": 2500, gap: 995, nitrogen: 299, etch: 299, paint: 799,
-      "tire and wheel": 1295, key: 399, prep: 399, doc: 499, market: 1995, title: 699,
+    const amountFor = (k: string): number | undefined => {
+      const v = a[`amount_${k}`];
+      return v === undefined || v === "" || v === "idk" ? undefined : Number(v);
     };
     const fees = keys
       .filter((k) => k !== "service contract")
-      .map((k) => ({ label: LABELS[k] ?? k, amount: DEFAULT_AMOUNT[k] ?? 0 }));
+      .map((k) => ({ label: ADDON_LABELS[k] ?? k, amount: amountFor(k) ?? ADDON_DEFAULT_AMOUNT[k] ?? 0 }));
     const hasWarranty = keys.includes("service contract");
     return {
       vehicle: {},
       buyerState: (a.state as string) || undefined,
       deal: { creditBand: "unknown", fees },
       warranty: hasWarranty
-        ? { coverageTier: "unknown", priceQuoted: DEFAULT_AMOUNT["service contract"] }
+        ? {
+            coverageTier: "unknown",
+            priceQuoted: amountFor("service contract") ?? ADDON_DEFAULT_AMOUNT["service contract"],
+          }
         : undefined,
       inputPath: uploadedFilePath ? "upload" : "manual",
       uploadedFilePath: uploadedFilePath ?? undefined,

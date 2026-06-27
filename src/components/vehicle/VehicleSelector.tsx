@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { VEHICLE_MAKES, modelsForMake } from "@/lib/vehicles/vehicle-catalog";
 
+const OTHER = "__other";
+
 export interface VehicleValue {
   year?: number | "";
   make?: string;
@@ -31,12 +33,20 @@ export function VehicleSelector({
   showTrim?: boolean;
 }) {
   const make = value.make ?? "";
+  // Manual MAKE mode when the user picked "not listed", or the stored make
+  // isn't one of our known makes (e.g. a less-common brand or upload value we
+  // couldn't normalize). The buyer types it and we score it neutrally.
+  const makeIsKnown = !make || VEHICLE_MAKES.includes(make);
+  const [manualMakeState, setManualMakeState] = useState<boolean>(!makeIsKnown);
+  const manualMake = manualMakeState || !makeIsKnown;
+
   const models = modelsForMake(make);
-  // Manual mode when the user picked "not listed", or the stored model isn't a
-  // known one for this make (e.g. prefilled from an upload).
+  // Manual MODEL mode when the user picked "not listed", the make is itself
+  // free-typed (no model list to offer), or the stored model isn't a known one
+  // for this make (e.g. prefilled from an upload).
   const storedIsKnown = !value.model || models.includes(value.model);
   const [manual, setManual] = useState<boolean>(!storedIsKnown);
-  const manualModel = manual || (!!value.model && !storedIsKnown);
+  const manualModel = manual || manualMake || (!!value.model && !storedIsKnown);
 
   const yearNow = new Date().getFullYear();
   const years: number[] = [];
@@ -64,20 +74,50 @@ export function VehicleSelector({
 
       <label className="block">
         <span className="field-label">Make</span>
-        <select
-          className="field-input"
-          value={make}
-          onChange={(e) => {
-            // Changing make always resets the model.
-            setManual(false);
-            onChange({ ...value, make: e.target.value, model: "" });
-          }}
-        >
-          <option value="">I don&apos;t know / not sure</option>
-          {VEHICLE_MAKES.map((m) => (
-            <option key={m} value={m}>{m}</option>
-          ))}
-        </select>
+        {manualMake ? (
+          <div className="space-y-1.5">
+            <input
+              className="field-input"
+              autoFocus
+              placeholder="Type the make"
+              value={value.make ?? ""}
+              onChange={(e) => onChange({ ...value, make: e.target.value })}
+            />
+            <button
+              type="button"
+              onClick={() => {
+                setManualMakeState(false);
+                setManual(false);
+                onChange({ ...value, make: "", model: "" });
+              }}
+              className="text-xs font-semibold text-gold-dark hover:underline"
+            >
+              ← Pick from the list instead
+            </button>
+          </div>
+        ) : (
+          <select
+            className="field-input"
+            value={make}
+            onChange={(e) => {
+              // Changing make always resets the model.
+              if (e.target.value === OTHER) {
+                setManualMakeState(true);
+                setManual(true); // no model list for a typed make
+                onChange({ ...value, make: "", model: "" });
+              } else {
+                setManual(false);
+                onChange({ ...value, make: e.target.value, model: "" });
+              }
+            }}
+          >
+            <option value="">I don&apos;t know / not sure</option>
+            {VEHICLE_MAKES.map((m) => (
+              <option key={m} value={m}>{m}</option>
+            ))}
+            <option value={OTHER}>Make not listed…</option>
+          </select>
+        )}
       </label>
 
       <label className="block">
@@ -112,7 +152,7 @@ export function VehicleSelector({
             disabled={!make}
             value={value.model && models.includes(value.model) ? value.model : ""}
             onChange={(e) => {
-              if (e.target.value === "__other") {
+              if (e.target.value === OTHER) {
                 setManual(true);
                 onChange({ ...value, model: "" });
               } else {
@@ -124,7 +164,7 @@ export function VehicleSelector({
             {models.map((m) => (
               <option key={m} value={m}>{m}</option>
             ))}
-            {make && <option value="__other">Model not listed…</option>}
+            {make && <option value={OTHER}>Model not listed…</option>}
           </select>
         )}
       </label>

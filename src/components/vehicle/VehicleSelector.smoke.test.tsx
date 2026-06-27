@@ -33,4 +33,19 @@ describe("VehicleSelector", () => {
     // a text input (manual model) is rendered, holding the unknown model
     expect(m).toMatch(/<input[^>]*value="Zephyr"/);
   });
+
+  it("offers a 'Make not listed' option for makes outside the catalog", () => {
+    const m = html(createElement(VehicleSelector, { value: {}, onChange: noop }));
+    expect(m).toContain("Make not listed");
+  });
+
+  it("falls back to manual MAKE entry when the stored make isn't in the catalog", () => {
+    const m = html(
+      createElement(VehicleSelector, { value: { make: "Lucid", model: "Air" }, onChange: noop }),
+    );
+    // make renders as a text input holding the unknown make…
+    expect(m).toMatch(/<input[^>]*value="Lucid"/);
+    // …and the model is manual too (no model list for a free-typed make)
+    expect(m).toMatch(/<input[^>]*value="Air"/);
+  });
 });
