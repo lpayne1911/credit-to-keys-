@@ -73,4 +73,20 @@ describe("focused submissions map to the right scoring shape", () => {
     expect(labels.some((l) => l.includes("service contract"))).toBe(false);
     expect(sub.buyerState).toBe("CA");
   });
+
+  it("uses the buyer-entered amount per add-on, falling back to an estimate when blank", () => {
+    const sub = FOCUSED_FLOWS.addons.toSubmission(
+      { __addons: "gap,nitrogen,service contract", amount_gap: 1495, amount_nitrogen: "", "amount_service contract": 3200 },
+      null,
+    );
+    const fees = sub.deal?.fees ?? [];
+    const gap = fees.find((f) => (f.label ?? "").toLowerCase().includes("gap"));
+    const nitro = fees.find((f) => (f.label ?? "").toLowerCase().includes("nitrogen"));
+    // entered amount is honored…
+    expect(gap?.amount).toBe(1495);
+    // …blank falls back to the typical estimate (not 0)
+    expect(nitro?.amount).toBeGreaterThan(0);
+    // service-contract amount flows to the warranty price
+    expect(sub.warranty?.priceQuoted).toBe(3200);
+  });
 });

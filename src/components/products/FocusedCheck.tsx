@@ -110,6 +110,8 @@ export function FocusedCheck({ productId }: { productId: string }) {
   }
 
   const percent = Math.round(((idx + 1) / questions.length) * 100);
+  // Single-select chips advance on tap; the multi-select add-on picker does not.
+  const autoAdvances = q.kind === "chips" && q.id !== "__addons";
   return (
     <Shell
       progress={`Step ${idx + 1} of ${questions.length} · ${flow.progressLabel}`}
@@ -158,8 +160,13 @@ export function FocusedCheck({ productId }: { productId: string }) {
         )}
       </div>
 
-      {/* Footer continue for kinds that don't auto-advance. */}
-      {q.kind !== "chips" && (
+      {/* Single-select chips auto-advance on tap; everything else (incl. the
+          multi-select add-on picker) needs an explicit Continue. */}
+      {autoAdvances ? (
+        <Footer>
+          <EscapeHatch />
+        </Footer>
+      ) : (
         <Footer>
           <button
             type="button"
@@ -169,11 +176,6 @@ export function FocusedCheck({ productId }: { productId: string }) {
           >
             {isLast ? "See my result →" : "Continue"}
           </button>
-          <EscapeHatch />
-        </Footer>
-      )}
-      {q.kind === "chips" && (
-        <Footer>
           <EscapeHatch />
         </Footer>
       )}
@@ -225,7 +227,7 @@ function QuestionView({
             }}
           />
         ) : q.id === "__addons" ? (
-          <MultiChips q={q} value={value} onChange={onChange} />
+          <AddonPicker q={q} answers={answers} setAnswer={setAnswer} />
         ) : q.kind === "chips" ? (
           <Chips
             q={q}
@@ -267,29 +269,79 @@ function Chips({ q, value, onChange }: { q: Question; value: Answers[string]; on
   );
 }
 
-function MultiChips({ q, value, onChange }: { q: Question; value: Answers[string]; onChange: (v: string) => void }) {
-  const selected = new Set(String(value ?? "").split(",").filter(Boolean));
+/**
+ * Multi-select line-item picker (add-on / fees check). Tapping a chip toggles it
+ * into the `__addons` comma list; once selected, the buyer can enter the actual
+ * amount off their paperwork under `amount_<key>` (optional — blank falls back to
+ * a typical estimate in the mapper).
+ */
+function AddonPicker({
+  q,
+  answers,
+  setAnswer,
+}: {
+  q: Question;
+  answers: Answers;
+  setAnswer: (id: string, v: Answers[string]) => void;
+}) {
+  const selected = new Set(String(answers.__addons ?? "").split(",").filter(Boolean));
+  const chosen = (q.choices ?? []).filter((c) => selected.has(c.value));
   return (
-    <div className="grid grid-cols-2 gap-2">
-      {(q.choices ?? []).map((c) => {
-        const on = selected.has(c.value);
-        return (
-          <button
-            key={c.value}
-            type="button"
-            onClick={() => {
-              const next = new Set(selected);
-              if (on) next.delete(c.value);
-              else next.add(c.value);
-              onChange(Array.from(next).join(","));
-            }}
-            className={`choice !px-4 !py-3 ${on ? "choice--on" : ""}`}
-          >
-            <span className="flex-1 text-sm font-semibold text-navy">{c.label}</span>
-            <span className={`flex h-5 w-5 items-center justify-center rounded-full border-2 text-xs ${on ? "border-gold bg-gold text-white" : "border-navy/20 text-transparent"}`}>✓</span>
-          </button>
-        );
-      })}
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-2">
+        {(q.choices ?? []).map((c) => {
+          const on = selected.has(c.value);
+          return (
+            <button
+              key={c.value}
+              type="button"
+              onClick={() => {
+                const next = new Set(selected);
+                if (on) next.delete(c.value);
+                else next.add(c.value);
+                setAnswer("__addons", Array.from(next).join(","));
+              }}
+              className={`choice !px-4 !py-3 ${on ? "choice--on" : ""}`}
+            >
+              <span className="flex-1 text-sm font-semibold text-navy">{c.label}</span>
+              <span className={`flex h-5 w-5 items-center justify-center rounded-full border-2 text-xs ${on ? "border-gold bg-gold text-white" : "border-navy/20 text-transparent"}`}>✓</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {chosen.length > 0 && (
+        <div className="rounded-xl border border-navy/10 bg-white p-4">
+          <p className="mb-3 text-sm font-semibold text-navy/70">
+            What does each cost on your paperwork?{" "}
+            <span className="font-normal text-navy/45">(optional — leave blank and we&apos;ll estimate)</span>
+          </p>
+          <div className="space-y-2.5">
+            {chosen.map((c) => {
+              const amt = answers[`amount_${c.value}`];
+              return (
+                <label key={c.value} className="flex items-center justify-between gap-3">
+                  <span className="text-sm font-medium text-navy">{c.label}</span>
+                  <span className="flex items-center gap-1">
+                    <span className="font-serif text-base font-semibold text-navy/55">$</span>
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      min={0}
+                      placeholder="—"
+                      className="field-input !w-28 !py-2 text-right"
+                      value={amt === undefined || amt === "" ? "" : String(amt)}
+                      onChange={(e) =>
+                        setAnswer(`amount_${c.value}`, e.target.value === "" ? undefined : Number(e.target.value))
+                      }
+                    />
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
