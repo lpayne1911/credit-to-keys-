@@ -151,6 +151,7 @@ function buildReviewedResult(deal: {
     overallVerdict: (deal.reviewed_verdict as FairnessResult["overallVerdict"]) ?? "amber",
     headline: deal.reviewed_headline ?? auto?.headline ?? "Reviewed verdict",
     confidence: "high",
+    confidenceReasons: auto?.confidenceReasons ?? [],
     flags: (deal.reviewed_flags as FairnessResult["flags"]) ?? auto?.flags ?? [],
     warranty: auto?.warranty ?? null,
     assumptions: auto?.assumptions ?? [],

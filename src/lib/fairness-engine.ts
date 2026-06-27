@@ -122,6 +122,8 @@ export interface FairnessInput {
   warranty?: WarrantyInput | null;
   /** Optional — present only when the buyer is trading in a vehicle. */
   tradeIn?: TradeInInput | null;
+  /** True when the figures came from an uploaded quote (raises confidence). */
+  documentUploaded?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -140,6 +142,7 @@ export type WarrantyPriceRating =
 
 export type FlagType =
   | "junk_fee"
+  | "government_fee"
   | "apr_markup"
   | "overpriced_addon"
   | "redundant_addon"
@@ -184,6 +187,9 @@ export interface FairnessResult {
   /** One-line, plain-spoken summary of the verdict for the buyer. */
   headline: string;
   confidence: Confidence;
+  /** Plain-language reasons for the confidence level (which fields we had, and
+   * whether figures came from an uploaded document). */
+  confidenceReasons: string[];
   flags: Flag[];
   /** Present only when a warranty was submitted. */
   warranty: WarrantyAssessment | null;
@@ -374,6 +380,13 @@ interface FeeRule {
   reasonableMax?: number;
   /** True when the item is widely considered pure padding / negligible value. */
   alwaysJunk?: boolean;
+  /**
+   * True for pass-through GOVERNMENT charges (title, registration, plates). These
+   * are legitimate by default and must NOT be treated as junk — we only push
+   * back when they're duplicated or clearly inflated above the state norm
+   * (the surplus is then likely dealer-retained padding).
+   */
+  government?: boolean;
   label: string;
   why: string;
 }
@@ -384,7 +397,7 @@ const FEE_RULES: FeeRule[] = [
     keywords: ["doc", "documentation", "documentary"],
     reasonableMax: 200, // ASSUMPTION: many states cap or expect ~$75–$200
     label: "Documentation fee",
-    why: "Doc fees cover paperwork the dealer already has to do. A modest fee can be legitimate, but unusually high doc fees are often pure profit and are sometimes capped by state law.",
+    why: "Doc fees are a real charge for paperwork, and some states cap them — they're not automatically junk. But the amount is often padded. If the dealer says the doc fee can't be lowered (sometimes true where it's state-regulated), ask them to reduce the vehicle's selling price by the same amount instead — the bottom line is what matters.",
   },
   {
     keywords: ["dealer prep", "prep", "preparation"],
@@ -423,12 +436,16 @@ const FEE_RULES: FeeRule[] = [
     why: "Vague fees like this rarely correspond to a real service and are commonly used to pad the bottom line.",
   },
   {
-    keywords: ["title", "registration", "registry", "license", "plate"],
-    reasonableMax: 600, // ASSUMPTION: government fees vary widely by state
+    keywords: ["title", "registration", "registry", "license", "plate", "tag", "dmv", "smog"],
+    reasonableMax: 600, // ASSUMPTION: typical government title+reg ceiling; varies by state
+    government: true,
     label: "Title / registration",
-    why: "These are government fees the dealer passes through. They're usually legitimate, but confirm the amount matches your state's actual charges.",
+    why: "These are government fees the dealer passes through to the state. They are legitimate — you will pay the actual amount. Just make sure the charge is itemized and matches your state's real title/registration cost, with no dealer-retained padding folded in.",
   },
 ];
+
+/** Above reasonableMax × this, a government fee is likely padded, not just regional. */
+const GOVERNMENT_FEE_INFLATED_MULTIPLIER = 2.5;
 
 // ===========================================================================
 //  CORE SCORING — the single public interface
@@ -471,12 +488,17 @@ export function scoreDeal(input: FairnessInput): FairnessResult {
   flags.push(...missingInfoNotes(input));
 
   // --- Roll everything up into an overall verdict + confidence -----------
-  const { overallVerdict, headline, confidence } = rollUp(flags, warranty, input);
+  const { overallVerdict, headline, confidence, confidenceReasons } = rollUp(
+    flags,
+    warranty,
+    input,
+  );
 
   return {
     overallVerdict,
     headline,
     confidence,
+    confidenceReasons,
     flags,
     warranty,
     assumptions: dedupe(assumptions),
@@ -942,13 +964,15 @@ export function auditFees(fees: ItemizedFee[]): FeeAuditResult {
   return {
     flags,
     assumptions: dedupe(assumptions),
-    challengeCount: flags.length,
+    // Info-severity flags (legitimate government fees) are not challenges.
+    challengeCount: flags.filter((f) => f.severity !== "info").length,
     estimatedSavings: any && high > 0 ? { low, high } : null,
   };
 }
 
 function assessFees(fees: ItemizedFee[], assumptions: string[]): Flag[] {
   const out: Flag[] = [];
+  const govFees: ItemizedFee[] = [];
   for (const fee of fees) {
     if (!fee.label) continue;
     const label = fee.label.toLowerCase();
@@ -956,6 +980,12 @@ function assessFees(fees: ItemizedFee[], assumptions: string[]): Flag[] {
       r.keywords.some((k) => label.includes(k)),
     );
     if (!rule) continue;
+
+    // Government pass-through fees are handled separately (NOT junk by default).
+    if (rule.government) {
+      govFees.push(fee);
+      continue;
+    }
 
     if (rule.alwaysJunk) {
       out.push({
@@ -992,6 +1022,71 @@ function assessFees(fees: ItemizedFee[], assumptions: string[]): Flag[] {
       });
     }
   }
+
+  if (govFees.length) out.push(...assessGovernmentFees(govFees, assumptions));
+  return out;
+}
+
+/**
+ * Government pass-through fees (title, registration, plates, DMV). Legitimate by
+ * default — the buyer pays the real state amount. We only push back when the
+ * charge is DUPLICATED (often a double charge) or clearly INFLATED above the
+ * state norm (the surplus is then likely dealer-retained padding). Otherwise we
+ * emit a single INFO note reminding the buyer to get it itemized.
+ */
+function assessGovernmentFees(
+  govFees: ItemizedFee[],
+  assumptions: string[],
+): Flag[] {
+  const out: Flag[] = [];
+  const ceiling = 600; // typical title+registration ceiling (see FEE_RULES)
+  const inflatedAt = ceiling * GOVERNMENT_FEE_INFLATED_MULTIPLIER;
+  const total = govFees.reduce((sum, f) => sum + (f.amount || 0), 0);
+  const maxFee = Math.max(...govFees.map((f) => f.amount || 0));
+  const duplicate = govFees.length > 1;
+  const inflated = maxFee > inflatedAt || total > inflatedAt;
+
+  if (duplicate) {
+    out.push({
+      type: "government_fee",
+      severity: "medium",
+      title: "Duplicate government-fee lines",
+      explanation: `You have ${govFees.length} separate title/registration-type charges (totaling $${total.toLocaleString()}). Government fees are real, but you pay each one ONCE. Ask the dealer to itemize them against your state's actual charges and remove any duplicate or dealer-retained padding.`,
+      estimatedImpact: null,
+    });
+    return out;
+  }
+
+  if (inflated) {
+    const over = Math.round((maxFee - ceiling) / 25) * 25;
+    assumptions.push(
+      `Assumed a typical government title/registration ceiling of ~$${ceiling}; charges far above it are flagged as possible dealer padding — actual amounts vary by state.`,
+    );
+    out.push({
+      type: "government_fee",
+      severity: over >= 600 ? "high" : "medium",
+      title: "Title / registration looks inflated",
+      explanation: `The $${maxFee.toLocaleString()} title/registration charge is well above a typical state ceiling (~$${ceiling.toLocaleString()}). You'll pay the actual government fee, but the excess is likely dealer-retained padding. Ask for it itemized against your state's real cost and the difference removed.`,
+      estimatedImpact: {
+        low: Math.round((over * 0.5) / 25) * 25,
+        high: over,
+        confidence: "low",
+        basis:
+          "Estimated dealer-retained padding above a typical government-fee ceiling — actual government fees vary by state.",
+      },
+    });
+    return out;
+  }
+
+  // Normal government fee — legitimate. Informational reminder only.
+  out.push({
+    type: "government_fee",
+    severity: "info",
+    title: "Government title & registration fee",
+    explanation:
+      "This is a legitimate government fee — you'll pay the actual state amount. Just make sure it's itemized on the paperwork and matches your state's real title/registration cost, with no dealer-retained padding folded in.",
+    estimatedImpact: null,
+  });
   return out;
 }
 
@@ -1031,8 +1126,15 @@ function rollUp(
   flags: Flag[],
   warranty: WarrantyAssessment | null,
   input: FairnessInput,
-): { overallVerdict: Verdict; headline: string; confidence: Confidence } {
-  const realFlags = flags.filter((f) => f.type !== "missing_info" && f.type !== "info");
+): {
+  overallVerdict: Verdict;
+  headline: string;
+  confidence: Confidence;
+  confidenceReasons: string[];
+} {
+  // Info-severity flags (missing-info notes, legitimate government fees) are
+  // informational only — they never worsen the verdict color.
+  const realFlags = flags.filter((f) => f.severity !== "info");
   const highCount = realFlags.filter((f) => f.severity === "high").length;
   const mediumCount = realFlags.filter((f) => f.severity === "medium").length;
 
@@ -1052,6 +1154,45 @@ function rollUp(
     confidence = "medium";
   }
 
+  // Plain-language reasons so the buyer understands WHY confidence is what it is.
+  const confidenceReasons: string[] = [];
+  const d = input.deal;
+  if (input.documentUploaded) {
+    confidenceReasons.push(
+      "You uploaded your quote, so the figures came straight off the paperwork.",
+    );
+  } else {
+    confidenceReasons.push(
+      "Figures were entered by hand — double-check them against your paperwork.",
+    );
+  }
+  if (d.apr === null || d.apr === undefined) {
+    confidenceReasons.push(
+      "No APR was provided, so we couldn't check for interest-rate markup.",
+    );
+  } else {
+    confidenceReasons.push("APR provided — we checked it against your credit band.");
+  }
+  if (!d.fees || d.fees.length === 0) {
+    confidenceReasons.push(
+      "No fees were itemized — ask for a line-by-line breakdown so we can scan for padding.",
+    );
+  } else {
+    confidenceReasons.push(`${d.fees.length} fee line${d.fees.length === 1 ? "" : "s"} itemized and scanned.`);
+  }
+  if (d.creditBand && d.creditBand !== "unknown") {
+    confidenceReasons.push("Credit band given — rate comparison is sharper.");
+  } else {
+    confidenceReasons.push("Credit band unknown — rate comparison stays cautious.");
+  }
+  if (warranty) {
+    confidenceReasons.push(
+      warranty.fairRange.confidence === "high"
+        ? "Warranty coverage and term provided — the fair-price range is tighter."
+        : "Warranty details were thin — its fair-price range is kept wide.",
+    );
+  }
+
   let headline: string;
   if (overallVerdict === "red") {
     headline =
@@ -1066,7 +1207,7 @@ function rollUp(
         : "This deal looks reasonable overall.";
   }
 
-  return { overallVerdict, headline, confidence };
+  return { overallVerdict, headline, confidence, confidenceReasons };
 }
 
 // ---------------------------------------------------------------------------
@@ -1105,6 +1246,7 @@ export const VERDICT_LABEL: Record<Verdict, string> = {
  */
 export const FLAG_TYPES: FlagType[] = [
   "junk_fee",
+  "government_fee",
   "apr_markup",
   "overpriced_addon",
   "redundant_addon",

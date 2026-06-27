@@ -36,3 +36,30 @@ export function savingsRange(
   }
   return any && high > 0 ? { low, high } : null;
 }
+
+export interface SavingsLine {
+  /** Human label for the category (the flag's title). */
+  label: string;
+  low: number;
+  high: number;
+}
+
+/**
+ * Per-category breakdown behind {@link savingsRange}: one line per flag that
+ * contributes clawback-able dollars, each with its own range. Same exclusions as
+ * the headline total, so the lines always sum to it.
+ */
+export function savingsBreakdown(result: FairnessResult): SavingsLine[] {
+  const out: SavingsLine[] = [];
+  for (const f of result.flags) {
+    if (!f.estimatedImpact) continue;
+    if (NON_SAVINGS_TYPES.has(f.type)) continue;
+    if (f.estimatedImpact.high <= 0) continue;
+    out.push({
+      label: f.title,
+      low: f.estimatedImpact.low,
+      high: f.estimatedImpact.high,
+    });
+  }
+  return out;
+}

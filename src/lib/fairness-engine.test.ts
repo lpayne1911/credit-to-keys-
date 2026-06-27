@@ -40,10 +40,9 @@ describe("scoreDeal — overall verdict", () => {
   it("returns green for a clean deal with no problems and full info", () => {
     const r = scoreDeal(baseInput());
     expect(r.overallVerdict).toBe("green");
-    // No real (non-info) flags on a clean deal.
-    expect(
-      r.flags.filter((f) => f.type !== "missing_info" && f.type !== "info"),
-    ).toHaveLength(0);
+    // No real (non-info) flags on a clean deal. A legitimate title/registration
+    // fee yields only an INFO government_fee note, which doesn't count.
+    expect(r.flags.filter((f) => f.severity !== "info")).toHaveLength(0);
     // APR + fees provided → no missing-info notes → high confidence.
     expect(r.confidence).toBe("high");
   });
@@ -428,6 +427,40 @@ describe("auditFees — standalone Junk Fee Audit entry point", () => {
     const r = auditFees([{ label: "Title / registration", amount: 300 }]);
     expect(r.challengeCount).toBe(0);
     expect(r.estimatedSavings).toBeNull();
+    // It IS surfaced as an informational government-fee note, not as junk.
+    const gov = r.flags.find((f) => f.type === "government_fee");
+    expect(gov?.severity).toBe("info");
+    expect(r.flags.some((f) => f.type === "junk_fee")).toBe(false);
+  });
+
+  it("does NOT treat a normal government fee as junk", () => {
+    for (const label of ["Title / registration", "DMV registration", "License & plates"]) {
+      const r = auditFees([{ label, amount: 400 }]);
+      expect(r.flags.some((f) => f.type === "junk_fee"), label).toBe(false);
+      expect(r.challengeCount, label).toBe(0);
+    }
+  });
+
+  it("flags an INFLATED government fee as likely dealer padding (not junk_fee)", () => {
+    const r = auditFees([{ label: "Title / registration", amount: 2_200 }]);
+    const gov = r.flags.find((f) => f.type === "government_fee");
+    expect(gov).toBeTruthy();
+    expect(gov!.severity === "medium" || gov!.severity === "high").toBe(true);
+    expect(gov!.title).toMatch(/inflated/i);
+    expect(gov!.estimatedImpact).toBeTruthy();
+    expect(r.challengeCount).toBe(1);
+    expect(r.flags.some((f) => f.type === "junk_fee")).toBe(false);
+  });
+
+  it("flags DUPLICATE government-fee lines", () => {
+    const r = auditFees([
+      { label: "Title fee", amount: 200 },
+      { label: "Registration fee", amount: 250 },
+    ]);
+    const gov = r.flags.find((f) => f.type === "government_fee");
+    expect(gov).toBeTruthy();
+    expect(gov!.title).toMatch(/duplicate/i);
+    expect(gov!.severity).toBe("medium");
   });
 
   it("flags a doc fee above its reasonable ceiling", () => {

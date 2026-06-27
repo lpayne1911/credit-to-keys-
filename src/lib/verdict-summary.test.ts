@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { savingsRange } from "./verdict-summary";
+import { savingsRange, savingsBreakdown } from "./verdict-summary";
 import { scoreDeal, type FairnessInput } from "./fairness-engine";
 
 function baseInput(overrides: Partial<FairnessInput> = {}): FairnessInput {
@@ -56,5 +56,37 @@ describe("savingsRange", () => {
     const s = savingsRange(r);
     expect(s).not.toBeNull();
     expect(s!.high).toBeGreaterThan(0);
+  });
+});
+
+describe("savingsBreakdown", () => {
+  it("lists each clawback-able category, summing to the headline total", () => {
+    const r = scoreDeal(
+      baseInput({
+        deal: {
+          apr: 18,
+          creditBand: "good",
+          vehiclePrice: 26_000,
+          downPayment: 2_000,
+          termMonths: 72,
+          fees: [
+            { label: "Nitrogen tires", amount: 399 },
+            { label: "VIN etching", amount: 350 },
+          ],
+        },
+      }),
+    );
+    const lines = savingsBreakdown(r);
+    expect(lines.length).toBeGreaterThanOrEqual(2);
+    const total = savingsRange(r)!;
+    const sumLow = lines.reduce((a, l) => a + l.low, 0);
+    const sumHigh = lines.reduce((a, l) => a + l.high, 0);
+    expect(sumLow).toBe(total.low);
+    expect(sumHigh).toBe(total.high);
+  });
+
+  it("omits negative equity (matches the headline exclusion)", () => {
+    const r = scoreDeal(baseInput({ tradeIn: { offer: 7_000, loanPayoff: 11_000 } }));
+    expect(savingsBreakdown(r).some((l) => /payoff|equity/i.test(l.label))).toBe(false);
   });
 });
