@@ -22,6 +22,18 @@ const REVIEWS = [
   "Photos or inspection notes, if provided",
 ];
 
+const FULL_REPORT_INCLUDES = [
+  "Vehicle identity and snapshot",
+  "Title and history review",
+  "Accident and damage risk review",
+  "Prior-use review",
+  "Pricing and out-the-door structure review",
+  "Inspection priorities",
+  "Seller questions",
+  "Document checklist",
+  "Human reviewer judgment layered on top of the pilot flow",
+];
+
 const LABELS = [
   {
     label: "Proceed",
@@ -179,6 +191,36 @@ export default function UsedCarRiskReportPage() {
                 decision support, not financial, legal, or insurance advice — a
                 buyer-side reference point that helps you decide for yourself.
               </p>
+            </div>
+          </Block>
+
+          {/* What the full report will include */}
+          <Block title="What the full report will include">
+            <p className="-mt-1 mb-4 text-navy/70">
+              The paid report pairs the instant pilot flow with a human reviewer
+              who reads your actual documents and lays out a buyer-side plan:
+            </p>
+            <ul className="grid gap-2 sm:grid-cols-2">
+              {FULL_REPORT_INCLUDES.map((it) => (
+                <li key={it} className="flex items-start gap-2 text-navy/75">
+                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-gold" />
+                  {it}
+                </li>
+              ))}
+            </ul>
+            <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+              <Link
+                href="/services/used-car-risk-report/sample-report"
+                className="btn-secondary"
+              >
+                View a sample report
+              </Link>
+              <Link
+                href="/services/used-car-risk-report/check"
+                className="btn-secondary"
+              >
+                Preview the used-car risk flow
+              </Link>
             </div>
           </Block>
 
