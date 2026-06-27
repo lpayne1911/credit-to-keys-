@@ -60,6 +60,7 @@ export const dealSubmissionSchema = z.object({
       loanPayoff: numLike,
     })
     .optional(),
+  buyerState: z.string().max(8).optional(),
   inputPath: z.enum(["manual", "upload"]).optional(),
   uploadedFilePath: z.string().max(400).optional(),
 });

@@ -38,6 +38,14 @@ export interface Product {
   ctaLabelAlts: string[];
   /** One-line buyer intent ("I want to…"). */
   intent: string;
+  /** The stressed-buyer problem, in plain English (card lead). */
+  problem: string;
+  /** Who this is for, one line. */
+  whoFor: string;
+  /** Rough time to complete, e.g. "~30 sec". */
+  estTime: string;
+  /** Short fulfillment label for cards: "Instant" | "Human" | "Instant + human". */
+  intakeLabel: string;
   type: ProductType;
   status: ProductStatus;
   /** Whether it produces an automated score. */
@@ -78,6 +86,10 @@ export const PRODUCTS: Product[] = [
     ctaLabel: "Start free deal check",
     ctaLabelAlts: ["Check my full deal", "Inspect my dealer quote"],
     intent: "I have a quote/worksheet and want the whole deal reviewed.",
+    problem: "I have the whole deal in front of me and don't know if it's fair.",
+    whoFor: "You have a quote, buyer's order, or payment worksheet.",
+    estTime: "~1 min",
+    intakeLabel: "Instant + human",
     type: "automated",
     status: "live",
     usesAutomatedScoring: true,
@@ -103,6 +115,10 @@ export const PRODUCTS: Product[] = [
     ctaLabel: "Check my warranty",
     ctaLabelAlts: ["Review my service contract", "See if the warranty is overpriced"],
     intent: "I only want to know if the warranty/service contract is fair.",
+    problem: "They offered me a warranty and I don't know if the price is fair.",
+    whoFor: "You were offered an extended warranty / service contract.",
+    estTime: "~30 sec",
+    intakeLabel: "Instant + human",
     type: "automated",
     status: "beta",
     usesAutomatedScoring: true,
@@ -129,6 +145,10 @@ export const PRODUCTS: Product[] = [
     ctaLabel: "Check my APR",
     ctaLabelAlts: ["Review my payment", "See if my rate was marked up"],
     intent: "I want to know if my rate / payment / term looks suspicious.",
+    problem: "The payment or interest rate feels high.",
+    whoFor: "You're financing and want a rate/payment gut-check.",
+    estTime: "~30 sec",
+    intakeLabel: "Instant + human",
     type: "automated",
     status: "beta",
     usesAutomatedScoring: true,
@@ -155,6 +175,10 @@ export const PRODUCTS: Product[] = [
     ctaLabel: "Check my add-ons",
     ctaLabelAlts: ["Review dealer fees", "Find junk fees"],
     intent: "I want to review the dealer fees and F&I add-ons.",
+    problem: "They added a bunch of things and I don't know what's optional.",
+    whoFor: "Your paperwork has add-ons and fees you didn't ask for.",
+    estTime: "~30 sec",
+    intakeLabel: "Instant + human",
     type: "automated",
     status: "beta",
     usesAutomatedScoring: true,
@@ -180,6 +204,10 @@ export const PRODUCTS: Product[] = [
     ctaLabel: "Request human review",
     ctaLabelAlts: ["Have an advocate review this", "Send this to a real person"],
     intent: "I want a person to review my deal.",
+    problem: "I just want a real person to look at this.",
+    whoFor: "Anyone who'd rather have an advocate review it.",
+    estTime: "~2 min to submit",
+    intakeLabel: "Human",
     type: "human_review",
     status: "human_review_only",
     usesAutomatedScoring: false,
@@ -205,6 +233,10 @@ export const PRODUCTS: Product[] = [
     ctaLabel: "I already signed",
     ctaLabelAlts: ["Review my signed deal", "Help me after purchase"],
     intent: "I already bought the car and need help understanding it.",
+    problem: "I already signed and now I think something's wrong.",
+    whoFor: "You've purchased and want to understand your options.",
+    estTime: "~3 min to submit",
+    intakeLabel: "Human",
     type: "intake",
     status: "beta",
     usesAutomatedScoring: false,

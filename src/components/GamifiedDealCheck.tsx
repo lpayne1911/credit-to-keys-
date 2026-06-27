@@ -26,16 +26,12 @@ import {
 } from "@/lib/deal-check-flow";
 import { VerdictView } from "@/components/VerdictView";
 import { WARRANTY_DISPLAY_GROUPS } from "@/lib/warranty/warranty-catalog";
+import { VehicleSelector } from "@/components/vehicle/VehicleSelector";
+import { normalizeMake } from "@/lib/vehicles/vehicle-catalog";
 
 /* ---------------------------------------------------------------------------
  *  Tap data
  * ------------------------------------------------------------------------- */
-
-const MAKES = [
-  "Toyota", "Honda", "Ford", "Chevrolet", "Nissan", "Hyundai",
-  "Kia", "Jeep", "Subaru", "Mazda", "GMC", "RAM",
-  "BMW", "Mercedes", "Tesla", "VW",
-];
 
 const CREDIT_BANDS = [
   { value: "excellent", label: "Excellent", hint: "720+", emoji: "🟢" },
@@ -110,7 +106,6 @@ const ADD_ONS: AddOn[] = [
 
 type State = {
   make: string;
-  makeOther: string;
   model: string;
   trim: string;
   vin: string;
@@ -142,7 +137,6 @@ const NOW = new Date().getFullYear();
 
 const INITIAL: State = {
   make: "",
-  makeOther: "",
   model: "",
   trim: "",
   vin: "",
@@ -217,7 +211,7 @@ export function GamifiedDealCheck({ focus = "full" }: { focus?: Focus } = {}) {
     });
     const vehicle = {
       year: s.year,
-      make: s.make === "Other" ? s.makeOther : s.make === "VW" ? "Volkswagen" : s.make,
+      make: s.make,
       model: s.model,
       trim: s.trim,
       vin: s.vin,
@@ -351,7 +345,6 @@ export function GamifiedDealCheck({ focus = "full" }: { focus?: Focus } = {}) {
     });
     switch (step) {
       case "brand":
-      case "model":
       case "specs":
       case "state":
       case "price":
@@ -404,7 +397,7 @@ export function GamifiedDealCheck({ focus = "full" }: { focus?: Focus } = {}) {
               result={inlineResult}
               vehicle={{
                 year: s.year,
-                make: s.make === "Other" ? s.makeOther : s.make === "VW" ? "Volkswagen" : s.make,
+                make: s.make,
               }}
               loan={{
                 vehiclePrice: s.vehiclePrice,
@@ -457,66 +450,25 @@ export function GamifiedDealCheck({ focus = "full" }: { focus?: Focus } = {}) {
           )}
 
           {step === "brand" && (
-            <Step title="What are you buying?" sub="Tap the brand. One thing at a time.">
-              <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-                {[...MAKES, "Other"].map((m) => (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => {
-                      set("make", m);
-                      if (m !== "Other") next();
-                    }}
-                    className={`pill !rounded-xl py-3 ${s.make === m ? "pill--on" : ""}`}
-                  >
-                    {m}
-                  </button>
-                ))}
-              </div>
-              {s.make === "Other" && (
+            <Step title="What are you buying?" sub="Pick the make, then the model. Not sure? Choose “I don't know” — it's optional.">
+              <VehicleSelector
+                value={{ make: s.make, model: s.model, trim: s.trim }}
+                onChange={(v) => {
+                  set("make", v.make ?? "");
+                  set("model", v.model ?? "");
+                  set("trim", v.trim ?? "");
+                }}
+              />
+              <label className="mt-3 block">
+                <span className="field-label">VIN <span className="font-normal text-navy/40">(optional)</span></span>
                 <input
-                  autoFocus
-                  className="field-input mt-3"
-                  placeholder="Type the brand"
-                  value={s.makeOther}
-                  onChange={(e) => set("makeOther", e.target.value)}
+                  className="field-input font-mono uppercase"
+                  placeholder="17 characters, off the windshield or paperwork"
+                  maxLength={17}
+                  value={s.vin}
+                  onChange={(e) => set("vin", e.target.value.toUpperCase())}
                 />
-              )}
-            </Step>
-          )}
-
-          {step === "model" && (
-            <Step title="Which model?" sub="Helps us check the right car — not just its year and miles. Model helps most; trim and VIN are optional.">
-              <div className="space-y-3">
-                <label className="block">
-                  <span className="field-label">Model</span>
-                  <input
-                    className="field-input"
-                    placeholder="e.g. Altima, F-150, CR-V"
-                    value={s.model}
-                    onChange={(e) => set("model", e.target.value)}
-                  />
-                </label>
-                <label className="block">
-                  <span className="field-label">Trim <span className="font-normal text-navy/40">(optional)</span></span>
-                  <input
-                    className="field-input"
-                    placeholder="e.g. SR, XLT, EX-L"
-                    value={s.trim}
-                    onChange={(e) => set("trim", e.target.value)}
-                  />
-                </label>
-                <label className="block">
-                  <span className="field-label">VIN <span className="font-normal text-navy/40">(optional)</span></span>
-                  <input
-                    className="field-input font-mono uppercase"
-                    placeholder="17 characters, off the windshield or paperwork"
-                    maxLength={17}
-                    value={s.vin}
-                    onChange={(e) => set("vin", e.target.value.toUpperCase())}
-                  />
-                </label>
-              </div>
+              </label>
             </Step>
           )}
 
@@ -1155,13 +1107,9 @@ function strOr(v: unknown, fallback: string): string {
 }
 
 function matchMake(raw: unknown): string | null {
-  if (!raw) return null;
-  const v = String(raw).trim().toLowerCase();
-  const hit = MAKES.find((m) => m.toLowerCase() === v);
-  if (hit) return hit;
-  if (v.includes("mercedes")) return "Mercedes";
-  if (v.includes("volkswagen") || v === "vw") return "VW";
-  return null;
+  // Resolve to a CANONICAL make so it renders in the VehicleSelector dropdown
+  // (handles Chevy/VW/Mercedes/Range Rover and friends).
+  return normalizeMake(typeof raw === "string" ? raw : raw == null ? null : String(raw));
 }
 
 function feesToAddOns(fees: { label?: string; amount?: number | string }[]): Record<string, { amount: number }> {

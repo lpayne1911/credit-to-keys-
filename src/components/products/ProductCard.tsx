@@ -32,8 +32,16 @@ export function ProductCard({ product }: { product: Product }) {
       <h3 className="mt-3 font-serif text-lg font-semibold text-navy">
         {product.label}
       </h3>
-      <p className="mt-1.5 flex-1 text-sm leading-relaxed text-navy/65">
+      <p className="mt-1.5 text-sm leading-relaxed text-navy/70">
+        &ldquo;{product.problem}&rdquo;
+      </p>
+      <p className="mt-1.5 flex-1 text-sm leading-relaxed text-navy/55">
         {product.shortDescription}
+      </p>
+      <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-medium text-navy/45">
+        <span>{product.estTime}</span>
+        <span aria-hidden>·</span>
+        <span>{product.intakeLabel}</span>
       </p>
       {isComingSoon ? (
         <span className="mt-5 inline-flex items-center justify-center rounded-xl border border-navy/15 px-5 py-2.5 text-sm font-semibold text-navy/45">

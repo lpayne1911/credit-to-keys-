@@ -3,15 +3,15 @@
 import { useState } from "react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
-import { GamifiedDealCheck } from "@/components/GamifiedDealCheck";
+import { FocusedCheck } from "@/components/products/FocusedCheck";
 import { ProductIntro } from "@/components/products/ProductIntro";
 import { getProduct } from "@/lib/products/product-catalog";
 
 /**
  * Entry page for an automated focused check (warranty / APR / add-ons). Shows a
  * tailored intro (what it checks, what to provide, what you get), then launches
- * the shared Deal Check flow with the product's `focus` so the buyer only
- * answers what's relevant — no /check redirect, no whole-deal requirement.
+ * the product-specific FocusedCheck flow — only the questions that product needs,
+ * its own result. No /check redirect, no whole-deal requirement.
  */
 export function FocusedCheckLanding({ productId }: { productId: string }) {
   const product = getProduct(productId);
@@ -19,7 +19,7 @@ export function FocusedCheckLanding({ productId }: { productId: string }) {
 
   if (!product) return null;
   if (started) {
-    return <GamifiedDealCheck focus={product.focus ?? "full"} />;
+    return <FocusedCheck productId={productId} />;
   }
 
   return (
