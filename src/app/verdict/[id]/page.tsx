@@ -56,7 +56,9 @@ export default async function VerdictPage({
                 }
               />
 
-              <VerdictNextSteps />
+              <VerdictNextSteps
+                result={(deal.reviewed_verdict ? buildReviewedResult(deal) : (deal.auto_result as FairnessResult | null)) ?? null}
+              />
 
               {/* Compact compliance line — required on every verdict. */}
               <Disclaimer />
@@ -75,14 +77,19 @@ export default async function VerdictPage({
   );
 }
 
-/** Route the buyer by need, not just "request deeper review" (req 20). */
-function VerdictNextSteps() {
-  const items = [
-    { href: "/human-review", label: "Get human review" },
-    { href: "/warranty-check", label: "Check warranty details" },
-    { href: "/add-on-check", label: "Review add-ons" },
-    { href: "/deal-rescue", label: "I already signed" },
+/** Route the buyer by need, driven by which flags actually fired (req 8/20). */
+function VerdictNextSteps({ result }: { result: FairnessResult | null }) {
+  const types = new Set((result?.flags ?? []).map((f) => f.type));
+  const items: { href: string; label: string }[] = [
+    { href: "/human-review", label: "Get human review" }, // always available
   ];
+  if (types.has("overpriced_warranty") || result?.warranty)
+    items.push({ href: "/warranty-check", label: "Review warranty details" });
+  if (types.has("apr_markup") || types.has("payment_packing"))
+    items.push({ href: "/apr-check", label: "Check APR / payment" });
+  if (types.has("junk_fee") || types.has("overpriced_addon") || types.has("government_fee"))
+    items.push({ href: "/add-on-check", label: "Review add-ons & fees" });
+  items.push({ href: "/deal-rescue", label: "I already signed" });
   return (
     <div className="rounded-2xl border border-navy/10 bg-white p-4">
       <p className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-navy/50">

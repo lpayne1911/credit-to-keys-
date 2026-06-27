@@ -31,8 +31,15 @@ describe("POST /api/deals", () => {
     expect(["green", "amber", "red"]).toContain(data.result.overallVerdict);
   });
 
-  it("rejects a submission with no vehicle make or model (422)", async () => {
-    const res = await POST(jsonRequest({ deal: { apr: "7" } }));
+  it("accepts a focused submission with no vehicle (e.g. APR-only check)", async () => {
+    const res = await POST(jsonRequest({ deal: { apr: "14.9", vehiclePrice: "28000", creditBand: "good" } }));
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(["green", "amber", "red"]).toContain(data.result.overallVerdict);
+  });
+
+  it("rejects a truly empty submission (422)", async () => {
+    const res = await POST(jsonRequest({}));
     expect(res.status).toBe(422);
   });
 
