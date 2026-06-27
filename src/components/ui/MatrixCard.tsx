@@ -42,7 +42,7 @@ export function MatrixCard({
         <div className="grid grid-rows-[0fr] transition-all duration-300 group-hover:grid-rows-[1fr] group-focus-within:grid-rows-[1fr]">
           <div className="overflow-hidden">
             <p className="mt-3 border-t border-navy/10 pt-3 text-xs font-medium leading-relaxed text-navy/70">
-              <span className="font-bold text-gold-dark">What we look for: </span>
+              <span className="font-bold text-flag-orange">Common dealer trap: </span>
               {detail}
             </p>
           </div>

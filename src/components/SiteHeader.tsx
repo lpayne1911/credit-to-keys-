@@ -36,8 +36,7 @@ export function SiteHeader() {
             href={primary.href}
             className="btn-primary px-4 py-2.5 text-sm"
           >
-            <span className="hidden sm:inline">Check my deal before I sign</span>
-            <span className="sm:hidden">Check my deal</span>
+            Check my deal
           </Link>
         )}
       </div>
