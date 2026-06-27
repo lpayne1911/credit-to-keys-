@@ -26,7 +26,7 @@ import {
   type StepKey,
 } from "@/lib/deal-check-flow";
 import { VerdictView } from "@/components/VerdictView";
-import { SERVICE_CONTRACT_GROUPS } from "@/lib/service-contracts";
+import { WARRANTY_DISPLAY_GROUPS } from "@/lib/warranty/warranty-catalog";
 
 /* ---------------------------------------------------------------------------
  *  Tap data
@@ -58,6 +58,36 @@ const COVERAGE_TIERS = [
 
 const WARRANTY_TERMS = [36, 48, 60, 72];
 
+/** US states + DC. Used for state-aware copy now and fee caps later. */
+const US_STATES: { code: string; name: string }[] = [
+  { code: "AL", name: "Alabama" }, { code: "AK", name: "Alaska" },
+  { code: "AZ", name: "Arizona" }, { code: "AR", name: "Arkansas" },
+  { code: "CA", name: "California" }, { code: "CO", name: "Colorado" },
+  { code: "CT", name: "Connecticut" }, { code: "DE", name: "Delaware" },
+  { code: "DC", name: "District of Columbia" }, { code: "FL", name: "Florida" },
+  { code: "GA", name: "Georgia" }, { code: "HI", name: "Hawaii" },
+  { code: "ID", name: "Idaho" }, { code: "IL", name: "Illinois" },
+  { code: "IN", name: "Indiana" }, { code: "IA", name: "Iowa" },
+  { code: "KS", name: "Kansas" }, { code: "KY", name: "Kentucky" },
+  { code: "LA", name: "Louisiana" }, { code: "ME", name: "Maine" },
+  { code: "MD", name: "Maryland" }, { code: "MA", name: "Massachusetts" },
+  { code: "MI", name: "Michigan" }, { code: "MN", name: "Minnesota" },
+  { code: "MS", name: "Mississippi" }, { code: "MO", name: "Missouri" },
+  { code: "MT", name: "Montana" }, { code: "NE", name: "Nebraska" },
+  { code: "NV", name: "Nevada" }, { code: "NH", name: "New Hampshire" },
+  { code: "NJ", name: "New Jersey" }, { code: "NM", name: "New Mexico" },
+  { code: "NY", name: "New York" }, { code: "NC", name: "North Carolina" },
+  { code: "ND", name: "North Dakota" }, { code: "OH", name: "Ohio" },
+  { code: "OK", name: "Oklahoma" }, { code: "OR", name: "Oregon" },
+  { code: "PA", name: "Pennsylvania" }, { code: "RI", name: "Rhode Island" },
+  { code: "SC", name: "South Carolina" }, { code: "SD", name: "South Dakota" },
+  { code: "TN", name: "Tennessee" }, { code: "TX", name: "Texas" },
+  { code: "UT", name: "Utah" }, { code: "VT", name: "Vermont" },
+  { code: "VA", name: "Virginia" }, { code: "WA", name: "Washington" },
+  { code: "WV", name: "West Virginia" }, { code: "WI", name: "Wisconsin" },
+  { code: "WY", name: "Wyoming" },
+];
+
 /**
  * The "no typing" centrepiece: a gallery of the add-ons the fairness engine
  * already recognises. Each tile's `label` contains a keyword the engine matches
@@ -82,6 +112,10 @@ const ADD_ONS: AddOn[] = [
 type State = {
   make: string;
   makeOther: string;
+  model: string;
+  trim: string;
+  vin: string;
+  buyerState: string;
   year: number;
   mileage: number;
   creditBand: string;
@@ -102,6 +136,7 @@ type State = {
   tradeValue: number;
   tradeStillOwe: boolean;
   tradePayoff: number;
+  warrantyFromUpload: boolean;
 };
 
 const NOW = new Date().getFullYear();
@@ -109,6 +144,10 @@ const NOW = new Date().getFullYear();
 const INITIAL: State = {
   make: "",
   makeOther: "",
+  model: "",
+  trim: "",
+  vin: "",
+  buyerState: "",
   year: NOW - 3,
   mileage: 40_000,
   creditBand: "",
@@ -129,6 +168,7 @@ const INITIAL: State = {
   tradeValue: 10_000,
   tradeStillOwe: false,
   tradePayoff: 9_000,
+  warrantyFromUpload: false,
 };
 
 type Cta = { label: string; onClick: () => void; enabled: boolean };
@@ -172,9 +212,12 @@ export function GamifiedDealCheck() {
       vehicle: {
         year: s.year,
         make: s.make === "Other" ? s.makeOther : s.make === "VW" ? "Volkswagen" : s.make,
-        model: "",
+        model: s.model,
+        trim: s.trim,
+        vin: s.vin,
         mileage: s.mileage,
       },
+      buyerState: s.buyerState || undefined,
       deal: {
         vehiclePrice: s.vehiclePrice,
         downPayment: s.downPayment,
@@ -251,6 +294,9 @@ export function GamifiedDealCheck() {
         ...prev,
         year: numOr(ex.year, prev.year),
         make: matchMake(ex.make) ?? prev.make,
+        model: strOr(ex.model, prev.model),
+        trim: strOr(ex.trim, prev.trim),
+        vin: strOr(ex.vin, prev.vin),
         mileage: numOr(ex.mileage, prev.mileage),
         vehiclePrice: numOr(ex.vehiclePrice, prev.vehiclePrice),
         apr: numOr(ex.apr, prev.apr),
@@ -259,6 +305,7 @@ export function GamifiedDealCheck() {
         hasPayment: ex.monthlyPayment ? true : prev.hasPayment,
         warrantyPrice: numOr(ex.warrantyPrice, prev.warrantyPrice),
         hasWarranty: ex.warrantyPrice ? true : prev.hasWarranty,
+        warrantyFromUpload: ex.warrantyPrice ? true : prev.warrantyFromUpload,
         addOns: Array.isArray(ex.fees) ? feesToAddOns(ex.fees) : prev.addOns,
       }));
       setUploadedPath(data.uploadedFilePath ?? null);
@@ -276,7 +323,9 @@ export function GamifiedDealCheck() {
   function cta(): Cta | null {
     switch (step) {
       case "brand":
+      case "model":
       case "specs":
+      case "state":
       case "price":
       case "financing":
         return { label: "Continue", onClick: next, enabled: continueEnabled(step, s) };
@@ -393,6 +442,41 @@ export function GamifiedDealCheck() {
             </Step>
           )}
 
+          {step === "model" && (
+            <Step title="Which model?" sub="Helps us check the right car — not just its year and miles. Model helps most; trim and VIN are optional.">
+              <div className="space-y-3">
+                <label className="block">
+                  <span className="field-label">Model</span>
+                  <input
+                    className="field-input"
+                    placeholder="e.g. Altima, F-150, CR-V"
+                    value={s.model}
+                    onChange={(e) => set("model", e.target.value)}
+                  />
+                </label>
+                <label className="block">
+                  <span className="field-label">Trim <span className="font-normal text-navy/40">(optional)</span></span>
+                  <input
+                    className="field-input"
+                    placeholder="e.g. SR, XLT, EX-L"
+                    value={s.trim}
+                    onChange={(e) => set("trim", e.target.value)}
+                  />
+                </label>
+                <label className="block">
+                  <span className="field-label">VIN <span className="font-normal text-navy/40">(optional)</span></span>
+                  <input
+                    className="field-input font-mono uppercase"
+                    placeholder="17 characters, off the windshield or paperwork"
+                    maxLength={17}
+                    value={s.vin}
+                    onChange={(e) => set("vin", e.target.value.toUpperCase())}
+                  />
+                </label>
+              </div>
+            </Step>
+          )}
+
           {step === "specs" && (
             <Step title="Year &amp; miles" sub="A ballpark is fine — slide to the closest. Not sure? Just continue.">
               <div className="space-y-9">
@@ -401,6 +485,31 @@ export function GamifiedDealCheck() {
                 <Slider label="Mileage" value={s.mileage} min={0} max={200_000} step={2_500}
                   onChange={(v) => set("mileage", v)} format={(v) => `${v.toLocaleString()} mi`} />
               </div>
+            </Step>
+          )}
+
+          {step === "state" && (
+            <Step title="What state are you buying in?" sub="Fees, taxes, and doc-fee caps vary by state. We use this to tailor what's normal where you are. Not sure yet? Just continue.">
+              <label className="block">
+                <span className="field-label">State</span>
+                <select
+                  className="field-input"
+                  value={s.buyerState}
+                  onChange={(e) => set("buyerState", e.target.value)}
+                >
+                  <option value="">Select your state (optional)</option>
+                  {US_STATES.map((st) => (
+                    <option key={st.code} value={st.code}>{st.name}</option>
+                  ))}
+                </select>
+              </label>
+              {s.buyerState && (
+                <p className="mt-3 text-sm text-navy/55">
+                  We&apos;ll flag fees against {US_STATES.find((x) => x.code === s.buyerState)?.name ?? "your state"}
+                  &apos;s norms. Government title &amp; registration fees are legitimate — we only push back on
+                  dealer-retained padding.
+                </p>
+              )}
             </Step>
           )}
 
@@ -591,7 +700,7 @@ export function GamifiedDealCheck() {
           )}
 
           {step === "warranty" && (
-            <Step title="Extended warranty offered?" sub="Service contract, VSC, Honda Care, Endurance — whatever it's called, it belongs here. It's the finance office's biggest markup; let's price-check it.">
+            <Step title="Did they offer a warranty, service contract, protection plan, or mechanical breakdown coverage?" sub="Dealers use many names for this: VSC, extended service plan, vehicle protection plan, mechanical breakdown coverage, Honda Care, Mopar Maximum Care, Zurich, Endurance, CarShield, and more. It's the finance office's biggest markup — let's price-check it.">
               <div className="grid grid-cols-2 gap-2.5">
                 <button type="button" onClick={() => set("hasWarranty", false)}
                   className={`choice justify-center !py-5 ${s.hasWarranty === false ? "choice--on" : ""}`}>
@@ -602,6 +711,17 @@ export function GamifiedDealCheck() {
                   <span className="font-semibold text-navy">Yes, they did</span>
                 </button>
               </div>
+
+              {s.warrantyFromUpload && (
+                <div className="mt-4 rounded-xl border border-gold/40 bg-gold/5 px-4 py-3">
+                  <p className="text-sm font-semibold text-navy">
+                    📄 We spotted a service contract on your quote{s.warrantyPrice ? ` (about ${money(s.warrantyPrice)})` : ""}.
+                  </p>
+                  <p className="mt-1 text-sm text-navy/65">
+                    Please confirm the coverage, length, and price below before we score it — adjust anything we misread.
+                  </p>
+                </div>
+              )}
 
               <ServiceContractNames />
 
@@ -767,7 +887,7 @@ function ServiceContractNames() {
         Not sure if you got one? See the names it goes by →
       </summary>
       <div className="mt-3 space-y-3">
-        {SERVICE_CONTRACT_GROUPS.map((g) => (
+        {WARRANTY_DISPLAY_GROUPS.map((g) => (
           <div key={g.label}>
             <p className="text-[11px] font-semibold uppercase tracking-wide text-navy/45">
               {g.label}
@@ -847,18 +967,52 @@ function Slider({
   label: string; value: number; min: number; max: number; step: number;
   onChange: (v: number) => void; format: (v: number) => string; big?: boolean;
 }) {
+  // Manual numeric fallback: tap the value to type an exact number. The slider
+  // is fast but coarse; some buyers know the precise figure off their paperwork.
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+  function commit() {
+    const n = Number(draft.replace(/[^0-9.\-]/g, ""));
+    if (Number.isFinite(n) && draft.trim() !== "") {
+      onChange(Math.min(max, Math.max(min, n)));
+    }
+    setEditing(false);
+  }
   return (
     <div>
-      <div className="mb-2 flex items-baseline justify-between">
+      <div className="mb-2 flex items-baseline justify-between gap-2">
         <span className="field-label !mb-0">{label}</span>
-        <span className={`font-serif font-semibold text-navy ${big ? "text-3xl" : "text-xl"}`}>
-          {format(value)}
-        </span>
+        {editing ? (
+          <input
+            type="number"
+            autoFocus
+            inputMode="decimal"
+            aria-label={`${label} — type exact value`}
+            className={`w-32 rounded-lg border border-gold/50 bg-white px-2 py-1 text-right font-serif font-semibold text-navy ${big ? "text-2xl" : "text-lg"}`}
+            defaultValue={value}
+            min={min}
+            max={max}
+            step={step}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={commit}
+            onKeyDown={(e) => { if (e.key === "Enter") commit(); }}
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={() => { setDraft(String(value)); setEditing(true); }}
+            aria-label={`${label} is ${format(value)} — tap to type an exact value`}
+            className={`font-serif font-semibold text-navy underline decoration-dotted decoration-navy/30 underline-offset-4 ${big ? "text-3xl" : "text-xl"}`}
+          >
+            {format(value)}
+          </button>
+        )}
       </div>
       <input type="range" className="range-gold" min={min} max={max} step={step}
         value={value} onChange={(e) => onChange(Number(e.target.value))} />
-      <div className="mt-1 flex justify-between text-[11px] text-navy/40">
+      <div className="mt-1 flex items-center justify-between text-[11px] text-navy/40">
         <span>{format(min)}</span>
+        <span className="text-navy/35">tap value to type it</span>
         <span>{format(max)}</span>
       </div>
     </div>
@@ -924,6 +1078,12 @@ function numOr(v: unknown, fallback: number): number {
   if (v === null || v === undefined || v === "") return fallback;
   const n = typeof v === "number" ? v : Number(String(v).replace(/[^0-9.\-]/g, ""));
   return Number.isFinite(n) ? n : fallback;
+}
+
+function strOr(v: unknown, fallback: string): string {
+  if (v === null || v === undefined) return fallback;
+  const s = String(v).trim();
+  return s.length ? s : fallback;
 }
 
 function matchMake(raw: unknown): string | null {

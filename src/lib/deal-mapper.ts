@@ -41,6 +41,9 @@ export interface DealSubmission {
     estimatedValue?: number | string;
     loanPayoff?: number | string;
   };
+  /** Two-letter US state code where the buyer is purchasing (state-aware copy
+   * now, fee caps later). Optional. */
+  buyerState?: string;
   inputPath?: "manual" | "upload";
   uploadedFilePath?: string;
 }
@@ -117,6 +120,7 @@ export function toFairnessInput(s: DealSubmission): FairnessInput {
           loanPayoff: num(s.tradeIn.loanPayoff),
         }
       : null,
+    documentUploaded: s.inputPath === "upload",
   };
 }
 
@@ -127,8 +131,10 @@ export function toDealRow(
   result: import("./fairness-engine").FairnessResult,
   leadId: string | null,
 ) {
+  const buyerState = str(s.buyerState)?.toUpperCase().slice(0, 2) ?? null;
   return {
     lead_id: leadId,
+    buyer_state: buyerState,
     vehicle_year: input.vehicle.year,
     vehicle_make: input.vehicle.make,
     vehicle_model: input.vehicle.model,
