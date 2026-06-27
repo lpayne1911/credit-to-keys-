@@ -52,16 +52,21 @@ export function FocusedResult({
   return (
     <>
       <SiteHeader />
-      <main className="mx-auto max-w-md px-5 py-8">
-        <div className="flex items-center gap-2">
-          <span className="text-2xl" aria-hidden>{product.emoji}</span>
-          <ConfidenceBadge level={result.confidence} />
+      <main className="relative mx-auto max-w-md px-5 py-8">
+        <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+          <div className="orb left-1/2 -top-10 h-56 w-72 -translate-x-1/2 bg-gold/12" />
         </div>
-        <h1 className="mt-2 font-serif text-2xl font-semibold text-navy">{heading}</h1>
-        {vehicleName && (
-          <p className="mt-1 text-sm font-semibold text-navy/80">{vehicleName}</p>
-        )}
-        <p className="mt-1.5 text-sm text-navy/65">{checkedLine}</p>
+        <div className="glass p-5">
+          <div className="flex items-center gap-2">
+            <span className="text-2xl" aria-hidden>{product.emoji}</span>
+            <ConfidenceBadge level={result.confidence} />
+          </div>
+          <h1 className="mt-2 font-serif text-2xl font-semibold text-navy">{heading}</h1>
+          {vehicleName && (
+            <p className="mt-1 text-sm font-semibold text-navy/80">{vehicleName}</p>
+          )}
+          <p className="mt-1.5 text-sm text-slate">{checkedLine}</p>
+        </div>
 
         {/* What looks risky / okay */}
         <div className="mt-6 space-y-4">
@@ -156,7 +161,7 @@ function NextLink({ href, label }: { href: string; label: string }) {
   return (
     <Link
       href={href}
-      className="rounded-xl border border-navy/15 px-3 py-2.5 text-center text-sm font-semibold text-navy hover:border-navy/40"
+      className="rounded-xl border border-navy/15 bg-white/70 px-3 py-2.5 text-center text-sm font-semibold text-navy transition hover:-translate-y-0.5 hover:border-gold/40 hover:shadow-card"
     >
       {label}
     </Link>

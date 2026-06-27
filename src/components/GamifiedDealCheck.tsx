@@ -775,7 +775,17 @@ export function GamifiedDealCheck({ focus = "full" }: { focus?: Focus } = {}) {
  * ======================================================================== */
 
 function AppShell({ children }: { children: React.ReactNode }) {
-  return <div className="flex min-h-[100dvh] flex-col bg-cream">{children}</div>;
+  return (
+    <div className="relative flex min-h-[100dvh] flex-col overflow-x-clip bg-cream">
+      {/* subtle layered background, matching the landing aesthetic */}
+      <div aria-hidden className="pointer-events-none absolute inset-0">
+        <div className="absolute inset-0 bg-grid opacity-30" />
+        <div className="orb -left-20 top-0 h-64 w-64 bg-gold/12" />
+        <div className="orb right-[-5rem] top-1/3 h-72 w-72 bg-paleblue/50" />
+      </div>
+      <div className="relative z-[1] flex min-h-[100dvh] flex-col">{children}</div>
+    </div>
+  );
 }
 
 /** Vertically-centered, scrollable content region. */
@@ -812,7 +822,7 @@ function TopBar({
   hideBack?: boolean;
 }) {
   return (
-    <header className="sticky top-0 z-10 bg-cream/90 backdrop-blur">
+    <header className="sticky top-0 z-10 bg-cream/70 backdrop-blur-xl supports-[backdrop-filter]:bg-cream/55">
       <div className="flex h-14 items-center justify-between px-3">
         {hideBack ? (
           <span className="w-9" />
@@ -844,7 +854,7 @@ function TopBar({
 
 function Footer({ children }: { children: React.ReactNode }) {
   return (
-    <footer className="sticky bottom-0 z-10 border-t border-navy/10 bg-cream/90 px-5 pb-[calc(env(safe-area-inset-bottom)+0.875rem)] pt-3.5 backdrop-blur">
+    <footer className="sticky bottom-0 z-10 border-t border-navy/10 bg-cream/80 px-5 pb-[calc(env(safe-area-inset-bottom)+0.875rem)] pt-3.5 backdrop-blur-xl">
       <div className="mx-auto w-full max-w-md">
         {children}
         <p className="mt-2 text-center text-[11px] text-navy/40">

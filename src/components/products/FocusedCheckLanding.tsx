@@ -25,9 +25,16 @@ export function FocusedCheckLanding({ productId }: { productId: string }) {
   return (
     <>
       <SiteHeader />
-      <main className="mx-auto max-w-2xl px-4 py-10 sm:py-14">
-        <ProductIntro product={product} />
-        <div className="mt-8">
+      <main className="relative mx-auto max-w-2xl px-4 py-10 sm:py-14">
+        <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+          <div className="absolute inset-0 bg-grid opacity-40" />
+          <div className="orb -left-16 top-0 h-64 w-64 bg-gold/12" />
+          <div className="orb right-[-4rem] top-1/3 h-72 w-72 bg-paleblue/60" />
+        </div>
+        <div className="glass p-6 sm:p-8">
+          <ProductIntro product={product} />
+        </div>
+        <div className="mt-6">
           <button
             type="button"
             onClick={() => setStarted(true)}
@@ -36,7 +43,7 @@ export function FocusedCheckLanding({ productId }: { productId: string }) {
           >
             {product.ctaLabel}
           </button>
-          <p className="mt-3 text-center text-xs text-navy/45">
+          <p className="mt-3 text-center text-xs text-slate">
             Free. No account needed. About 30 seconds.
           </p>
         </div>

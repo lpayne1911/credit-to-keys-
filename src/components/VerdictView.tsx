@@ -20,6 +20,17 @@ import {
 import { compareTerm, paymentBreakdown } from "@/lib/loan-math";
 import { savingsRange, savingsBreakdown } from "@/lib/verdict-summary";
 import { NegotiationScriptCard } from "@/components/NegotiationScriptCard";
+import { AnimatedScore } from "@/components/ui/AnimatedScore";
+import { RiskBadge, type RiskTone } from "@/components/ui/RiskBadge";
+
+/** Map a flag severity to a RiskBadge tone for the summary chip row. */
+function severityTone(severity: string): RiskTone {
+  return severity === "high"
+    ? "danger"
+    : severity === "medium"
+      ? "warning"
+      : "neutral";
+}
 
 /** The loan numbers needed to show what financing really costs over the term. */
 export interface LoanInputs {
@@ -454,24 +465,41 @@ export function VerdictView({
 
   return (
     <div className="space-y-6">
-      {/* Overall verdict — the KBB-style "report" header */}
-      <div className={`overflow-hidden rounded-2xl ${s.bg} ring-1 ${s.ring}`}>
+      {/* Overall verdict — the premium "Deal report" card, matching the
+          landing-page mockup: window chrome, animated score, gauge, risk
+          chips, and the value-forward savings number. */}
+      <div className="overflow-hidden rounded-2xl glass">
+        {/* verdict-color accent line */}
+        <div className={`h-1.5 w-full ${s.dot}`} />
+        {/* window chrome */}
+        <div className="flex items-center justify-between border-b border-navy/10 bg-white/50 px-5 py-2.5">
+          <div className="flex items-center gap-1.5" aria-hidden>
+            <span className="h-2.5 w-2.5 rounded-full bg-flag-red/70" />
+            <span className="h-2.5 w-2.5 rounded-full bg-verdict-amber/80" />
+            <span className="h-2.5 w-2.5 rounded-full bg-flag-green/80" />
+          </div>
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-slate">
+            Deal report
+          </span>
+        </div>
+
         <div className="p-6">
           {vehicleName && (
-            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-navy/45">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate">
               {vehicleName}
             </p>
           )}
           <div className="flex items-end justify-between gap-3">
             <div>
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-navy/50">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate">
                 Deal score
               </span>
               <div className="flex items-baseline gap-1">
-                <span className={`font-serif text-5xl font-bold leading-none ${s.text}`}>
-                  {score}
-                </span>
-                <span className="text-lg font-semibold text-navy/35">/100</span>
+                <AnimatedScore
+                  value={score}
+                  className={`font-serif text-6xl font-bold leading-none tabular-nums ${s.text}`}
+                />
+                <span className="text-xl font-semibold text-navy/35">/100</span>
               </div>
             </div>
             <div className="flex flex-col items-end gap-2">
@@ -483,8 +511,26 @@ export function VerdictView({
           <h2 className={`mt-5 font-serif text-2xl font-semibold ${s.text}`}>
             {result.headline}
           </h2>
+
+          {/* Risk-flag chips — the at-a-glance summary, with the evidence one
+              tap away in the breakdown below. */}
+          {realFlags.length > 0 && (
+            <div className="mt-4">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate">
+                Risk flags
+              </p>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {realFlags.slice(0, 6).map((f, i) => (
+                  <RiskBadge key={i} tone={severityTone(f.severity)}>
+                    {f.title}
+                  </RiskBadge>
+                ))}
+              </div>
+            </div>
+          )}
+
           {reviewedNote && (
-            <p className="mt-3 rounded-lg bg-white/70 px-3 py-2 text-sm text-navy/75">
+            <p className="mt-4 rounded-lg bg-white/70 px-3 py-2 text-sm text-navy/75">
               <span className="font-semibold">Reviewed by a human advocate:</span>{" "}
               {reviewedNote}
             </p>
