@@ -73,7 +73,7 @@ export default function UsedCarRiskReportPage() {
               $199–$399
             </span>
             <Link href="/services" className="btn-secondary">
-              Back to all services
+              See all services
             </Link>
           </div>
           <p className="mt-4 max-w-2xl text-sm text-navy/55">
@@ -167,8 +167,8 @@ export default function UsedCarRiskReportPage() {
                 This is not a mechanical inspection, a title guarantee, a recall
                 guarantee, a vehicle-history guarantee, a legal opinion, or a
                 prediction that the car will or will not fail. It&apos;s
-                decision support — a buyer-side reference point that helps you
-                decide for yourself.
+                decision support, not financial, legal, or insurance advice — a
+                buyer-side reference point that helps you decide for yourself.
               </p>
             </div>
           </Block>
@@ -179,12 +179,15 @@ export default function UsedCarRiskReportPage() {
               This one&apos;s rolling out soon.
             </h2>
             <p className="mx-auto mt-2 max-w-xl text-navy/65">
-              Want to see what&apos;s live today? Start with a free Deal Check or
-              browse the full lineup.
+              It isn&apos;t purchasable yet. Want to see what&apos;s live today?
+              Browse the full lineup, or start with a free Deal Check.
             </p>
-            <div className="mt-6">
+            <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
               <Link href="/services" className="btn-primary">
                 Back to all services
+              </Link>
+              <Link href="/check" className="btn-secondary">
+                Start a free Deal Check
               </Link>
             </div>
           </div>

@@ -82,7 +82,7 @@ export default function BuyerAdvocatePage() {
               $899–$1,499
             </span>
             <Link href="/services" className="btn-secondary">
-              Back to all services
+              See all services
             </Link>
           </div>
           <p className="mt-4 max-w-2xl text-sm text-navy/55">
@@ -185,12 +185,15 @@ export default function BuyerAdvocatePage() {
               This one&apos;s rolling out soon.
             </h2>
             <p className="mx-auto mt-2 max-w-xl text-navy/65">
-              Want to see what&apos;s live today? Start with a free Deal Check or
-              browse the full lineup.
+              It isn&apos;t purchasable yet. Want to see what&apos;s live today?
+              Browse the full lineup, or start with a free Deal Check.
             </p>
-            <div className="mt-6">
+            <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
               <Link href="/services" className="btn-primary">
                 Back to all services
+              </Link>
+              <Link href="/check" className="btn-secondary">
+                Start a free Deal Check
               </Link>
             </div>
           </div>
