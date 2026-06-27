@@ -14,7 +14,7 @@
  * own env (e.g. an API key) to enable a real extractor without touching the UI.
  */
 
-import { isServiceContract } from "../service-contracts";
+import { isWarrantyLineItem } from "../warranty/detect-warranty-line-item";
 
 export interface ExtractedFields {
   year?: string;
@@ -192,7 +192,7 @@ export function normalize(raw: Record<string, unknown>): ExtractedFields {
     // buyer's warranty actually gets price-checked instead of buried in fees.
     if (!out.warrantyPrice) {
       const idx = fees.findIndex(
-        (f) => f.amount > 0 && isServiceContract(f.label),
+        (f) => f.amount > 0 && isWarrantyLineItem(f.label),
       );
       if (idx !== -1) {
         out.warrantyPrice = String(fees[idx].amount);
