@@ -10,10 +10,13 @@ import { scoreDeal } from "@/lib/fairness-engine";
 const html = (el: React.ReactElement) => renderToStaticMarkup(el);
 
 describe("FocusedCheck first screen is product-specific", () => {
-  it("warranty opens by asking the vehicle (make), with brand chips", () => {
+  it("warranty opens with the real VehicleSelector (make dropdown, not free text)", () => {
     const m = html(createElement(FocusedCheck, { productId: "warranty-check" }));
     expect(m).toContain("What&#x27;s the vehicle?");
-    expect(m).toContain("Toyota"); // brand chips present for warranty
+    expect(m).toContain("Toyota"); // make options come from the selector
+    expect(m).toContain("Honda");
+    expect(m).toContain("I don&#x27;t know / not sure"); // explicit make opt-out
+    expect(m).toContain("Choose a make first"); // dependent model dropdown, disabled
   });
 
   it("APR opens by asking credit — NOT the brand picker", () => {
@@ -61,8 +64,16 @@ describe("FocusedResult is framed per product (not the generic verdict)", () => 
       warranty: { coverageTier: "stated_component", termMonths: 60, priceQuoted: 6000 },
     });
     expect(sub.warranty).toBeTruthy();
-    const m = html(createElement(FocusedResult, { product, result, answers: {} }));
+    const m = html(
+      createElement(FocusedResult, {
+        product,
+        result,
+        answers: { year: 2021, make: "Honda", model: "Accord" },
+      }),
+    );
     expect(m).toContain("Your warranty fairness check");
+    // the result echoes the vehicle it was scored against
+    expect(m).toContain("2021 Honda Accord");
   });
 
   it("APR result leads with rate & payment copy", () => {

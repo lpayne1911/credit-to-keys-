@@ -71,7 +71,6 @@ export function progressPercent(stepIdx: number): number {
 /** The slice of form state the continue-gates depend on. */
 export interface FlowState {
   make: string;
-  makeOther: string;
   hasWarranty: boolean | null;
   hasTrade: boolean | null;
 }

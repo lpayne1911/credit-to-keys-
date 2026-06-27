@@ -33,7 +33,7 @@ describe("focused flows diverge (not all funneled through the brand picker)", ()
 });
 
 function flow(overrides: Partial<FlowState> = {}): FlowState {
-  return { make: "", makeOther: "", hasWarranty: null, hasTrade: null, ...overrides };
+  return { make: "", hasWarranty: null, hasTrade: null, ...overrides };
 }
 
 describe("Deal Check flow — step order", () => {

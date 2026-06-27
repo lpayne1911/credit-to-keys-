@@ -11,6 +11,7 @@ import {
 import { getProduct, type ProductFocus } from "@/lib/products/product-catalog";
 import { FocusedResult } from "@/components/products/FocusedResult";
 import { VehicleSelector } from "@/components/vehicle/VehicleSelector";
+import { normalizeMake } from "@/lib/vehicles/vehicle-catalog";
 
 /**
  * Product-specific question runner for the warranty / APR / add-on checks.
@@ -415,6 +416,9 @@ function prefillFromExtract(prev: Answers, focus: ProductFocus, ex: Record<strin
   const n = (v: unknown) => (v === undefined || v === null || v === "" ? undefined : Number(String(v).replace(/[^0-9.\-]/g, "")));
   const next = { ...prev };
   if (focus === "warranty") {
+    const make = normalizeMake(typeof ex.make === "string" ? ex.make : null);
+    if (make) next.make = make;
+    if (typeof ex.model === "string" && ex.model) next.model = ex.model;
     if (ex.year) next.year = n(ex.year);
     if (ex.mileage) next.mileage = n(ex.mileage);
     if (ex.warrantyPrice) next.priceQuoted = n(ex.warrantyPrice);

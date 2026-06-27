@@ -27,16 +27,11 @@ import {
 import { VerdictView } from "@/components/VerdictView";
 import { WARRANTY_DISPLAY_GROUPS } from "@/lib/warranty/warranty-catalog";
 import { VehicleSelector } from "@/components/vehicle/VehicleSelector";
+import { normalizeMake } from "@/lib/vehicles/vehicle-catalog";
 
 /* ---------------------------------------------------------------------------
  *  Tap data
  * ------------------------------------------------------------------------- */
-
-const MAKES = [
-  "Toyota", "Honda", "Ford", "Chevrolet", "Nissan", "Hyundai",
-  "Kia", "Jeep", "Subaru", "Mazda", "GMC", "RAM",
-  "BMW", "Mercedes", "Tesla", "VW",
-];
 
 const CREDIT_BANDS = [
   { value: "excellent", label: "Excellent", hint: "720+", emoji: "🟢" },
@@ -111,7 +106,6 @@ const ADD_ONS: AddOn[] = [
 
 type State = {
   make: string;
-  makeOther: string;
   model: string;
   trim: string;
   vin: string;
@@ -143,7 +137,6 @@ const NOW = new Date().getFullYear();
 
 const INITIAL: State = {
   make: "",
-  makeOther: "",
   model: "",
   trim: "",
   vin: "",
@@ -218,7 +211,7 @@ export function GamifiedDealCheck({ focus = "full" }: { focus?: Focus } = {}) {
     });
     const vehicle = {
       year: s.year,
-      make: s.make === "Other" ? s.makeOther : s.make === "VW" ? "Volkswagen" : s.make,
+      make: s.make,
       model: s.model,
       trim: s.trim,
       vin: s.vin,
@@ -404,7 +397,7 @@ export function GamifiedDealCheck({ focus = "full" }: { focus?: Focus } = {}) {
               result={inlineResult}
               vehicle={{
                 year: s.year,
-                make: s.make === "Other" ? s.makeOther : s.make === "VW" ? "Volkswagen" : s.make,
+                make: s.make,
               }}
               loan={{
                 vehiclePrice: s.vehiclePrice,
@@ -1114,13 +1107,9 @@ function strOr(v: unknown, fallback: string): string {
 }
 
 function matchMake(raw: unknown): string | null {
-  if (!raw) return null;
-  const v = String(raw).trim().toLowerCase();
-  const hit = MAKES.find((m) => m.toLowerCase() === v);
-  if (hit) return hit;
-  if (v.includes("mercedes")) return "Mercedes";
-  if (v.includes("volkswagen") || v === "vw") return "VW";
-  return null;
+  // Resolve to a CANONICAL make so it renders in the VehicleSelector dropdown
+  // (handles Chevy/VW/Mercedes/Range Rover and friends).
+  return normalizeMake(typeof raw === "string" ? raw : raw == null ? null : String(raw));
 }
 
 function feesToAddOns(fees: { label?: string; amount?: number | string }[]): Record<string, { amount: number }> {

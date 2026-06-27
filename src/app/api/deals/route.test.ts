@@ -38,9 +38,14 @@ describe("POST /api/deals", () => {
     expect(["green", "amber", "red"]).toContain(data.result.overallVerdict);
   });
 
-  it("rejects a truly empty submission (422)", async () => {
+  it("rejects a truly empty submission (422) WITHOUT demanding a make/model", async () => {
     const res = await POST(jsonRequest({}));
     expect(res.status).toBe(422);
+    const data = await res.json();
+    // The old guard said "Please enter at least the vehicle make and model." —
+    // which blocked the APR/payment check. The relaxed message must not do that.
+    expect(String(data.error).toLowerCase()).not.toContain("make");
+    expect(String(data.error).toLowerCase()).not.toContain("model");
   });
 
   it("rejects malformed JSON (400)", async () => {

@@ -28,6 +28,13 @@ export function FocusedResult({
   const infoFlags = result.flags.filter((f) => f.severity === "info");
   const alreadySigned = answers.signed === true;
 
+  // Echo the vehicle the buyer selected (warranty check), so the result shows
+  // what it was scored against. APR/add-on flows collect no vehicle → no line.
+  const vehicleName = [answers.year, answers.make, answers.model, answers.trim]
+    .filter((v) => v !== undefined && v !== "" && v !== "idk")
+    .join(" ")
+    .trim();
+
   const heading =
     focus === "warranty"
       ? "Your warranty fairness check"
@@ -51,6 +58,9 @@ export function FocusedResult({
           <ConfidenceBadge level={result.confidence} />
         </div>
         <h1 className="mt-2 font-serif text-2xl font-semibold text-navy">{heading}</h1>
+        {vehicleName && (
+          <p className="mt-1 text-sm font-semibold text-navy/80">{vehicleName}</p>
+        )}
         <p className="mt-1.5 text-sm text-navy/65">{checkedLine}</p>
 
         {/* What looks risky / okay */}

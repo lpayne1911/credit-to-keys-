@@ -55,3 +55,50 @@ export function modelsForMake(make: string | undefined | null): string[] {
   if (!make) return [];
   return MODELS_BY_MAKE[make] ?? [];
 }
+
+/**
+ * Common spoken/written aliases → the canonical make used by the selector and
+ * the scoring engine. Keys are lowercased. This is what lets an uploaded quote
+ * that says "Chevy", "VW", "Mercedes" or "Range Rover" land on the right
+ * dropdown entry instead of showing a blank make.
+ */
+const MAKE_ALIASES: Record<string, string> = {
+  chevy: "Chevrolet",
+  chev: "Chevrolet",
+  vw: "Volkswagen",
+  volkswagon: "Volkswagen", // common misspelling
+  mercedes: "Mercedes-Benz",
+  "mercedes benz": "Mercedes-Benz",
+  benz: "Mercedes-Benz",
+  "range rover": "Land Rover",
+  rangerover: "Land Rover",
+  landrover: "Land Rover",
+  "land-rover": "Land Rover",
+  ram: "Ram",
+  gmc: "GMC",
+  bmw: "BMW",
+  mini: "MINI",
+  infiniti: "INFINITI",
+  infinity: "INFINITI", // common misspelling
+};
+
+/**
+ * Resolve any free-text make (e.g. extracted from an uploaded quote) to a
+ * canonical make the selector can display, or null if we don't recognize it
+ * (the buyer then picks from the list or chooses "I don't know"). Case- and
+ * punctuation-insensitive.
+ */
+export function normalizeMake(raw: string | undefined | null): string | null {
+  if (!raw) return null;
+  const v = String(raw).trim().toLowerCase();
+  if (!v) return null;
+  const exact = VEHICLE_MAKES.find((m) => m.toLowerCase() === v);
+  if (exact) return exact;
+  if (MAKE_ALIASES[v]) return MAKE_ALIASES[v];
+  // Loose contains for multi-word brands (e.g. "mercedes-benz e350" header rows).
+  for (const [alias, canonical] of Object.entries(MAKE_ALIASES)) {
+    if (v.includes(alias)) return canonical;
+  }
+  const partial = VEHICLE_MAKES.find((m) => v.includes(m.toLowerCase()));
+  return partial ?? null;
+}
