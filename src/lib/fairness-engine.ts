@@ -77,6 +77,12 @@ export interface DealInput {
    * could likely qualify for, so we can flag dealer APR markup. Optional.
    */
   creditBand?: CreditBand | null;
+  /**
+   * True when the buyer already has their own financing approved (bank / credit
+   * union pre-approval). Gives them a concrete rate to compare against, so we
+   * sharpen the APR-markup guidance. Optional.
+   */
+  outsideApproval?: boolean | null;
 }
 
 export type CreditBand =
@@ -98,6 +104,11 @@ export interface WarrantyInput {
   coverageTier?: WarrantyCoverageTier | null;
   termMonths?: number | null;
   termMiles?: number | null;
+  /**
+   * Per-visit deductible on the contract ($0, $100, $200…). A higher deductible
+   * makes a contract cheaper, so it shifts the fair-price range down. Optional.
+   */
+  deductible?: number | null;
   /** Price the dealer quoted for the extended warranty / VSC. */
   priceQuoted?: number | null;
 }
@@ -124,6 +135,12 @@ export interface FairnessInput {
   tradeIn?: TradeInInput | null;
   /** True when the figures came from an uploaded quote (raises confidence). */
   documentUploaded?: boolean;
+  /**
+   * True when the buyer has already signed — including "spot delivery" where
+   * they drove off but the financing isn't final. Doesn't change the deal's
+   * fairness, but surfaces a (non-promissory) note about review/cancel options.
+   */
+  alreadySigned?: boolean | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -277,6 +294,20 @@ const RELIABILITY_MULTIPLIER: Record<1 | 2 | 3, number> = {
   2: 1.0,
   3: 1.3,
 };
+
+/**
+ * Deductible multiplier on the fair price. A higher per-visit deductible means
+ * the contract pays out less, so a fair price is LOWER. A $0-deductible contract
+ * costs more. ASSUMPTION-based bands; null when the buyer doesn't know it (1.0).
+ */
+// PLACEHOLDER — replace with real engine value
+function deductibleMultiplier(deductible?: number | null): number {
+  if (deductible === null || deductible === undefined) return 1.0;
+  if (deductible <= 0) return 1.12; // $0 deductible → richer contract → costs more
+  if (deductible <= 100) return 1.0; // ~$100 is the common baseline
+  if (deductible <= 200) return 0.92;
+  return 0.85; // high deductible → cheaper contract
+}
 
 /**
  * Age & mileage risk surcharge. Older / higher-mileage cars are more likely to
@@ -487,6 +518,20 @@ export function scoreDeal(input: FairnessInput): FairnessResult {
   // --- Missing-info honesty notes ---------------------------------------
   flags.push(...missingInfoNotes(input));
 
+  // --- Already-signed / spot-delivery context (informational only) -------
+  if (input.alreadySigned) {
+    flags.push({
+      type: "info",
+      severity: "info",
+      title: "You've already signed (or drove off on “spot delivery”)",
+      explanation:
+        "Signing — including a conditional “spot delivery” where the financing isn't final yet — narrows your options, but you may still be able to review or cancel some add-ons. We can't promise a cancellation or refund. A deal rescue can help you organize next steps.",
+    });
+    assumptions.push(
+      "Buyer indicated the deal is already signed (or spot-delivered) — guidance focuses on review/cancel options, not pre-signing negotiation.",
+    );
+  }
+
   // --- Roll everything up into an overall verdict + confidence -----------
   const { overallVerdict, headline, confidence, confidenceReasons } = rollUp(
     flags,
@@ -558,8 +603,10 @@ function assessWarranty(
   const termSurcharge =
     ((term - TERM_BASELINE_MONTHS) / 12) * TERM_SURCHARGE_PER_12_MONTHS;
 
+  const dedMult = deductibleMultiplier(w.deductible);
+
   const totalMult =
-    covMult * relMult * (1 + riskSurcharge) * (1 + Math.max(-0.3, termSurcharge));
+    covMult * relMult * dedMult * (1 + riskSurcharge) * (1 + Math.max(-0.3, termSurcharge));
 
   low = Math.round((low * totalMult) / 25) * 25;
   high = Math.round((high * totalMult) / 25) * 25;
@@ -570,10 +617,11 @@ function assessWarranty(
     w.termMonths,
     vehicle.mileage,
     vehicle.year,
+    w.deductible,
   ].filter((v) => v !== null && v !== undefined).length;
   let confidence: Confidence = "low";
   if (knownSignals >= 3) confidence = "medium";
-  if (knownSignals === 4 && w.coverageTier && w.coverageTier !== "unknown") {
+  if (knownSignals >= 4 && w.coverageTier && w.coverageTier !== "unknown") {
     confidence = "high";
   }
   // When confidence is low, widen the band so we never imply false precision.
@@ -582,8 +630,12 @@ function assessWarranty(
     high = Math.round((high * 1.2) / 25) * 25;
   }
 
+  const deductiblePhrase =
+    w.deductible === null || w.deductible === undefined
+      ? "deductible unknown"
+      : `${money(w.deductible)} deductible`;
   assumptions.push(
-    `Warranty fair-price range is an estimate from documented assumption ranges (brand reliability tier ${tier}, coverage "${coverage}", ${age} yr / ${miles.toLocaleString()} mi, ${term}-mo term) — exact prices vary by provider and negotiation.`,
+    `Warranty fair-price range is an estimate from documented assumption ranges (brand reliability tier ${tier}, coverage "${coverage}", ${age} yr / ${miles.toLocaleString()} mi, ${term}-mo term, ${deductiblePhrase}) — exact prices vary by provider and negotiation.`,
   );
 
   const fairRange: PriceRange = {
@@ -718,11 +770,21 @@ function assessApr(deal: DealInput, assumptions: string[]): Flag | null {
   const costPhrase = impact
     ? ` — that's roughly ${money(impact.low)}–${money(impact.high)} in extra interest over the loan`
     : "";
+  // If the buyer already holds their own approval, that's direct leverage; if
+  // not, point them to getting one. Either way, keep it buyer-side.
+  const leverage = deal.outsideApproval
+    ? ` You said you already have your own financing approved — use it: ask them to beat your rate in writing, or take your own loan.`
+    : ` Ask to see the "buy rate," or bring a pre-approval from your own bank or credit union to compare.`;
+  if (deal.outsideApproval) {
+    assumptions.push(
+      "Buyer has an outside pre-approval — the dealer's rate can be compared against it directly.",
+    );
+  }
   return {
     type: "apr_markup",
     severity: over > 4 ? "high" : "medium",
     title: "Possible marked-up interest rate",
-    explanation: `Your ${deal.apr}% APR is about ${over.toFixed(1)} points above the ${band.low}%–${band.high}% range a buyer with your stated credit would likely qualify for${costPhrase}. Dealers often mark up the lender's rate and keep the difference. Ask to see the "buy rate," or bring a pre-approval from your own bank or credit union to compare.`,
+    explanation: `Your ${deal.apr}% APR is about ${over.toFixed(1)} points above the ${band.low}%–${band.high}% range a buyer with your stated credit would likely qualify for${costPhrase}. Dealers often mark up the lender's rate and keep the difference.${leverage}`,
     estimatedImpact: impact,
   };
 }
@@ -1184,6 +1246,11 @@ function rollUp(
     confidenceReasons.push("Credit band given — rate comparison is sharper.");
   } else {
     confidenceReasons.push("Credit band unknown — rate comparison stays cautious.");
+  }
+  if (d.outsideApproval) {
+    confidenceReasons.push(
+      "You have your own financing approved — you can compare the dealer's rate directly.",
+    );
   }
   if (warranty) {
     confidenceReasons.push(

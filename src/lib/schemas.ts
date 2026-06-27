@@ -42,6 +42,7 @@ export const dealSubmissionSchema = z.object({
       termMonths: numLike,
       monthlyPayment: numLike,
       creditBand: z.string().max(40).optional(),
+      outsideApproval: z.boolean().optional(),
     })
     .optional(),
   warranty: z
@@ -50,6 +51,7 @@ export const dealSubmissionSchema = z.object({
       coverageTier: z.string().max(40).optional(),
       termMonths: numLike,
       termMiles: numLike,
+      deductible: numLike,
       priceQuoted: numLike,
     })
     .optional(),
@@ -61,6 +63,7 @@ export const dealSubmissionSchema = z.object({
     })
     .optional(),
   buyerState: z.string().max(8).optional(),
+  alreadySigned: z.boolean().optional(),
   inputPath: z.enum(["manual", "upload"]).optional(),
   uploadedFilePath: z.string().max(400).optional(),
 });

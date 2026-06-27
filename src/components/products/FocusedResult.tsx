@@ -25,7 +25,9 @@ export function FocusedResult({
 }) {
   const focus = product.focus;
   const realFlags = result.flags.filter((f) => f.severity !== "info");
-  const infoFlags = result.flags.filter((f) => f.severity === "info");
+  // Only legitimate government fees belong in the "itemize, not junk" section —
+  // other info notes (missing-info, already-signed) are surfaced elsewhere.
+  const govFlags = result.flags.filter((f) => f.type === "government_fee");
   const alreadySigned = answers.signed === true;
 
   // Echo the vehicle the buyer selected (warranty check), so the result shows
@@ -92,13 +94,13 @@ export function FocusedResult({
           )}
 
           {/* Government / legitimate items kept separate (add-on check) */}
-          {focus === "addons" && infoFlags.length > 0 && (
+          {focus === "addons" && govFlags.length > 0 && (
             <div>
               <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-navy/50">
                 Legitimate / itemize — not junk
               </h2>
               <ul className="space-y-2">
-                {infoFlags.map((f, i) => (
+                {govFlags.map((f, i) => (
                   <li key={i} className="rounded-lg border border-navy/10 bg-cream-100 px-4 py-3 text-sm text-navy/65">
                     <span className="font-medium text-navy/80">{f.title}.</span> {f.explanation}
                   </li>

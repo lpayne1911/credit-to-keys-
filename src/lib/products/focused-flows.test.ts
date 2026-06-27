@@ -60,6 +60,24 @@ describe("focused submissions map to the right scoring shape", () => {
     expect(sub.vehicle?.make ?? "").toBe("");
   });
 
+  it("APR carries the buyer's outside pre-approval and signed flag", () => {
+    const sub = FOCUSED_FLOWS.apr.toSubmission(
+      { creditBand: "good", apr: 16.9, outsideApproval: true, signed: true },
+      null,
+    );
+    expect(sub.deal?.outsideApproval).toBe(true);
+    expect(sub.alreadySigned).toBe(true);
+  });
+
+  it("warranty carries deductible and the signed flag", () => {
+    const sub = FOCUSED_FLOWS.warranty.toSubmission(
+      { make: "Honda", coverageTier: "stated_component", deductible: "100", priceQuoted: 3500, signed: false },
+      null,
+    );
+    expect(sub.warranty?.deductible).toBe(100);
+    expect(sub.alreadySigned).toBe(false);
+  });
+
   it("add-on keeps government title fee as a fee (not dropped, not warranty)", () => {
     const sub = FOCUSED_FLOWS.addons.toSubmission(
       { __addons: "gap,title,service contract", state: "CA" },
