@@ -3,6 +3,7 @@ import { Disclaimer } from "@/components/Disclaimer";
 import { VerdictView } from "@/components/VerdictView";
 import { RequestReviewButton } from "@/components/RequestReviewButton";
 import { getDealById } from "@/lib/deals";
+import { reviewFees } from "@/lib/fee-classifier";
 import type { FairnessResult } from "@/lib/fairness-engine";
 
 export const metadata = {
@@ -15,6 +16,8 @@ export default async function VerdictPage({
   params: { id: string };
 }) {
   const deal = await getDealById(params.id);
+  // Recompute the state-aware fee-risk from the stored fees + buyer_state.
+  const feeRisk = deal ? reviewFees(deal.fees ?? [], deal.buyer_state ?? null) : null;
 
   return (
     <div className="flex min-h-[100dvh] flex-col bg-cream">
@@ -34,12 +37,14 @@ export default async function VerdictPage({
                   }
                   vehicle={vehicleOf(deal)}
                   loan={loanOf(deal)}
+                  feeRisk={feeRisk}
                 />
               ) : deal.auto_result ? (
                 <VerdictView
                   result={deal.auto_result as FairnessResult}
                   vehicle={vehicleOf(deal)}
                   loan={loanOf(deal)}
+                  feeRisk={feeRisk}
                 />
               ) : (
                 <p className="text-navy/60">

@@ -12,6 +12,7 @@
  */
 
 import type { Flag, FairnessResult, Verdict } from "./fairness-engine";
+import type { FeeLineReview } from "./fee-classifier";
 
 export type DealStatus =
   | "new" // auto-verdict generated, no human review requested
@@ -56,6 +57,14 @@ export interface DealRow {
   warranty_term_months: number | null;
   warranty_term_miles: number | null;
   warranty_price: number | null;
+
+  // Buyer location (internal analytics signal only; never buyer-facing/scored).
+  buyer_zip: string | null;
+  buyer_state: string | null;
+  buyer_income_band: string | null;
+
+  // Normalized fee categories (state-aware), persisted for analytics.
+  fee_categories: FeeLineReview[] | null;
 
   // Upload
   uploaded_file_path: string | null;

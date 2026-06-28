@@ -17,6 +17,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { FairnessResult } from "@/lib/fairness-engine";
+import type { FeeRiskAssessment } from "@/lib/fee-classifier";
 import type { DealSubmission } from "@/lib/deal-mapper";
 import {
   STEPS,
@@ -157,6 +158,7 @@ export function GamifiedDealCheck() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [inlineResult, setInlineResult] = useState<FairnessResult | null>(null);
+  const [inlineFeeRisk, setInlineFeeRisk] = useState<FeeRiskAssessment | null>(null);
   const [parsing, setParsing] = useState(false);
   const [uploadedPath, setUploadedPath] = useState<string | null>(null);
 
@@ -256,6 +258,7 @@ export function GamifiedDealCheck() {
         router.push(`/verdict/${data.id}`);
       } else {
         setInlineResult(data.result as FairnessResult);
+        setInlineFeeRisk((data.feeRisk as FeeRiskAssessment) ?? null);
         setSubmitting(false);
         window.scrollTo({ top: 0, behavior: "smooth" });
       }
@@ -340,6 +343,7 @@ export function GamifiedDealCheck() {
           stepIdx={0}
           onBack={() => {
             setInlineResult(null);
+            setInlineFeeRisk(null);
             setS(INITIAL);
             setStepIdx(0);
           }}
@@ -348,6 +352,7 @@ export function GamifiedDealCheck() {
           <div className="animate-pop">
             <VerdictView
               result={inlineResult}
+              feeRisk={inlineFeeRisk}
               vehicle={{
                 year: s.year,
                 make: s.make === "Other" ? s.makeOther : s.make === "VW" ? "Volkswagen" : s.make,

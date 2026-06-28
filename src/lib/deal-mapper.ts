@@ -8,6 +8,7 @@ import type {
   WarrantyCoverageTier,
   CreditBand,
 } from "./fairness-engine";
+import { reviewFees } from "./fee-classifier";
 
 /** Wire format sent by the Deal Check form (all optional/nullable strings). */
 export interface DealSubmission {
@@ -144,6 +145,9 @@ export function toDealRow(
     vehicle_vin: input.vehicle.vin,
     vehicle_price: input.deal.vehiclePrice,
     fees: input.deal.fees ?? [],
+    // Normalized fee categories (state-aware) — durable record for analytics.
+    fee_categories: reviewFees(input.deal.fees ?? [], s.location?.state ?? null)
+      .lineItems,
     down_payment: input.deal.downPayment,
     apr: input.deal.apr,
     term_months: input.deal.termMonths,

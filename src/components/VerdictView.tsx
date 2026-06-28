@@ -20,6 +20,11 @@ import {
 import { compareTerm, paymentBreakdown } from "@/lib/loan-math";
 import { savingsRange } from "@/lib/verdict-summary";
 import { NegotiationScriptCard } from "@/components/NegotiationScriptCard";
+import type {
+  FeeRiskAssessment,
+  FeeRiskSeverity,
+  FeeCategory,
+} from "@/lib/fee-classifier";
 
 /** The loan numbers needed to show what financing really costs over the term. */
 export interface LoanInputs {
@@ -296,6 +301,92 @@ export function WarrantyCard({ warranty }: { warranty: WarrantyAssessment }) {
   );
 }
 
+const FEE_SEVERITY_STYLES: Record<
+  FeeRiskSeverity,
+  { wrap: string; badge: string; label: string }
+> = {
+  critical: {
+    wrap: "border-verdict-red/25 bg-verdict-red/5",
+    badge: "bg-verdict-red/15 text-verdict-red",
+    label: "Review",
+  },
+  warning: {
+    wrap: "border-verdict-amber/25 bg-verdict-amber/5",
+    badge: "bg-verdict-amber/15 text-verdict-amber",
+    label: "Question",
+  },
+  info: {
+    wrap: "border-navy/15 bg-white",
+    badge: "bg-navy-50 text-navy/60",
+    label: "Check",
+  },
+};
+
+const FEE_CATEGORY_LABEL: Record<FeeCategory, string> = {
+  doc_fee: "Doc fee",
+  dealer_addon: "Dealer add-on",
+  government_fee: "Government",
+  tax: "Tax",
+  registration: "Registration",
+  title: "Title",
+  junk_fee: "Junk fee",
+  unknown: "Unclassified",
+};
+
+/**
+ * Buyer-side fee-risk panel — state-aware classification of the fee lines, with
+ * compliance-safe guidance (consumer guidance, not legal advice). Presentation
+ * only; it never affects the verdict/score. Mirrors the other detail cards.
+ */
+export function FeeRiskCard({ feeRisk }: { feeRisk: FeeRiskAssessment }) {
+  return (
+    <div className="card">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-lg font-semibold text-navy">Fee risk</h3>
+        <ConfidenceBadge level={feeRisk.ruleConfidence} />
+      </div>
+      <p className="mt-1 text-sm text-navy/60">
+        How each fee on your worksheet looks
+        {feeRisk.state ? ` against ${feeRisk.state}'s known rules` : ""} — a
+        buyer-side reference point, not legal advice.
+      </p>
+
+      {feeRisk.lineItems.length > 0 && (
+        <div className="mt-4 flex flex-wrap gap-2">
+          {feeRisk.lineItems.map((li, i) => (
+            <span
+              key={i}
+              className="inline-flex items-center gap-1.5 rounded-full bg-cream-100 px-3 py-1 text-xs text-navy/70"
+            >
+              <span className="font-medium text-navy/80">{li.label}</span>
+              <span className="text-navy/45">· {FEE_CATEGORY_LABEL[li.category]}</span>
+            </span>
+          ))}
+        </div>
+      )}
+
+      <ul className="mt-4 space-y-2.5">
+        {feeRisk.messages.map((m, i) => {
+          const st = FEE_SEVERITY_STYLES[m.severity];
+          return (
+            <li key={i} className={`rounded-xl border p-4 ${st.wrap}`}>
+              <div className="flex items-start justify-between gap-3">
+                <h4 className="font-semibold text-navy">{m.title}</h4>
+                <span
+                  className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${st.badge}`}
+                >
+                  {st.label}
+                </span>
+              </div>
+              <p className="mt-1.5 text-sm leading-relaxed text-navy/70">{m.message}</p>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
 /**
  * "What this loan really costs" — turns the deal's numbers into total interest
  * over the term, and shows the trade-off of a shorter loan. The finance office
@@ -417,11 +508,13 @@ export function VerdictView({
   reviewedNote,
   vehicle,
   loan,
+  feeRisk,
 }: {
   result: FairnessResult;
   reviewedNote?: string | null;
   vehicle?: { year?: number | null; make?: string | null; model?: string | null };
   loan?: LoanInputs | null;
+  feeRisk?: FeeRiskAssessment | null;
 }) {
   const s = VERDICT_STYLES[result.overallVerdict];
   // A "walk away" verdict pins the score to the bottom regardless of how many
@@ -537,6 +630,7 @@ export function VerdictView({
           </div>
 
           {result.warranty && <WarrantyCard warranty={result.warranty} />}
+          {feeRisk && feeRisk.messages.length > 0 && <FeeRiskCard feeRisk={feeRisk} />}
           {loan && <LoanCostPanel loan={loan} />}
 
           {infoFlags.length > 0 && (
