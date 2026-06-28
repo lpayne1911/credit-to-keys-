@@ -589,7 +589,11 @@ export function VerdictView({
   // Partition by SEVERITY, not type: info-severity flags (missing-info notes and
   // legitimate government fees) are never shown as red flags.
   const realFlags = sortedFlags.filter((f) => f.severity !== "info");
-  const infoFlags = sortedFlags.filter((f) => f.severity === "info");
+  // Advisory doc-fee findings ride on info-severity flags but get their own
+  // panel section (the decision-first doc-fee panel), separate from the plain
+  // "missing info" notes.
+  const docInfoFlags = sortedFlags.filter((f) => f.severity === "info" && f.docFee);
+  const infoFlags = sortedFlags.filter((f) => f.severity === "info" && !f.docFee);
 
   return (
     <div className="space-y-6">
@@ -726,6 +730,19 @@ export function VerdictView({
 
           {result.warranty && <WarrantyCard warranty={result.warranty} />}
           {loan && <LoanCostPanel loan={loan} />}
+
+          {docInfoFlags.length > 0 && (
+            <div>
+              <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-navy/50">
+                Dealer doc &amp; processing fee
+              </h3>
+              <div className="space-y-3">
+                {docInfoFlags.map(
+                  (f, i) => f.docFee && <DocFeeRulePanel key={i} finding={f.docFee} />,
+                )}
+              </div>
+            </div>
+          )}
 
           {infoFlags.length > 0 && (
             <div>

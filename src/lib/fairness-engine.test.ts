@@ -616,3 +616,90 @@ describe("warranty mileage cap (issue #10)", () => {
     expect(a.high).toBe(b.high);
   });
 });
+
+describe("scoreDeal — state-aware doc-fee gating (replaces the flat $200 trigger)", () => {
+  const FORBIDDEN =
+    /\b(illegal|fraud|scam|guaranteed|definitely|lied)\b|violates? law|broke the law|legal finding/i;
+  const docInput = (state: string | undefined, amount: number, label = "Doc fee") =>
+    scoreDeal({
+      vehicle: { year: 2021, make: "Toyota", model: "Camry" },
+      deal: { vehiclePrice: 26_000, fees: [{ label, amount }] },
+      buyerState: state,
+    });
+
+  it("NY $190 surfaces as above_verified_cap even though it's below the old $200 gate", () => {
+    const r = docInput("NY", 190);
+    const f = r.flags.find((x) => x.docFee);
+    expect(f).toBeTruthy();
+    expect(f!.docFee!.comparisonStatus).toBe("above_verified_cap");
+    expect(f!.severity).not.toBe("info"); // a real, scored risk flag
+    expect(f!.type).toBe("junk_fee");
+  });
+
+  it("NY $175 does not produce an above-cap result, but gives within-cap advisory", () => {
+    const r = docInput("NY", 175);
+    const f = r.flags.find((x) => x.docFee);
+    expect(f!.docFee!.comparisonStatus).toBe("within_verified_cap");
+    expect(f!.severity).toBe("info");
+    expect(r.flags.some((x) => x.type === "junk_fee" && x.docFee)).toBe(false);
+  });
+
+  it("MD $950 surfaces as above_verified_cap (over the $800 cap)", () => {
+    const r = docInput("MD", 950, "Dealer processing fee");
+    const f = r.flags.find((x) => x.docFee);
+    expect(f!.docFee!.comparisonStatus).toBe("above_verified_cap");
+    expect(f!.severity).not.toBe("info");
+  });
+
+  it("seeded state runs no cap comparison but still surfaces conservative guidance", () => {
+    const r = docInput("IL", 700, "documentary fee");
+    const f = r.flags.find((x) => x.docFee);
+    expect(f!.docFee!.comparisonStatus).toBe("seeded_rule_no_comparison");
+    expect(f!.severity).toBe("info");
+    expect(f!.docFee!.humanReviewRecommended).toBe(true);
+    expect(r.flags.some((x) => x.type === "junk_fee" && x.docFee)).toBe(false);
+  });
+
+  it("missing state surfaces state-needed guidance instead of being silently ignored", () => {
+    const r = docInput(undefined, 150); // below the old $200 gate → previously silent
+    const f = r.flags.find((x) => x.docFee);
+    expect(f).toBeTruthy();
+    expect(f!.docFee!.comparisonStatus).toBe("missing_state");
+    expect(f!.severity).toBe("info");
+  });
+
+  it("missing state keeps a generic high-fee signal above the ceiling", () => {
+    const r = docInput(undefined, 900);
+    const f = r.flags.find((x) => x.docFee);
+    expect(f!.docFee!.comparisonStatus).toBe("missing_state");
+    expect(f!.type).toBe("junk_fee"); // generic ceiling fallback still flags it
+    expect(f!.title).toMatch(/high/i);
+  });
+
+  it("a non-doc fee above $200 still uses the existing generic fee logic", () => {
+    const r = docInput(undefined, 499, "Dealer prep");
+    const prep = r.flags.find((x) => x.title.toLowerCase().includes("prep"));
+    expect(prep).toBeTruthy();
+    expect(prep!.type).toBe("junk_fee");
+    expect(prep!.docFee).toBeUndefined();
+  });
+
+  it("a non-doc fee does not accidentally become doc-fee intelligence", () => {
+    const r = docInput("NY", 100, "Window tint");
+    expect(r.flags.some((x) => x.docFee)).toBe(false);
+  });
+
+  it("surfaced doc-fee copy stays compliance-clean across states", () => {
+    for (const [state, amt] of [["NY", 190], ["MD", 950], ["IL", 700], ["DE", 700], [undefined, 900]] as const) {
+      const r = docInput(state as string | undefined, amt as number);
+      const f = r.flags.find((x) => x.docFee);
+      const copy = [
+        f!.explanation,
+        f!.docFee!.buyerSummary,
+        f!.docFee!.whatToAsk,
+        f!.docFee!.scriptLine,
+      ].join(" \n ");
+      expect(FORBIDDEN.test(copy), `${state}: ${copy}`).toBe(false);
+    }
+  });
+});

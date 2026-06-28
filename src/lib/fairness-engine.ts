@@ -1081,6 +1081,15 @@ function assessFees(
   const govFees: ItemizedFee[] = [];
   for (const fee of fees) {
     if (!fee.label) continue;
+
+    // Doc / processing / admin fees are gated by sourced, STATE-AWARE rules,
+    // not the flat dollar ceiling. This is what lets a $190 fee surface as over
+    // a verified $175 cap even though it's below the old $200 trigger.
+    if (isDocFeeAlias(fee.label)) {
+      out.push(buildDocFeeFlag(fee, buyerState, assumptions));
+      continue;
+    }
+
     const label = fee.label.toLowerCase();
     const rule = FEE_RULES.find((r) =>
       r.keywords.some((k) => label.includes(k)),
@@ -1109,11 +1118,14 @@ function assessFees(
         },
       });
     } else if (rule.reasonableMax && fee.amount > rule.reasonableMax) {
+      // Non-alias fees with a generic ceiling (e.g. a bare "doc"-keyword label
+      // that isn't a recognized alias). Doc/processing/admin aliases are handled
+      // earlier by buildDocFeeFlag with state-aware rules.
       const over = fee.amount - rule.reasonableMax;
       assumptions.push(
         `Assumed a reasonable ceiling of ~$${rule.reasonableMax} for "${rule.label}" — actual norms vary by state.`,
       );
-      const docFlag: Flag = {
+      out.push({
         type: "junk_fee",
         severity: over >= 400 ? "high" : "medium",
         title: `${rule.label} looks high`,
@@ -1125,23 +1137,108 @@ function assessFees(
           basis:
             "Estimated amount above a typical ceiling — norms vary by state and dealer.",
         },
-      };
-      // Enrich with sourced, state-specific doc-fee intelligence when we know
-      // the buyer's state and this is a documentation/processing fee. This
-      // replaces the generic ceiling assumption with the real state rule.
-      if (buyerState && isDocFeeAlias(fee.label)) {
-        docFlag.docFee = classifyDocFeeAmount({
-          stateCode: buyerState,
-          feeName: fee.label,
-          amountCents: Math.round((fee.amount || 0) * 100),
-        });
-      }
-      out.push(docFlag);
+      });
     }
   }
 
   if (govFees.length) out.push(...assessGovernmentFees(govFees, assumptions));
   return out;
+}
+
+/**
+ * State-aware doc/processing/admin fee flag. Severity and framing come from the
+ * sourced doc-fee classifier ({@link classifyDocFeeAmount}) — NOT a flat dollar
+ * ceiling — so a fee below the old $200 trigger still surfaces when it's over a
+ * verified state cap. When the buyer's state is unknown we fall back to a
+ * generic ceiling for a high fee, but always surface "add your state" guidance.
+ * Compliance copy lives in the classifier; this only chooses severity/type.
+ */
+function buildDocFeeFlag(
+  fee: ItemizedFee,
+  buyerState: string | null,
+  assumptions: string[],
+): Flag {
+  const finding = classifyDocFeeAmount({
+    stateCode: buyerState,
+    feeName: fee.label,
+    amountCents: Math.round((fee.amount || 0) * 100),
+  });
+  const round25 = (n: number) => Math.round(n / 25) * 25;
+
+  // Over a VERIFIED state cap → a real, scored risk flag at ANY dollar amount.
+  if (finding.comparisonStatus === "above_verified_cap") {
+    const cap = (finding.capAmountCents ?? 0) / 100;
+    const over = Math.max(0, fee.amount - cap);
+    return {
+      type: "junk_fee",
+      severity: over >= 300 ? "high" : "medium",
+      title: `Doc/processing fee above ${finding.stateCode ?? "state"} cap`,
+      explanation: finding.buyerSummary,
+      estimatedImpact:
+        over > 0
+          ? {
+              low: round25(over * 0.5),
+              high: Math.round(over),
+              confidence: finding.confidence,
+              basis:
+                "Estimated amount above the verified state cap — a dealer charge you can push back on.",
+            }
+          : null,
+      docFee: finding,
+    };
+  }
+
+  // No state → keep a generic-ceiling signal on a high fee (so the no-state
+  // report doesn't go quiet), but still carry the "add your state" finding.
+  if (finding.comparisonStatus === "missing_state") {
+    const CEILING = 200;
+    if (fee.amount > CEILING) {
+      const over = fee.amount - CEILING;
+      assumptions.push(
+        `Assumed a reasonable ceiling of ~$${CEILING} for "Documentation fee" — add your state for a verified cap.`,
+      );
+      return {
+        type: "junk_fee",
+        severity: over >= 400 ? "high" : "medium",
+        title: "Documentation fee looks high",
+        explanation: finding.buyerSummary,
+        estimatedImpact: {
+          low: round25(over * 0.5),
+          high: over,
+          confidence: "low",
+          basis:
+            "Estimated amount above a typical ceiling — add your state for a verified cap.",
+        },
+        docFee: finding,
+      };
+    }
+    return {
+      type: "info",
+      severity: "info",
+      title: "Doc/processing fee — add your state",
+      explanation: finding.buyerSummary,
+      estimatedImpact: null,
+      docFee: finding,
+    };
+  }
+
+  // Verified-but-not-over, seeded, needs_research, unknown → advisory note that
+  // still teaches the dealer-controlled distinction and carries the full panel.
+  const ADVISORY_TITLE: Record<string, string> = {
+    within_verified_cap: "Doc/processing fee — within state cap",
+    verified_uncapped: "Doc/processing fee — no state cap",
+    verified_disclosure_only: "Doc/processing fee — disclosure rule",
+    seeded_rule_no_comparison: "Doc/processing fee — state rule not verified",
+    needs_research: "Doc/processing fee — state rule not researched",
+  };
+  return {
+    type: "info",
+    severity: "info",
+    title: ADVISORY_TITLE[finding.comparisonStatus] ?? "Doc/processing fee",
+    explanation: finding.buyerSummary,
+    estimatedImpact: null,
+    docFee: finding,
+  };
 }
 
 /**
