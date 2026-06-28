@@ -489,3 +489,54 @@ describe("auditFees — standalone Junk Fee Audit entry point", () => {
     expect(r.estimatedSavings).toBeNull();
   });
 });
+
+describe("captured context fields change the verdict (issue #7 item 1)", () => {
+  const base: FairnessInput = {
+    vehicle: { year: 2021, make: "Toyota", model: "Camry", mileage: 30000 },
+    deal: { apr: 17, creditBand: "good", fees: [] },
+  };
+
+  it("APR markup script changes when the buyer has an outside pre-approval", () => {
+    const without = scoreDeal(base).flags.find((f) => f.type === "apr_markup");
+    const withApproval = scoreDeal({
+      ...base,
+      deal: { ...base.deal, outsideApproval: true },
+    }).flags.find((f) => f.type === "apr_markup");
+    expect(without?.explanation).toMatch(/bring a pre-approval/i);
+    expect(withApproval?.explanation).toMatch(/already have your own financing/i);
+  });
+
+  it("outside approval adds a confidence reason", () => {
+    const r = scoreDeal({ ...base, deal: { ...base.deal, outsideApproval: true } });
+    expect(r.confidenceReasons.some((s) => /your own financing approved/i.test(s))).toBe(true);
+  });
+
+  it("already-signed surfaces an informational note that doesn't worsen the verdict", () => {
+    const clean: FairnessInput = {
+      vehicle: { year: 2022, make: "Toyota", model: "Corolla", mileage: 12000 },
+      deal: { apr: 6, creditBand: "good", fees: [] },
+    };
+    const before = scoreDeal(clean);
+    const after = scoreDeal({ ...clean, alreadySigned: true });
+    const signedFlag = after.flags.find(
+      (f) => f.type === "info" && /already signed/i.test(f.title),
+    );
+    expect(signedFlag).toBeTruthy();
+    expect(signedFlag!.severity).toBe("info");
+    // verdict color is unchanged by an info note
+    expect(after.overallVerdict).toBe(before.overallVerdict);
+  });
+
+  it("a higher warranty deductible lowers the fair-price range", () => {
+    const mk = (deductible: number | null) =>
+      scoreDeal({
+        vehicle: { year: 2021, make: "Honda", model: "Accord", mileage: 30000 },
+        deal: { creditBand: "unknown", fees: [] },
+        warranty: { coverageTier: "stated_component", termMonths: 60, deductible, priceQuoted: 3000 },
+      }).warranty!.fairRange;
+    const zero = mk(0);
+    const high = mk(200);
+    expect(high.high).toBeLessThan(zero.high);
+    expect(high.low).toBeLessThanOrEqual(zero.low);
+  });
+});

@@ -83,6 +83,12 @@ const TERM_CHOICES: Choice[] = [36, 48, 60, 72, 84].map((t) => ({
   label: `${t} mo`,
 }));
 
+const DEDUCTIBLE_CHOICES: Choice[] = [
+  { value: "0", label: "$0", hint: "pays everything" },
+  { value: "100", label: "$100", hint: "common" },
+  { value: "200", label: "$200" },
+];
+
 const yearNow = new Date().getFullYear();
 
 /* --------------------------------------------------------------------------
@@ -139,6 +145,14 @@ const warrantyFlow: FocusedFlow = {
       idk: true,
     },
     {
+      id: "deductible",
+      label: "What's the deductible per repair visit?",
+      help: "A higher deductible should make the contract cheaper. On your paperwork it's often “$0”, “$100”, or “$200”.",
+      kind: "chips",
+      choices: DEDUCTIBLE_CHOICES,
+      idk: true,
+    },
+    {
       id: "priceQuoted",
       label: "What price did they quote for it?",
       help: "The price of the warranty itself — not the car.",
@@ -169,8 +183,10 @@ const warrantyFlow: FocusedFlow = {
     warranty: {
       coverageTier: (a.coverageTier as string) ?? "unknown",
       termMonths: num(a.termMonths),
+      deductible: num(a.deductible),
       priceQuoted: num(a.priceQuoted),
     },
+    alreadySigned: a.signed === true,
     inputPath: uploadedFilePath ? "upload" : "manual",
     uploadedFilePath: uploadedFilePath ?? undefined,
   }),
@@ -268,8 +284,10 @@ const aprFlow: FocusedFlow = {
       termMonths: num(a.termMonths),
       monthlyPayment: num(a.monthlyPayment),
       creditBand: (a.creditBand as string) ?? "unknown",
+      outsideApproval: a.outsideApproval === true,
       fees: [],
     },
+    alreadySigned: a.signed === true,
     inputPath: uploadedFilePath ? "upload" : "manual",
     uploadedFilePath: uploadedFilePath ?? undefined,
   }),
@@ -362,6 +380,7 @@ const addonFlow: FocusedFlow = {
             priceQuoted: amountFor("service contract") ?? ADDON_DEFAULT_AMOUNT["service contract"],
           }
         : undefined,
+      alreadySigned: a.signed === true,
       inputPath: uploadedFilePath ? "upload" : "manual",
       uploadedFilePath: uploadedFilePath ?? undefined,
     };

@@ -28,12 +28,15 @@ export interface DealSubmission {
     termMonths?: number | string;
     monthlyPayment?: number | string;
     creditBand?: string;
+    /** Buyer holds an outside (bank/credit-union) pre-approval. */
+    outsideApproval?: boolean;
   };
   warranty?: {
     provider?: string;
     coverageTier?: string;
     termMonths?: number | string;
     termMiles?: number | string;
+    deductible?: number | string;
     priceQuoted?: number | string;
   };
   tradeIn?: {
@@ -44,6 +47,8 @@ export interface DealSubmission {
   /** Two-letter US state code where the buyer is purchasing (state-aware copy
    * now, fee caps later). Optional. */
   buyerState?: string;
+  /** Buyer has already signed / spot-delivered. Surfaces a review/cancel note. */
+  alreadySigned?: boolean;
   inputPath?: "manual" | "upload";
   uploadedFilePath?: string;
 }
@@ -103,6 +108,7 @@ export function toFairnessInput(s: DealSubmission): FairnessInput {
       creditBand: (CREDIT_BANDS.includes(band as CreditBand)
         ? (band as CreditBand)
         : "unknown") as CreditBand,
+      outsideApproval: s.deal?.outsideApproval === true ? true : undefined,
     },
     warranty: {
       provider: str(s.warranty?.provider),
@@ -111,6 +117,7 @@ export function toFairnessInput(s: DealSubmission): FairnessInput {
         : null) as WarrantyCoverageTier | null,
       termMonths: num(s.warranty?.termMonths),
       termMiles: num(s.warranty?.termMiles),
+      deductible: num(s.warranty?.deductible),
       priceQuoted: num(s.warranty?.priceQuoted),
     },
     tradeIn: s.tradeIn
@@ -121,6 +128,7 @@ export function toFairnessInput(s: DealSubmission): FairnessInput {
         }
       : null,
     documentUploaded: s.inputPath === "upload",
+    alreadySigned: s.alreadySigned === true ? true : undefined,
   };
 }
 
