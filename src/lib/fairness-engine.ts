@@ -41,6 +41,11 @@
  */
 
 import { principalFromPayment, impliedAprPct } from "./loan-math";
+import {
+  classifyDocFeeAmount,
+  isDocFeeAlias,
+  type DocFeeFinding,
+} from "./intelligence/docFeeRules";
 
 // ---------------------------------------------------------------------------
 //  INPUT TYPES
@@ -133,6 +138,9 @@ export interface FairnessInput {
   warranty?: WarrantyInput | null;
   /** Optional — present only when the buyer is trading in a vehicle. */
   tradeIn?: TradeInInput | null;
+  /** Two-letter US jurisdiction code (state/DC) where the buyer is purchasing.
+   * Drives state-aware doc-fee intelligence. Optional. */
+  buyerState?: string | null;
   /** True when the figures came from an uploaded quote (raises confidence). */
   documentUploaded?: boolean;
   /**
@@ -181,6 +189,9 @@ export interface Flag {
   explanation: string;
   /** Optional dollar impact estimate — always a range, never false precision. */
   estimatedImpact?: PriceRange | null;
+  /** State-aware doc-fee intelligence, attached when this flag is a dealer
+   * documentation/processing fee and the buyer's state is known. */
+  docFee?: DocFeeFinding | null;
 }
 
 export interface PriceRange {
@@ -513,7 +524,7 @@ export function scoreDeal(input: FairnessInput): FairnessResult {
   }
 
   // --- Fees & add-ons ----------------------------------------------------
-  flags.push(...assessFees(input.deal.fees ?? [], assumptions));
+  flags.push(...assessFees(input.deal.fees ?? [], assumptions, input.buyerState ?? null));
 
   // --- Missing-info honesty notes ---------------------------------------
   flags.push(...missingInfoNotes(input));
@@ -1032,7 +1043,11 @@ export function auditFees(fees: ItemizedFee[]): FeeAuditResult {
   };
 }
 
-function assessFees(fees: ItemizedFee[], assumptions: string[]): Flag[] {
+function assessFees(
+  fees: ItemizedFee[],
+  assumptions: string[],
+  buyerState: string | null = null,
+): Flag[] {
   const out: Flag[] = [];
   const govFees: ItemizedFee[] = [];
   for (const fee of fees) {
@@ -1069,7 +1084,7 @@ function assessFees(fees: ItemizedFee[], assumptions: string[]): Flag[] {
       assumptions.push(
         `Assumed a reasonable ceiling of ~$${rule.reasonableMax} for "${rule.label}" — actual norms vary by state.`,
       );
-      out.push({
+      const docFlag: Flag = {
         type: "junk_fee",
         severity: over >= 400 ? "high" : "medium",
         title: `${rule.label} looks high`,
@@ -1081,7 +1096,18 @@ function assessFees(fees: ItemizedFee[], assumptions: string[]): Flag[] {
           basis:
             "Estimated amount above a typical ceiling — norms vary by state and dealer.",
         },
-      });
+      };
+      // Enrich with sourced, state-specific doc-fee intelligence when we know
+      // the buyer's state and this is a documentation/processing fee. This
+      // replaces the generic ceiling assumption with the real state rule.
+      if (buyerState && isDocFeeAlias(fee.label)) {
+        docFlag.docFee = classifyDocFeeAmount({
+          stateCode: buyerState,
+          feeName: fee.label,
+          amountCents: Math.round((fee.amount || 0) * 100),
+        });
+      }
+      out.push(docFlag);
     }
   }
 

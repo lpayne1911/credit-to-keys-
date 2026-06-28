@@ -127,6 +127,7 @@ export function toFairnessInput(s: DealSubmission): FairnessInput {
           loanPayoff: num(s.tradeIn.loanPayoff),
         }
       : null,
+    buyerState: str(s.buyerState)?.toUpperCase().slice(0, 2) ?? null,
     documentUploaded: s.inputPath === "upload",
     alreadySigned: s.alreadySigned === true ? true : undefined,
   };

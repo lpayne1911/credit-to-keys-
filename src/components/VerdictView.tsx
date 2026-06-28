@@ -22,6 +22,7 @@ import { savingsRange, savingsBreakdown } from "@/lib/verdict-summary";
 import { NegotiationScriptCard } from "@/components/NegotiationScriptCard";
 import { AnimatedScore } from "@/components/ui/AnimatedScore";
 import { RiskBadge, type RiskTone } from "@/components/ui/RiskBadge";
+import type { DocFeeFinding } from "@/lib/intelligence/docFeeRules";
 
 /** Map a flag severity to a RiskBadge tone for the summary chip row. */
 function severityTone(severity: string): RiskTone {
@@ -270,7 +271,70 @@ export function FlagCard({ flag }: { flag: Flag }) {
           <RangePill range={flag.estimatedImpact} />
         </div>
       )}
+      {flag.docFee && <DocFeeRulePanel finding={flag.docFee} />}
     </li>
+  );
+}
+
+/**
+ * State doc-fee intelligence attached to a documentation/processing-fee flag.
+ * Shows the verified state rule status, what it means for the buyer, the action
+ * to take, and the cited source — with confidence and limitations.
+ */
+function DocFeeRulePanel({ finding }: { finding: DocFeeFinding }) {
+  const STATUS_LABEL: Record<string, string> = {
+    within_cap: "Within state cap",
+    over_cap: "Over state cap",
+    uncapped_dealer_controlled: "No state cap",
+    disclosure_only: "Disclosure-regulated",
+    needs_research: "State rule not verified yet",
+    unknown_rule: "State cap unverified (sources conflict)",
+    state_missing: "State needed to verify",
+    not_doc_fee: "",
+  };
+  const tone =
+    finding.status === "over_cap"
+      ? "border-verdict-red/30 bg-verdict-red/5"
+      : finding.status === "within_cap"
+        ? "border-verdict-green/25 bg-verdict-green/5"
+        : "border-navy/15 bg-white";
+  return (
+    <div className={`mt-3 rounded-lg border ${tone} p-3`}>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[11px] font-bold uppercase tracking-wide text-navy/55">
+          State doc-fee rule{finding.jurisdiction ? ` · ${finding.jurisdiction}` : ""}
+        </p>
+        <span className="rounded-full bg-navy-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-navy/60">
+          {STATUS_LABEL[finding.status] || finding.status}
+        </span>
+      </div>
+      <p className="mt-1.5 text-sm leading-relaxed text-navy/75">
+        {finding.explanation}
+      </p>
+      <p className="mt-1.5 text-sm leading-relaxed text-navy/75">
+        <span className="font-semibold text-gold-dark">What to do: </span>
+        {finding.action}
+      </p>
+      {finding.source?.url && (
+        <p className="mt-2 text-xs text-navy/50">
+          Source:{" "}
+          <a
+            href={finding.source.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-gold-dark underline decoration-dotted underline-offset-2"
+          >
+            {finding.source.title ?? finding.source.url}
+          </a>
+          {finding.source.type ? ` (${finding.source.type.replace(/_/g, " ")})` : ""}
+        </p>
+      )}
+      <p className="mt-1 text-[11px] text-navy/45">
+        Confidence: {finding.confidence}
+        {finding.humanReviewRecommended ? " · human review recommended" : ""}
+        {finding.limitations ? ` — ${finding.limitations}` : ""}
+      </p>
+    </div>
   );
 }
 
