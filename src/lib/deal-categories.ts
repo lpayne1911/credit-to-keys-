@@ -162,3 +162,29 @@ export function categorizeDeal(
     return { key, label, level, note: NOTES[key][level], flagCount: counts[key] };
   });
 }
+
+/** Fee/add-on flag types that belong in the unified "Fees & add-ons" section. */
+export const FEE_FLAG_TYPES: FlagType[] = ["junk_fee", "overpriced_addon"];
+
+/**
+ * Split the engine's flags so each issue has ONE home in the verdict UI:
+ *  - `fees`    → junk-fee / overpriced-add-on flags (the fee section)
+ *  - `general` → the rest of the verdict-affecting flags (price / payment / trade)
+ * Warranty flags are dropped here (the WarrantyCard is their single home); info
+ * and missing_info are handled separately.
+ */
+export function partitionVerdictFlags(flags: Flag[]): { general: Flag[]; fees: Flag[] } {
+  const general: Flag[] = [];
+  const fees: Flag[] = [];
+  for (const f of flags) {
+    if (f.type === "missing_info" || f.type === "info") continue;
+    if (FEE_FLAG_TYPES.includes(f.type)) {
+      fees.push(f);
+    } else if (f.type === "overpriced_warranty") {
+      // Shown in the WarrantyCard — not repeated in any flag list.
+    } else {
+      general.push(f);
+    }
+  }
+  return { general, fees };
+}

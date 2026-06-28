@@ -25,7 +25,12 @@ import type {
   FeeRiskSeverity,
   FeeCategory,
 } from "@/lib/fee-classifier";
-import { categorizeDeal, type DealCategory, type CategoryLevel } from "@/lib/deal-categories";
+import {
+  categorizeDeal,
+  partitionVerdictFlags,
+  type DealCategory,
+  type CategoryLevel,
+} from "@/lib/deal-categories";
 
 /** The loan numbers needed to show what financing really costs over the term. */
 export interface LoanInputs {
@@ -410,22 +415,42 @@ export function CategoryScorecard({
   );
 }
 
-export function FeeRiskCard({ feeRisk }: { feeRisk: FeeRiskAssessment }) {
+export function FeeSection({
+  feeRisk,
+  feeFlags,
+}: {
+  feeRisk?: FeeRiskAssessment | null;
+  feeFlags: Flag[];
+}) {
+  const hasFlags = feeFlags.length > 0;
+  // The engine's fee/add-on flags already say "this looks padded." Keep the
+  // state-cap critical and the tax/title sanity note (unique context), but drop
+  // the generic "padded fee" warnings when a flag already covers it — so fees
+  // live in ONE place without repeating themselves.
+  const messages = (feeRisk?.messages ?? []).filter(
+    (m) =>
+      m.severity === "critical" ||
+      m.severity === "info" ||
+      (m.severity === "warning" && !hasFlags),
+  );
+  const lineItems = feeRisk?.lineItems ?? [];
+  if (!hasFlags && messages.length === 0 && lineItems.length === 0) return null;
+
   return (
     <div className="card">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-lg font-semibold text-navy">Fee risk</h3>
-        <ConfidenceBadge level={feeRisk.ruleConfidence} />
+        <h3 className="text-lg font-semibold text-navy">Fees &amp; add-ons</h3>
+        {feeRisk && <ConfidenceBadge level={feeRisk.ruleConfidence} />}
       </div>
       <p className="mt-1 text-sm text-navy/60">
-        How each fee on your worksheet looks
-        {feeRisk.state ? ` against ${feeRisk.state}'s known rules` : ""} — a
-        buyer-side reference point, not legal advice.
+        Every fee and add-on on your worksheet, in one place
+        {feeRisk?.state ? ` — checked against ${feeRisk.state}'s known rules` : ""}. A
+        buyer-side read, not legal advice.
       </p>
 
-      {feeRisk.lineItems.length > 0 && (
+      {lineItems.length > 0 && (
         <div className="mt-4 flex flex-wrap gap-2">
-          {feeRisk.lineItems.map((li, i) => (
+          {lineItems.map((li, i) => (
             <span
               key={i}
               className="inline-flex items-center gap-1.5 rounded-full bg-cream-100 px-3 py-1 text-xs text-navy/70"
@@ -437,24 +462,34 @@ export function FeeRiskCard({ feeRisk }: { feeRisk: FeeRiskAssessment }) {
         </div>
       )}
 
-      <ul className="mt-4 space-y-2.5">
-        {feeRisk.messages.map((m, i) => {
-          const st = FEE_SEVERITY_STYLES[m.severity];
-          return (
-            <li key={i} className={`rounded-xl border p-4 ${st.wrap}`}>
-              <div className="flex items-start justify-between gap-3">
-                <h4 className="font-semibold text-navy">{m.title}</h4>
-                <span
-                  className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${st.badge}`}
-                >
-                  {st.label}
-                </span>
-              </div>
-              <p className="mt-1.5 text-sm leading-relaxed text-navy/70">{m.message}</p>
-            </li>
-          );
-        })}
-      </ul>
+      {hasFlags && (
+        <ul className="mt-4 space-y-3">
+          {feeFlags.map((f, i) => (
+            <FlagCard key={i} flag={f} />
+          ))}
+        </ul>
+      )}
+
+      {messages.length > 0 && (
+        <ul className="mt-4 space-y-2.5">
+          {messages.map((m, i) => {
+            const st = FEE_SEVERITY_STYLES[m.severity];
+            return (
+              <li key={i} className={`rounded-xl border p-4 ${st.wrap}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <h4 className="font-semibold text-navy">{m.title}</h4>
+                  <span
+                    className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${st.badge}`}
+                  >
+                    {st.label}
+                  </span>
+                </div>
+                <p className="mt-1.5 text-sm leading-relaxed text-navy/70">{m.message}</p>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }
@@ -599,9 +634,8 @@ export function VerdictView({
     (a, b) =>
       (SEVERITY_ORDER[a.severity] ?? 9) - (SEVERITY_ORDER[b.severity] ?? 9),
   );
-  const realFlags = sortedFlags.filter(
-    (f) => f.type !== "missing_info" && f.type !== "info",
-  );
+  const { general: realFlags, fees: feeFlags } = partitionVerdictFlags(sortedFlags);
+  const issueCount = realFlags.length + feeFlags.length;
   const infoFlags = sortedFlags.filter(
     (f) => f.type === "missing_info" || f.type === "info",
   );
@@ -660,8 +694,8 @@ export function VerdictView({
       <details className="group overflow-hidden rounded-2xl border border-navy/10 bg-white">
         <summary className="flex cursor-pointer list-none items-center justify-between px-5 py-4 text-sm font-semibold text-navy hover:bg-cream-100">
           <span>
-            {realFlags.length > 0
-              ? `See all ${realFlags.length} red flag${realFlags.length > 1 ? "s" : ""} & the full breakdown`
+            {issueCount > 0
+              ? `See all ${issueCount} flag${issueCount > 1 ? "s" : ""} & the full breakdown`
               : "See the full breakdown"}
           </span>
           <svg
@@ -686,8 +720,8 @@ export function VerdictView({
           <div>
             <h3 className="mb-3 text-lg font-semibold text-navy">
               {realFlags.length > 0
-                ? `Red flags we found (${realFlags.length})`
-                : "Red flags"}
+                ? `Price & payment flags (${realFlags.length})`
+                : "Price & payment"}
             </h3>
             {realFlags.length > 0 ? (
               <ul className="space-y-3">
@@ -697,15 +731,16 @@ export function VerdictView({
               </ul>
             ) : (
               <p className="rounded-xl border border-verdict-green/20 bg-verdict-green/5 p-4 text-sm text-navy/70">
-                Nothing in what you entered tripped a red flag. That doesn&apos;t
-                guarantee the deal is perfect — it means the numbers you gave us
-                look reasonable against our estimates.
+                Nothing in your price, payment, or trade tripped a flag. That
+                doesn&apos;t guarantee the deal is perfect — it means those
+                numbers look reasonable against our estimates. Fees and add-ons
+                are covered below.
               </p>
             )}
           </div>
 
+          <FeeSection feeRisk={feeRisk} feeFlags={feeFlags} />
           {result.warranty && <WarrantyCard warranty={result.warranty} />}
-          {feeRisk && feeRisk.messages.length > 0 && <FeeRiskCard feeRisk={feeRisk} />}
           {loan && <LoanCostPanel loan={loan} />}
 
           {infoFlags.length > 0 && (

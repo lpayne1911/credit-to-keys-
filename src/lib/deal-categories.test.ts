@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { categorizeDeal, type DealCategory, type CategoryKey } from "./deal-categories";
+import {
+  categorizeDeal,
+  partitionVerdictFlags,
+  type DealCategory,
+  type CategoryKey,
+} from "./deal-categories";
 import type { FairnessResult, Flag } from "./fairness-engine";
 import type { FeeRiskAssessment } from "./fee-classifier";
 
@@ -123,5 +128,21 @@ describe("categorizeDeal — compliance-safe notes", () => {
     for (const re of FORBIDDEN) {
       expect(re.test(text), `matched ${re}`).toBe(false);
     }
+  });
+});
+
+describe("partitionVerdictFlags", () => {
+  it("routes fee/add-on to fees, price/payment to general, drops warranty + info", () => {
+    const flags: Flag[] = [
+      flag("apr_markup", "high"),
+      flag("negative_equity", "medium"),
+      flag("junk_fee", "high"),
+      flag("overpriced_addon", "medium"),
+      flag("overpriced_warranty", "high"),
+      flag("missing_info", "info"),
+    ];
+    const { general, fees } = partitionVerdictFlags(flags);
+    expect(general.map((f) => f.type).sort()).toEqual(["apr_markup", "negative_equity"]);
+    expect(fees.map((f) => f.type).sort()).toEqual(["junk_fee", "overpriced_addon"]);
   });
 });
