@@ -69,13 +69,35 @@ describe("focused submissions map to the right scoring shape", () => {
     expect(sub.alreadySigned).toBe(true);
   });
 
-  it("warranty carries deductible and the signed flag", () => {
+  it("warranty carries deductible, mileage cap, and the signed flag", () => {
     const sub = FOCUSED_FLOWS.warranty.toSubmission(
-      { make: "Honda", coverageTier: "stated_component", deductible: "100", priceQuoted: 3500, signed: false },
+      { make: "Honda", coverageTier: "stated_component", deductible: "100", termMiles: 75000, priceQuoted: 3500, signed: false },
       null,
     );
     expect(sub.warranty?.deductible).toBe(100);
+    expect(sub.warranty?.termMiles).toBe(75000);
     expect(sub.alreadySigned).toBe(false);
+  });
+
+  it("add-on carries financing signals (financed + apr/term) and keeps categories separate", () => {
+    const sub = FOCUSED_FLOWS.addons.toSubmission(
+      { __addons: "gap,nitrogen,service contract", financed: true, addOnApr: 14.9, addOnTermMonths: "72" },
+      null,
+    );
+    expect(sub.deal?.addOnsFinanced).toBe(true);
+    expect(sub.deal?.addOnApr).toBe(14.9);
+    expect(sub.deal?.addOnTermMonths).toBe(72);
+    // service contract is a warranty, not a fee; the others stay fees
+    expect(sub.warranty).toBeTruthy();
+    const labels = (sub.deal?.fees ?? []).map((f) => (f.label ?? "").toLowerCase());
+    expect(labels.some((l) => l.includes("gap"))).toBe(true);
+    expect(labels.some((l) => l.includes("service contract"))).toBe(false);
+  });
+
+  it("add-on without financing leaves the financing signals off", () => {
+    const sub = FOCUSED_FLOWS.addons.toSubmission({ __addons: "gap", financed: false }, null);
+    expect(sub.deal?.addOnsFinanced).toBe(false);
+    expect(sub.deal?.addOnApr).toBeUndefined();
   });
 
   it("add-on keeps government title fee as a fee (not dropped, not warranty)", () => {

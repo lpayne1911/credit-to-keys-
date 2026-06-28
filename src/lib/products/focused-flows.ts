@@ -46,6 +46,9 @@ export interface Question {
   idk?: boolean;
   /** Optional question — the renderer allows continuing without an answer. */
   optional?: boolean;
+  /** Only show this question when the predicate holds (depends on prior answers).
+   * Lets a flow ask follow-ups (e.g. APR/term) only when relevant. */
+  showIf?: (a: Answers) => boolean;
 }
 
 export type Answers = Record<string, string | number | boolean | undefined>;
@@ -145,6 +148,18 @@ const warrantyFlow: FocusedFlow = {
       idk: true,
     },
     {
+      id: "termMiles",
+      label: "What's the mileage limit on the coverage?",
+      help: "The contract usually ends at whichever comes first — the months above or a mileage cap (e.g. 75,000 mi). A ballpark is fine.",
+      kind: "number",
+      min: 0,
+      max: 200000,
+      step: 5000,
+      suffix: "mi",
+      placeholder: "75000",
+      idk: true,
+    },
+    {
       id: "deductible",
       label: "What's the deductible per repair visit?",
       help: "A higher deductible should make the contract cheaper. On your paperwork it's often “$0”, “$100”, or “$200”.",
@@ -183,6 +198,7 @@ const warrantyFlow: FocusedFlow = {
     warranty: {
       coverageTier: (a.coverageTier as string) ?? "unknown",
       termMonths: num(a.termMonths),
+      termMiles: num(a.termMiles),
       deductible: num(a.deductible),
       priceQuoted: num(a.priceQuoted),
     },
@@ -353,6 +369,34 @@ const addonFlow: FocusedFlow = {
       kind: "chips",
       choices: ADDON_CHOICES,
     },
+    {
+      id: "financed",
+      label: "Are these rolled into the loan?",
+      help: "If the add-ons are financed (not paid up front), you also pay interest on them — so the real cost is higher than the sticker price.",
+      kind: "yesno",
+      optional: true,
+    },
+    {
+      id: "addOnApr",
+      label: "What APR is the loan?",
+      help: "Only to estimate the interest you'll pay on the financed add-ons. Skip if you don't know it.",
+      kind: "number",
+      min: 0,
+      max: 30,
+      step: 0.1,
+      suffix: "%",
+      placeholder: "9.9",
+      idk: true,
+      showIf: (a) => a.financed === true,
+    },
+    {
+      id: "addOnTermMonths",
+      label: "How long is the loan?",
+      kind: "chips",
+      choices: TERM_CHOICES,
+      idk: true,
+      showIf: (a) => a.financed === true,
+    },
   ],
   toSubmission: (a, uploadedFilePath) => {
     // The renderer stores selected add-on keys as a comma list under __addons,
@@ -373,7 +417,13 @@ const addonFlow: FocusedFlow = {
     return {
       vehicle: {},
       buyerState: (a.state as string) || undefined,
-      deal: { creditBand: "unknown", fees },
+      deal: {
+        creditBand: "unknown",
+        fees,
+        addOnsFinanced: a.financed === true,
+        addOnApr: num(a.addOnApr),
+        addOnTermMonths: num(a.addOnTermMonths),
+      },
       warranty: hasWarranty
         ? {
             coverageTier: "unknown",

@@ -51,9 +51,10 @@ export function IntakeForm({ productId }: { productId: string }) {
 
   if (!product) return null;
 
-  const requiredOk = fields
-    .filter((f) => f.required)
-    .every((f) => (values[f.name] ?? "").trim().length > 0);
+  const missingRequired = fields
+    .filter((f) => f.required && (values[f.name] ?? "").trim().length === 0)
+    .map((f) => f.label);
+  const requiredOk = missingRequired.length === 0;
 
   async function submit() {
     setError(null);
@@ -144,6 +145,11 @@ export function IntakeForm({ productId }: { productId: string }) {
             >
               {submitting ? "Submitting…" : product.ctaLabel}
             </button>
+            {!requiredOk && (
+              <p className="text-center text-xs text-navy/55">
+                Add your {missingRequired.map((l) => l.toLowerCase()).join(" and ")} to continue.
+              </p>
+            )}
             <p className="text-center text-xs text-navy/45">
               We never take money from dealers, lenders, or warranty companies. No
               guaranteed savings. Paid review isn&apos;t live yet — no charge today.

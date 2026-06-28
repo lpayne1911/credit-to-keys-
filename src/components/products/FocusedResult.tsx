@@ -24,7 +24,12 @@ export function FocusedResult({
   answers: Answers;
 }) {
   const focus = product.focus;
-  const realFlags = result.flags.filter((f) => f.severity !== "info");
+  // Financed-add-on flags get their own callout (and the warning-only one is
+  // `info` severity, which the risky list would otherwise drop) — pull them out.
+  const financedFlags = result.flags.filter((f) => f.type === "financed_addon");
+  const realFlags = result.flags.filter(
+    (f) => f.severity !== "info" && f.type !== "financed_addon",
+  );
   // Only legitimate government fees belong in the "itemize, not junk" section —
   // other info notes (missing-info, already-signed) are surfaced elsewhere.
   const govFlags = result.flags.filter((f) => f.type === "government_fee");
@@ -36,6 +41,18 @@ export function FocusedResult({
     .filter((v) => v !== undefined && v !== "" && v !== "idk")
     .join(" ")
     .trim();
+
+  // Echo the warranty coverage limits (term + mileage cap) the buyer entered.
+  const known = (v: Answers[string]) => v !== undefined && v !== "" && v !== "idk";
+  const coverageLimits =
+    focus === "warranty"
+      ? [
+          known(answers.termMonths) ? `${answers.termMonths} mo` : null,
+          known(answers.termMiles) ? `${Number(answers.termMiles).toLocaleString()} mi` : null,
+        ]
+          .filter(Boolean)
+          .join(" / ")
+      : "";
 
   const heading =
     focus === "warranty"
@@ -66,6 +83,9 @@ export function FocusedResult({
           <h1 className="mt-2 font-serif text-2xl font-semibold text-navy">{heading}</h1>
           {vehicleName && (
             <p className="mt-1 text-sm font-semibold text-navy/80">{vehicleName}</p>
+          )}
+          {coverageLimits && (
+            <p className="mt-0.5 text-xs font-medium text-navy/55">Coverage: {coverageLimits}</p>
           )}
           <p className="mt-1.5 text-sm text-slate">{checkedLine}</p>
         </div>
@@ -108,6 +128,19 @@ export function FocusedResult({
               </ul>
             </div>
           )}
+
+          {/* Interest on add-ons financed into the loan (its own callout). */}
+          {financedFlags.map((f, i) => (
+            <div key={`fin-${i}`} className="rounded-xl border border-gold/40 bg-gold/5 p-4">
+              <h2 className="text-sm font-semibold text-navy">{f.title}</h2>
+              <p className="mt-1 text-sm text-navy/70">{f.explanation}</p>
+              {f.estimatedImpact && (
+                <p className="mt-2 font-serif text-lg font-semibold text-navy">
+                  ~${f.estimatedImpact.low.toLocaleString()}–${f.estimatedImpact.high.toLocaleString()} in extra interest
+                </p>
+              )}
+            </div>
+          ))}
         </div>
 
         {/* What to say / ask next */}

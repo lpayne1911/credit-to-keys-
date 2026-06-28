@@ -34,9 +34,12 @@ export function FocusedCheck({ productId }: { productId: string }) {
   const [error, setError] = useState<string | null>(null);
 
   if (!product || !flow) return null;
-  const questions = flow.questions;
-  const q = questions[idx];
-  const isLast = idx === questions.length - 1;
+  // Honor conditional questions (showIf) — a follow-up like APR/term only appears
+  // when its predicate holds, so we never ask irrelevant questions.
+  const questions = flow.questions.filter((qq) => !qq.showIf || qq.showIf(answers));
+  const safeIdx = Math.min(idx, questions.length - 1);
+  const q = questions[safeIdx];
+  const isLast = safeIdx === questions.length - 1;
 
   const setAnswer = (id: string, v: Answers[string]) =>
     setAnswers((prev) => ({ ...prev, [id]: v }));
@@ -45,20 +48,26 @@ export function FocusedCheck({ productId }: { productId: string }) {
     setError(null);
     setIdx((i) => Math.max(0, i - 1));
   }
-  function advance() {
+  // `pending` carries a just-tapped value (e.g. an auto-advancing chip) so the
+  // final submit doesn't read stale state when the last question auto-advances.
+  function advance(pending?: { id: string; v: Answers[string] }) {
     setError(null);
-    if (isLast) void submit();
-    else setIdx((i) => i + 1);
+    if (isLast) {
+      const finalAnswers = pending ? { ...answers, [pending.id]: pending.v } : answers;
+      void submit(finalAnswers);
+    } else {
+      setIdx((i) => i + 1);
+    }
   }
 
-  async function submit() {
+  async function submit(finalAnswers: Answers) {
     setSubmitting(true);
     setError(null);
     try {
       const res = await fetch("/api/deals", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(flow!.toSubmission(answers, uploadedPath)),
+        body: JSON.stringify(flow!.toSubmission(finalAnswers, uploadedPath)),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -109,16 +118,16 @@ export function FocusedCheck({ productId }: { productId: string }) {
     );
   }
 
-  const percent = Math.round(((idx + 1) / questions.length) * 100);
+  const percent = Math.round(((safeIdx + 1) / questions.length) * 100);
   // Single-select chips advance on tap; the multi-select add-on picker does not.
   const autoAdvances = q.kind === "chips" && q.id !== "__addons";
   return (
     <Shell
-      progress={`Step ${idx + 1} of ${questions.length} · ${flow.progressLabel}`}
+      progress={`Step ${safeIdx + 1} of ${questions.length} · ${flow.progressLabel}`}
       percent={percent}
-      onBack={idx === 0 ? null : back}
+      onBack={safeIdx === 0 ? null : back}
     >
-      <div key={idx} className="animate-step-in">
+      <div key={safeIdx} className="animate-step-in">
         <QuestionView
           q={q}
           answers={answers}
@@ -126,7 +135,7 @@ export function FocusedCheck({ productId }: { productId: string }) {
           onAutoAdvance={advance}
         />
 
-        {idx === 0 && (
+        {safeIdx === 0 && (
           <div className="mt-6 text-center">
             <label
               className={`inline-flex items-center gap-2 text-sm font-semibold ${
@@ -170,7 +179,7 @@ export function FocusedCheck({ productId }: { productId: string }) {
         <Footer>
           <button
             type="button"
-            onClick={advance}
+            onClick={() => advance()}
             disabled={!canContinue(q, answers[q.id])}
             className="btn-primary w-full"
           >
@@ -202,7 +211,7 @@ function QuestionView({
   q: Question;
   answers: Answers;
   setAnswer: (id: string, v: Answers[string]) => void;
-  onAutoAdvance: () => void;
+  onAutoAdvance: (pending?: { id: string; v: Answers[string] }) => void;
 }) {
   const value = answers[q.id];
   const onChange = (v: Answers[string]) => setAnswer(q.id, v);
@@ -234,7 +243,7 @@ function QuestionView({
             value={value}
             onChange={(v) => {
               onChange(v);
-              onAutoAdvance();
+              onAutoAdvance({ id: q.id, v });
             }}
           />
         ) : q.kind === "yesno" ? (

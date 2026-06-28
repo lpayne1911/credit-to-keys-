@@ -88,6 +88,18 @@ export interface DealInput {
    * sharpen the APR-markup guidance. Optional.
    */
   outsideApproval?: boolean | null;
+  /**
+   * True when the add-ons/fees are rolled into the financed balance (so the
+   * buyer pays interest on them too). Drives the financed-add-on estimate.
+   */
+  addOnsFinanced?: boolean | null;
+  /**
+   * APR/term used ONLY to estimate interest on financed add-ons. Kept separate
+   * from `apr`/`termMonths` so the add-on check never triggers the rate-markup
+   * flag — categories stay separate.
+   */
+  addOnApr?: number | null;
+  addOnTermMonths?: number | null;
 }
 
 export type CreditBand =
@@ -173,6 +185,7 @@ export type FlagType =
   | "redundant_addon"
   | "overpriced_warranty"
   | "payment_packing"
+  | "financed_addon"
   | "trade_lowball"
   | "negative_equity"
   | "missing_info"
@@ -526,6 +539,10 @@ export function scoreDeal(input: FairnessInput): FairnessResult {
   // --- Fees & add-ons ----------------------------------------------------
   flags.push(...assessFees(input.deal.fees ?? [], assumptions, input.buyerState ?? null));
 
+  // --- Interest paid on add-ons financed into the loan -------------------
+  const financedFlag = assessFinancedAddOns(input, assumptions);
+  if (financedFlag) flags.push(financedFlag);
+
   // --- Missing-info honesty notes ---------------------------------------
   flags.push(...missingInfoNotes(input));
 
@@ -616,8 +633,15 @@ function assessWarranty(
 
   const dedMult = deductibleMultiplier(w.deductible);
 
+  // TODO(real-pricing, #10): the contract's mileage cap (w.termMiles) bounds the
+  // insurer's exposure — a lower cap should pull the fair price DOWN and a very
+  // high cap up. We deliberately do NOT invent a multiplier here yet; that needs
+  // real warranty pricing data. For now the mileage cap only sharpens confidence
+  // and is disclosed in the assumptions — it never moves the price on its own.
+  const mileageCapMult = 1.0; // PLACEHOLDER — replace with real engine value (#10)
+
   const totalMult =
-    covMult * relMult * dedMult * (1 + riskSurcharge) * (1 + Math.max(-0.3, termSurcharge));
+    covMult * relMult * dedMult * mileageCapMult * (1 + riskSurcharge) * (1 + Math.max(-0.3, termSurcharge));
 
   low = Math.round((low * totalMult) / 25) * 25;
   high = Math.round((high * totalMult) / 25) * 25;
@@ -626,6 +650,7 @@ function assessWarranty(
   const knownSignals = [
     w.coverageTier,
     w.termMonths,
+    w.termMiles,
     vehicle.mileage,
     vehicle.year,
     w.deductible,
@@ -645,8 +670,12 @@ function assessWarranty(
     w.deductible === null || w.deductible === undefined
       ? "deductible unknown"
       : `${money(w.deductible)} deductible`;
+  const mileageCapPhrase =
+    w.termMiles === null || w.termMiles === undefined
+      ? "mileage cap unknown"
+      : `${w.termMiles.toLocaleString()}-mi cap`;
   assumptions.push(
-    `Warranty fair-price range is an estimate from documented assumption ranges (brand reliability tier ${tier}, coverage "${coverage}", ${age} yr / ${miles.toLocaleString()} mi, ${term}-mo term, ${deductiblePhrase}) — exact prices vary by provider and negotiation.`,
+    `Warranty fair-price range is an estimate from documented assumption ranges (brand reliability tier ${tier}, coverage "${coverage}", ${age} yr / ${miles.toLocaleString()} mi, ${term}-mo term, ${mileageCapPhrase}, ${deductiblePhrase}) — exact prices vary by provider and negotiation. The mileage cap isn't priced in yet (#10).`,
   );
 
   const fairRange: PriceRange = {
@@ -1179,6 +1208,61 @@ function assessGovernmentFees(
 }
 
 // ---------------------------------------------------------------------------
+//  Interest on add-ons financed into the loan
+// ---------------------------------------------------------------------------
+
+/**
+ * When optional add-ons are rolled into the loan, the buyer pays interest on
+ * them too — so the sticker price understates the real cost. If APR + term are
+ * known we estimate the extra interest (a loose range, never false precision);
+ * if not, we show a plain warning. Uses the add-on/fee total only (the car
+ * itself is not an "add-on") and never reclassifies products.
+ */
+function assessFinancedAddOns(input: FairnessInput, assumptions: string[]): Flag | null {
+  const d = input.deal;
+  if (!d.addOnsFinanced) return null;
+
+  const feesTotal = (d.fees ?? []).reduce((sum, f) => sum + (f.amount || 0), 0);
+  const warrantyTotal = input.warranty?.priceQuoted ?? 0;
+  const addOnTotal = feesTotal + warrantyTotal;
+  if (addOnTotal <= 0) return null;
+
+  const apr = d.addOnApr;
+  const term = d.addOnTermMonths;
+
+  if (apr != null && apr > 0 && term != null && term > 0) {
+    // Loose declining-balance approximation, same shape as the APR-markup math.
+    const base = addOnTotal * ((apr / 100) * (term / 12));
+    const low = round25(base * 0.4);
+    const high = round25(base * 0.6);
+    assumptions.push(
+      `Add-ons of about ${money(addOnTotal)} appear financed at ${apr}% over ${term} months — interest on them is estimated, not exact.`,
+    );
+    return {
+      type: "financed_addon",
+      severity: "low",
+      title: "You'll pay interest on the financed add-ons",
+      explanation: `Rolling about ${money(addOnTotal)} of add-ons into the loan means you pay interest on them too — roughly ${money(low)}–${money(high)} extra over a ${term}-month term at ${apr}%. Paying for optional products up front, or dropping them, avoids that interest.`,
+      estimatedImpact: {
+        low,
+        high,
+        confidence: "low",
+        basis:
+          "Rough estimate of interest paid on add-ons financed into the loan. Depends on your actual rate, term, and how the balance amortizes.",
+      },
+    };
+  }
+
+  // Financed, but we don't have the rate/term to quantify it → plain warning.
+  return {
+    type: "financed_addon",
+    severity: "info",
+    title: "Financed add-ons cost more after interest",
+    explanation: `About ${money(addOnTotal)} of add-ons looks financed into the loan. If so, the real cost is higher than the sticker price once interest is added. Add the APR and term for an estimate — or ask to pay optional products up front instead of financing them.`,
+  };
+}
+
+// ---------------------------------------------------------------------------
 //  Missing-info honesty notes — never imply we scored data we didn't have.
 // ---------------------------------------------------------------------------
 
@@ -1345,6 +1429,7 @@ export const FLAG_TYPES: FlagType[] = [
   "redundant_addon",
   "overpriced_warranty",
   "payment_packing",
+  "financed_addon",
   "trade_lowball",
   "negative_equity",
   "missing_info",
