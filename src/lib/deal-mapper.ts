@@ -29,12 +29,19 @@ export interface DealSubmission {
     termMonths?: number | string;
     monthlyPayment?: number | string;
     creditBand?: string;
+    /** Buyer holds an outside (bank/credit-union) pre-approval. */
+    outsideApproval?: boolean;
+    /** Add-ons rolled into the loan + the rate/term to estimate their interest. */
+    addOnsFinanced?: boolean;
+    addOnApr?: number | string;
+    addOnTermMonths?: number | string;
   };
   warranty?: {
     provider?: string;
     coverageTier?: string;
     termMonths?: number | string;
     termMiles?: number | string;
+    deductible?: number | string;
     priceQuoted?: number | string;
   };
   tradeIn?: {
@@ -42,6 +49,11 @@ export interface DealSubmission {
     estimatedValue?: number | string;
     loanPayoff?: number | string;
   };
+  /** Two-letter US state code where the buyer is purchasing (state-aware copy
+   * now, fee caps later). Optional. */
+  buyerState?: string;
+  /** Buyer has already signed / spot-delivered. Surfaces a review/cancel note. */
+  alreadySigned?: boolean;
   /** Internal-only location signal (ZIP-derived). Not used for scoring. */
   location?: {
     zip?: string;
@@ -108,6 +120,10 @@ export function toFairnessInput(s: DealSubmission): FairnessInput {
       creditBand: (CREDIT_BANDS.includes(band as CreditBand)
         ? (band as CreditBand)
         : "unknown") as CreditBand,
+      outsideApproval: s.deal?.outsideApproval === true ? true : undefined,
+      addOnsFinanced: s.deal?.addOnsFinanced === true ? true : undefined,
+      addOnApr: num(s.deal?.addOnApr),
+      addOnTermMonths: num(s.deal?.addOnTermMonths),
     },
     warranty: {
       provider: str(s.warranty?.provider),
@@ -116,6 +132,7 @@ export function toFairnessInput(s: DealSubmission): FairnessInput {
         : null) as WarrantyCoverageTier | null,
       termMonths: num(s.warranty?.termMonths),
       termMiles: num(s.warranty?.termMiles),
+      deductible: num(s.warranty?.deductible),
       priceQuoted: num(s.warranty?.priceQuoted),
     },
     tradeIn: s.tradeIn
@@ -125,6 +142,9 @@ export function toFairnessInput(s: DealSubmission): FairnessInput {
           loanPayoff: num(s.tradeIn.loanPayoff),
         }
       : null,
+    buyerState: str(s.buyerState)?.toUpperCase().slice(0, 2) ?? null,
+    documentUploaded: s.inputPath === "upload",
+    alreadySigned: s.alreadySigned === true ? true : undefined,
   };
 }
 
@@ -135,8 +155,15 @@ export function toDealRow(
   result: import("./fairness-engine").FairnessResult,
   leadId: string | null,
 ) {
+  // The buyer's explicit state selection wins; fall back to the ZIP-derived
+  // (internal) location signal so fee rules still resolve when only a ZIP is set.
+  const buyerState =
+    str(s.buyerState)?.toUpperCase().slice(0, 2) ??
+    str(s.location?.state)?.toUpperCase().slice(0, 2) ??
+    null;
   return {
     lead_id: leadId,
+    buyer_state: buyerState,
     vehicle_year: input.vehicle.year,
     vehicle_make: input.vehicle.make,
     vehicle_model: input.vehicle.model,
@@ -146,8 +173,7 @@ export function toDealRow(
     vehicle_price: input.deal.vehiclePrice,
     fees: input.deal.fees ?? [],
     // Normalized fee categories (state-aware) — durable record for analytics.
-    fee_categories: reviewFees(input.deal.fees ?? [], s.location?.state ?? null)
-      .lineItems,
+    fee_categories: reviewFees(input.deal.fees ?? [], buyerState).lineItems,
     down_payment: input.deal.downPayment,
     apr: input.deal.apr,
     term_months: input.deal.termMonths,
@@ -163,8 +189,8 @@ export function toDealRow(
 
     // Internal-only location signal (ZIP-derived). Never scored, never shown to
     // the buyer. `buyer_income_band` is a reserved seam, populated later.
+    // `buyer_state` is set above (explicit selection, ZIP fallback).
     buyer_zip: str(s.location?.zip),
-    buyer_state: str(s.location?.state),
     buyer_income_band: null,
     auto_verdict: result.overallVerdict,
     auto_result: result,

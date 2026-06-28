@@ -34,6 +34,10 @@ export interface DealRow {
   id: string;
   lead_id: string | null;
 
+  // Where the buyer is purchasing (two-letter state code). Drives state-aware
+  // copy and, later, state-specific fee caps.
+  buyer_state: string | null;
+
   // Vehicle
   vehicle_year: number | null;
   vehicle_make: string | null;
@@ -59,8 +63,8 @@ export interface DealRow {
   warranty_price: number | null;
 
   // Buyer location (internal analytics signal only; never buyer-facing/scored).
+  // `buyer_state` is declared above (shared with the state-aware copy field).
   buyer_zip: string | null;
-  buyer_state: string | null;
   buyer_income_band: string | null;
 
   // Normalized fee categories (state-aware), persisted for analytics.

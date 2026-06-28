@@ -41,6 +41,11 @@
  */
 
 import { principalFromPayment, impliedAprPct } from "./loan-math";
+import {
+  classifyDocFeeAmount,
+  isDocFeeAlias,
+  type DocFeeFinding,
+} from "./intelligence/docFeeRules";
 
 // ---------------------------------------------------------------------------
 //  INPUT TYPES
@@ -77,6 +82,24 @@ export interface DealInput {
    * could likely qualify for, so we can flag dealer APR markup. Optional.
    */
   creditBand?: CreditBand | null;
+  /**
+   * True when the buyer already has their own financing approved (bank / credit
+   * union pre-approval). Gives them a concrete rate to compare against, so we
+   * sharpen the APR-markup guidance. Optional.
+   */
+  outsideApproval?: boolean | null;
+  /**
+   * True when the add-ons/fees are rolled into the financed balance (so the
+   * buyer pays interest on them too). Drives the financed-add-on estimate.
+   */
+  addOnsFinanced?: boolean | null;
+  /**
+   * APR/term used ONLY to estimate interest on financed add-ons. Kept separate
+   * from `apr`/`termMonths` so the add-on check never triggers the rate-markup
+   * flag — categories stay separate.
+   */
+  addOnApr?: number | null;
+  addOnTermMonths?: number | null;
 }
 
 export type CreditBand =
@@ -98,6 +121,11 @@ export interface WarrantyInput {
   coverageTier?: WarrantyCoverageTier | null;
   termMonths?: number | null;
   termMiles?: number | null;
+  /**
+   * Per-visit deductible on the contract ($0, $100, $200…). A higher deductible
+   * makes a contract cheaper, so it shifts the fair-price range down. Optional.
+   */
+  deductible?: number | null;
   /** Price the dealer quoted for the extended warranty / VSC. */
   priceQuoted?: number | null;
 }
@@ -122,6 +150,17 @@ export interface FairnessInput {
   warranty?: WarrantyInput | null;
   /** Optional — present only when the buyer is trading in a vehicle. */
   tradeIn?: TradeInInput | null;
+  /** Two-letter US jurisdiction code (state/DC) where the buyer is purchasing.
+   * Drives state-aware doc-fee intelligence. Optional. */
+  buyerState?: string | null;
+  /** True when the figures came from an uploaded quote (raises confidence). */
+  documentUploaded?: boolean;
+  /**
+   * True when the buyer has already signed — including "spot delivery" where
+   * they drove off but the financing isn't final. Doesn't change the deal's
+   * fairness, but surfaces a (non-promissory) note about review/cancel options.
+   */
+  alreadySigned?: boolean | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -140,11 +179,13 @@ export type WarrantyPriceRating =
 
 export type FlagType =
   | "junk_fee"
+  | "government_fee"
   | "apr_markup"
   | "overpriced_addon"
   | "redundant_addon"
   | "overpriced_warranty"
   | "payment_packing"
+  | "financed_addon"
   | "trade_lowball"
   | "negative_equity"
   | "missing_info"
@@ -161,6 +202,9 @@ export interface Flag {
   explanation: string;
   /** Optional dollar impact estimate — always a range, never false precision. */
   estimatedImpact?: PriceRange | null;
+  /** State-aware doc-fee intelligence, attached when this flag is a dealer
+   * documentation/processing fee and the buyer's state is known. */
+  docFee?: DocFeeFinding | null;
 }
 
 export interface PriceRange {
@@ -184,6 +228,9 @@ export interface FairnessResult {
   /** One-line, plain-spoken summary of the verdict for the buyer. */
   headline: string;
   confidence: Confidence;
+  /** Plain-language reasons for the confidence level (which fields we had, and
+   * whether figures came from an uploaded document). */
+  confidenceReasons: string[];
   flags: Flag[];
   /** Present only when a warranty was submitted. */
   warranty: WarrantyAssessment | null;
@@ -271,6 +318,20 @@ const RELIABILITY_MULTIPLIER: Record<1 | 2 | 3, number> = {
   2: 1.0,
   3: 1.3,
 };
+
+/**
+ * Deductible multiplier on the fair price. A higher per-visit deductible means
+ * the contract pays out less, so a fair price is LOWER. A $0-deductible contract
+ * costs more. ASSUMPTION-based bands; null when the buyer doesn't know it (1.0).
+ */
+// PLACEHOLDER — replace with real engine value
+function deductibleMultiplier(deductible?: number | null): number {
+  if (deductible === null || deductible === undefined) return 1.0;
+  if (deductible <= 0) return 1.12; // $0 deductible → richer contract → costs more
+  if (deductible <= 100) return 1.0; // ~$100 is the common baseline
+  if (deductible <= 200) return 0.92;
+  return 0.85; // high deductible → cheaper contract
+}
 
 /**
  * Age & mileage risk surcharge. Older / higher-mileage cars are more likely to
@@ -374,6 +435,13 @@ interface FeeRule {
   reasonableMax?: number;
   /** True when the item is widely considered pure padding / negligible value. */
   alwaysJunk?: boolean;
+  /**
+   * True for pass-through GOVERNMENT charges (title, registration, plates). These
+   * are legitimate by default and must NOT be treated as junk — we only push
+   * back when they're duplicated or clearly inflated above the state norm
+   * (the surplus is then likely dealer-retained padding).
+   */
+  government?: boolean;
   label: string;
   why: string;
 }
@@ -384,7 +452,7 @@ const FEE_RULES: FeeRule[] = [
     keywords: ["doc", "documentation", "documentary"],
     reasonableMax: 200, // ASSUMPTION: many states cap or expect ~$75–$200
     label: "Documentation fee",
-    why: "Doc fees cover paperwork the dealer already has to do. A modest fee can be legitimate, but unusually high doc fees are often pure profit and are sometimes capped by state law.",
+    why: "Doc fees are a real charge for paperwork, and some states cap them — they're not automatically junk. But the amount is often padded. If the dealer says the doc fee can't be lowered (sometimes true where it's state-regulated), ask them to reduce the vehicle's selling price by the same amount instead — the bottom line is what matters.",
   },
   {
     keywords: ["dealer prep", "prep", "preparation"],
@@ -423,12 +491,16 @@ const FEE_RULES: FeeRule[] = [
     why: "Vague fees like this rarely correspond to a real service and are commonly used to pad the bottom line.",
   },
   {
-    keywords: ["title", "registration", "registry", "license", "plate"],
-    reasonableMax: 600, // ASSUMPTION: government fees vary widely by state
+    keywords: ["title", "registration", "registry", "license", "plate", "tag", "dmv", "smog"],
+    reasonableMax: 600, // ASSUMPTION: typical government title+reg ceiling; varies by state
+    government: true,
     label: "Title / registration",
-    why: "These are government fees the dealer passes through. They're usually legitimate, but confirm the amount matches your state's actual charges.",
+    why: "These are government fees the dealer passes through to the state. They are legitimate — you will pay the actual amount. Just make sure the charge is itemized and matches your state's real title/registration cost, with no dealer-retained padding folded in.",
   },
 ];
+
+/** Above reasonableMax × this, a government fee is likely padded, not just regional. */
+const GOVERNMENT_FEE_INFLATED_MULTIPLIER = 2.5;
 
 // ===========================================================================
 //  CORE SCORING — the single public interface
@@ -465,18 +537,41 @@ export function scoreDeal(input: FairnessInput): FairnessResult {
   }
 
   // --- Fees & add-ons ----------------------------------------------------
-  flags.push(...assessFees(input.deal.fees ?? [], assumptions));
+  flags.push(...assessFees(input.deal.fees ?? [], assumptions, input.buyerState ?? null));
+
+  // --- Interest paid on add-ons financed into the loan -------------------
+  const financedFlag = assessFinancedAddOns(input, assumptions);
+  if (financedFlag) flags.push(financedFlag);
 
   // --- Missing-info honesty notes ---------------------------------------
   flags.push(...missingInfoNotes(input));
 
+  // --- Already-signed / spot-delivery context (informational only) -------
+  if (input.alreadySigned) {
+    flags.push({
+      type: "info",
+      severity: "info",
+      title: "You've already signed (or drove off on “spot delivery”)",
+      explanation:
+        "Signing — including a conditional “spot delivery” where the financing isn't final yet — narrows your options, but you may still be able to review or cancel some add-ons. We can't promise a cancellation or refund. A deal rescue can help you organize next steps.",
+    });
+    assumptions.push(
+      "Buyer indicated the deal is already signed (or spot-delivered) — guidance focuses on review/cancel options, not pre-signing negotiation.",
+    );
+  }
+
   // --- Roll everything up into an overall verdict + confidence -----------
-  const { overallVerdict, headline, confidence } = rollUp(flags, warranty, input);
+  const { overallVerdict, headline, confidence, confidenceReasons } = rollUp(
+    flags,
+    warranty,
+    input,
+  );
 
   return {
     overallVerdict,
     headline,
     confidence,
+    confidenceReasons,
     flags,
     warranty,
     assumptions: dedupe(assumptions),
@@ -536,8 +631,17 @@ function assessWarranty(
   const termSurcharge =
     ((term - TERM_BASELINE_MONTHS) / 12) * TERM_SURCHARGE_PER_12_MONTHS;
 
+  const dedMult = deductibleMultiplier(w.deductible);
+
+  // TODO(real-pricing, #10): the contract's mileage cap (w.termMiles) bounds the
+  // insurer's exposure — a lower cap should pull the fair price DOWN and a very
+  // high cap up. We deliberately do NOT invent a multiplier here yet; that needs
+  // real warranty pricing data. For now the mileage cap only sharpens confidence
+  // and is disclosed in the assumptions — it never moves the price on its own.
+  const mileageCapMult = 1.0; // PLACEHOLDER — replace with real engine value (#10)
+
   const totalMult =
-    covMult * relMult * (1 + riskSurcharge) * (1 + Math.max(-0.3, termSurcharge));
+    covMult * relMult * dedMult * mileageCapMult * (1 + riskSurcharge) * (1 + Math.max(-0.3, termSurcharge));
 
   low = Math.round((low * totalMult) / 25) * 25;
   high = Math.round((high * totalMult) / 25) * 25;
@@ -546,12 +650,14 @@ function assessWarranty(
   const knownSignals = [
     w.coverageTier,
     w.termMonths,
+    w.termMiles,
     vehicle.mileage,
     vehicle.year,
+    w.deductible,
   ].filter((v) => v !== null && v !== undefined).length;
   let confidence: Confidence = "low";
   if (knownSignals >= 3) confidence = "medium";
-  if (knownSignals === 4 && w.coverageTier && w.coverageTier !== "unknown") {
+  if (knownSignals >= 4 && w.coverageTier && w.coverageTier !== "unknown") {
     confidence = "high";
   }
   // When confidence is low, widen the band so we never imply false precision.
@@ -560,8 +666,16 @@ function assessWarranty(
     high = Math.round((high * 1.2) / 25) * 25;
   }
 
+  const deductiblePhrase =
+    w.deductible === null || w.deductible === undefined
+      ? "deductible unknown"
+      : `${money(w.deductible)} deductible`;
+  const mileageCapPhrase =
+    w.termMiles === null || w.termMiles === undefined
+      ? "mileage cap unknown"
+      : `${w.termMiles.toLocaleString()}-mi cap`;
   assumptions.push(
-    `Warranty fair-price range is an estimate from documented assumption ranges (brand reliability tier ${tier}, coverage "${coverage}", ${age} yr / ${miles.toLocaleString()} mi, ${term}-mo term) — exact prices vary by provider and negotiation.`,
+    `Warranty fair-price range is an estimate from documented assumption ranges (brand reliability tier ${tier}, coverage "${coverage}", ${age} yr / ${miles.toLocaleString()} mi, ${term}-mo term, ${mileageCapPhrase}, ${deductiblePhrase}) — exact prices vary by provider and negotiation. The mileage cap isn't priced in yet (#10).`,
   );
 
   const fairRange: PriceRange = {
@@ -582,11 +696,14 @@ function rateWarrantyPrice(
   quoted: number | null,
   fair: PriceRange,
 ): { rating: WarrantyPriceRating; explanation: string } {
+  // A plain-language fair-range phrase reused across cases ("$1,800–$2,400").
+  const range = `${money(fair.low)}–${money(fair.high)}`;
+
   if (quoted === null) {
     return {
       rating: "negotiable",
       explanation:
-        "You didn't enter a warranty price, so we can't compare it. Whatever the dealer quotes, treat it as negotiable — these contracts carry large markups and the price is rarely fixed.",
+        `For this vehicle and coverage, a fair price is roughly ${range}. You didn't enter the dealer's number — whatever they quote, treat it as negotiable. These contracts carry some of the largest markups in the finance office.`,
     };
   }
   if (quoted <= fair.high) {
@@ -594,34 +711,35 @@ function rateWarrantyPrice(
       return {
         rating: "fair",
         explanation:
-          "The quoted price is at or below our estimated fair range. That's a good sign — still confirm exactly what's covered and the deductible.",
+          `At ${money(quoted)}, you're at or below the typical ${range} for this coverage — a good sign. Still confirm exactly what's covered and the deductible before you sign.`,
       };
     }
     return {
       rating: "fair",
       explanation:
-        "The quoted price sits within our estimated fair range. It looks reasonable, but the price is still negotiable and worth a counter-offer.",
+        `Your ${money(quoted)} quote is within the typical ${range} for this coverage. Reasonable — but the price is still negotiable; it's worth countering toward ${money(fair.low)}.`,
     };
   }
   const ratio = quoted / fair.high;
+  const over = quoted - fair.high; // dollars above the top of the fair range
   if (ratio > WARRANTY_VERY_OVERPRICED_THRESHOLD) {
     return {
       rating: "very_overpriced",
       explanation:
-        "The quoted price is far above our estimated fair range. Extended warranties carry some of the largest markups in the finance office — there is usually a lot of room to negotiate, or to buy a comparable contract elsewhere for much less.",
+        `At ${money(quoted)}, you're about ${money(over)} above the typical ${range} for this coverage — roughly ${ratio.toFixed(1)}× the top of fair. Extended warranties carry some of the biggest markups in the finance office. Counter at ${money(fair.high)} or below, or buy comparable coverage elsewhere for far less.`,
     };
   }
   if (ratio > WARRANTY_HIGH_THRESHOLD) {
     return {
       rating: "high",
       explanation:
-        "The quoted price is above our estimated fair range. Consider countering toward the fair range, or shopping the same coverage from another provider before agreeing.",
+        `At ${money(quoted)}, you're about ${money(over)} above the typical ${range} for this coverage. Counter toward ${money(fair.high)}, or shop the same coverage from another provider before agreeing.`,
     };
   }
   return {
     rating: "negotiable",
     explanation:
-      "The quoted price is a little above our estimated fair range. It's close, but still worth a counter-offer — the price is rarely fixed.",
+      `At ${money(quoted)}, you're about ${money(over)} over the typical ${range} for this coverage — close, but still worth countering to ${money(fair.high)}. The price is rarely fixed.`,
   };
 }
 
@@ -689,11 +807,24 @@ function assessApr(deal: DealInput, assumptions: string[]): Flag | null {
     };
   }
 
+  const costPhrase = impact
+    ? ` — that's roughly ${money(impact.low)}–${money(impact.high)} in extra interest over the loan`
+    : "";
+  // If the buyer already holds their own approval, that's direct leverage; if
+  // not, point them to getting one. Either way, keep it buyer-side.
+  const leverage = deal.outsideApproval
+    ? ` You said you already have your own financing approved — use it: ask them to beat your rate in writing, or take your own loan.`
+    : ` Ask to see the "buy rate," or bring a pre-approval from your own bank or credit union to compare.`;
+  if (deal.outsideApproval) {
+    assumptions.push(
+      "Buyer has an outside pre-approval — the dealer's rate can be compared against it directly.",
+    );
+  }
   return {
     type: "apr_markup",
     severity: over > 4 ? "high" : "medium",
     title: "Possible marked-up interest rate",
-    explanation: `The ${deal.apr}% APR offered is above the ${band.low}%–${band.high}% range a buyer with your stated credit would likely qualify for. Dealers often mark up the lender's rate and keep the difference. Ask to see the "buy rate," or get a pre-approval from your own bank or credit union to compare.`,
+    explanation: `Your ${deal.apr}% APR is about ${over.toFixed(1)} points above the ${band.low}%–${band.high}% range a buyer with your stated credit would likely qualify for${costPhrase}. Dealers often mark up the lender's rate and keep the difference.${leverage}`,
     estimatedImpact: impact,
   };
 }
@@ -935,13 +1066,19 @@ export function auditFees(fees: ItemizedFee[]): FeeAuditResult {
   return {
     flags,
     assumptions: dedupe(assumptions),
-    challengeCount: flags.length,
+    // Info-severity flags (legitimate government fees) are not challenges.
+    challengeCount: flags.filter((f) => f.severity !== "info").length,
     estimatedSavings: any && high > 0 ? { low, high } : null,
   };
 }
 
-function assessFees(fees: ItemizedFee[], assumptions: string[]): Flag[] {
+function assessFees(
+  fees: ItemizedFee[],
+  assumptions: string[],
+  buyerState: string | null = null,
+): Flag[] {
   const out: Flag[] = [];
+  const govFees: ItemizedFee[] = [];
   for (const fee of fees) {
     if (!fee.label) continue;
     const label = fee.label.toLowerCase();
@@ -949,6 +1086,12 @@ function assessFees(fees: ItemizedFee[], assumptions: string[]): Flag[] {
       r.keywords.some((k) => label.includes(k)),
     );
     if (!rule) continue;
+
+    // Government pass-through fees are handled separately (NOT junk by default).
+    if (rule.government) {
+      govFees.push(fee);
+      continue;
+    }
 
     if (rule.alwaysJunk) {
       out.push({
@@ -970,7 +1113,7 @@ function assessFees(fees: ItemizedFee[], assumptions: string[]): Flag[] {
       assumptions.push(
         `Assumed a reasonable ceiling of ~$${rule.reasonableMax} for "${rule.label}" — actual norms vary by state.`,
       );
-      out.push({
+      const docFlag: Flag = {
         type: "junk_fee",
         severity: over >= 400 ? "high" : "medium",
         title: `${rule.label} looks high`,
@@ -982,10 +1125,141 @@ function assessFees(fees: ItemizedFee[], assumptions: string[]): Flag[] {
           basis:
             "Estimated amount above a typical ceiling — norms vary by state and dealer.",
         },
-      });
+      };
+      // Enrich with sourced, state-specific doc-fee intelligence when we know
+      // the buyer's state and this is a documentation/processing fee. This
+      // replaces the generic ceiling assumption with the real state rule.
+      if (buyerState && isDocFeeAlias(fee.label)) {
+        docFlag.docFee = classifyDocFeeAmount({
+          stateCode: buyerState,
+          feeName: fee.label,
+          amountCents: Math.round((fee.amount || 0) * 100),
+        });
+      }
+      out.push(docFlag);
     }
   }
+
+  if (govFees.length) out.push(...assessGovernmentFees(govFees, assumptions));
   return out;
+}
+
+/**
+ * Government pass-through fees (title, registration, plates, DMV). Legitimate by
+ * default — the buyer pays the real state amount. We only push back when the
+ * charge is DUPLICATED (often a double charge) or clearly INFLATED above the
+ * state norm (the surplus is then likely dealer-retained padding). Otherwise we
+ * emit a single INFO note reminding the buyer to get it itemized.
+ */
+function assessGovernmentFees(
+  govFees: ItemizedFee[],
+  assumptions: string[],
+): Flag[] {
+  const out: Flag[] = [];
+  const ceiling = 600; // typical title+registration ceiling (see FEE_RULES)
+  const inflatedAt = ceiling * GOVERNMENT_FEE_INFLATED_MULTIPLIER;
+  const total = govFees.reduce((sum, f) => sum + (f.amount || 0), 0);
+  const maxFee = Math.max(...govFees.map((f) => f.amount || 0));
+  const duplicate = govFees.length > 1;
+  const inflated = maxFee > inflatedAt || total > inflatedAt;
+
+  if (duplicate) {
+    out.push({
+      type: "government_fee",
+      severity: "medium",
+      title: "Duplicate government-fee lines",
+      explanation: `You have ${govFees.length} separate title/registration-type charges (totaling $${total.toLocaleString()}). Government fees are real, but you pay each one ONCE. Ask the dealer to itemize them against your state's actual charges and remove any duplicate or dealer-retained padding.`,
+      estimatedImpact: null,
+    });
+    return out;
+  }
+
+  if (inflated) {
+    const over = Math.round((maxFee - ceiling) / 25) * 25;
+    assumptions.push(
+      `Assumed a typical government title/registration ceiling of ~$${ceiling}; charges far above it are flagged as possible dealer padding — actual amounts vary by state.`,
+    );
+    out.push({
+      type: "government_fee",
+      severity: over >= 600 ? "high" : "medium",
+      title: "Title / registration looks inflated",
+      explanation: `The $${maxFee.toLocaleString()} title/registration charge is well above a typical state ceiling (~$${ceiling.toLocaleString()}). You'll pay the actual government fee, but the excess is likely dealer-retained padding. Ask for it itemized against your state's real cost and the difference removed.`,
+      estimatedImpact: {
+        low: Math.round((over * 0.5) / 25) * 25,
+        high: over,
+        confidence: "low",
+        basis:
+          "Estimated dealer-retained padding above a typical government-fee ceiling — actual government fees vary by state.",
+      },
+    });
+    return out;
+  }
+
+  // Normal government fee — legitimate. Informational reminder only.
+  out.push({
+    type: "government_fee",
+    severity: "info",
+    title: "Government title & registration fee",
+    explanation:
+      "This is a legitimate government fee — you'll pay the actual state amount. Just make sure it's itemized on the paperwork and matches your state's real title/registration cost, with no dealer-retained padding folded in.",
+    estimatedImpact: null,
+  });
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+//  Interest on add-ons financed into the loan
+// ---------------------------------------------------------------------------
+
+/**
+ * When optional add-ons are rolled into the loan, the buyer pays interest on
+ * them too — so the sticker price understates the real cost. If APR + term are
+ * known we estimate the extra interest (a loose range, never false precision);
+ * if not, we show a plain warning. Uses the add-on/fee total only (the car
+ * itself is not an "add-on") and never reclassifies products.
+ */
+function assessFinancedAddOns(input: FairnessInput, assumptions: string[]): Flag | null {
+  const d = input.deal;
+  if (!d.addOnsFinanced) return null;
+
+  const feesTotal = (d.fees ?? []).reduce((sum, f) => sum + (f.amount || 0), 0);
+  const warrantyTotal = input.warranty?.priceQuoted ?? 0;
+  const addOnTotal = feesTotal + warrantyTotal;
+  if (addOnTotal <= 0) return null;
+
+  const apr = d.addOnApr;
+  const term = d.addOnTermMonths;
+
+  if (apr != null && apr > 0 && term != null && term > 0) {
+    // Loose declining-balance approximation, same shape as the APR-markup math.
+    const base = addOnTotal * ((apr / 100) * (term / 12));
+    const low = round25(base * 0.4);
+    const high = round25(base * 0.6);
+    assumptions.push(
+      `Add-ons of about ${money(addOnTotal)} appear financed at ${apr}% over ${term} months — interest on them is estimated, not exact.`,
+    );
+    return {
+      type: "financed_addon",
+      severity: "low",
+      title: "You'll pay interest on the financed add-ons",
+      explanation: `Rolling about ${money(addOnTotal)} of add-ons into the loan means you pay interest on them too — roughly ${money(low)}–${money(high)} extra over a ${term}-month term at ${apr}%. Paying for optional products up front, or dropping them, avoids that interest.`,
+      estimatedImpact: {
+        low,
+        high,
+        confidence: "low",
+        basis:
+          "Rough estimate of interest paid on add-ons financed into the loan. Depends on your actual rate, term, and how the balance amortizes.",
+      },
+    };
+  }
+
+  // Financed, but we don't have the rate/term to quantify it → plain warning.
+  return {
+    type: "financed_addon",
+    severity: "info",
+    title: "Financed add-ons cost more after interest",
+    explanation: `About ${money(addOnTotal)} of add-ons looks financed into the loan. If so, the real cost is higher than the sticker price once interest is added. Add the APR and term for an estimate — or ask to pay optional products up front instead of financing them.`,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -1024,8 +1298,15 @@ function rollUp(
   flags: Flag[],
   warranty: WarrantyAssessment | null,
   input: FairnessInput,
-): { overallVerdict: Verdict; headline: string; confidence: Confidence } {
-  const realFlags = flags.filter((f) => f.type !== "missing_info" && f.type !== "info");
+): {
+  overallVerdict: Verdict;
+  headline: string;
+  confidence: Confidence;
+  confidenceReasons: string[];
+} {
+  // Info-severity flags (missing-info notes, legitimate government fees) are
+  // informational only — they never worsen the verdict color.
+  const realFlags = flags.filter((f) => f.severity !== "info");
   const highCount = realFlags.filter((f) => f.severity === "high").length;
   const mediumCount = realFlags.filter((f) => f.severity === "medium").length;
 
@@ -1045,6 +1326,50 @@ function rollUp(
     confidence = "medium";
   }
 
+  // Plain-language reasons so the buyer understands WHY confidence is what it is.
+  const confidenceReasons: string[] = [];
+  const d = input.deal;
+  if (input.documentUploaded) {
+    confidenceReasons.push(
+      "You uploaded your quote, so the figures came straight off the paperwork.",
+    );
+  } else {
+    confidenceReasons.push(
+      "Figures were entered by hand — double-check them against your paperwork.",
+    );
+  }
+  if (d.apr === null || d.apr === undefined) {
+    confidenceReasons.push(
+      "No APR was provided, so we couldn't check for interest-rate markup.",
+    );
+  } else {
+    confidenceReasons.push("APR provided — we checked it against your credit band.");
+  }
+  if (!d.fees || d.fees.length === 0) {
+    confidenceReasons.push(
+      "No fees were itemized — ask for a line-by-line breakdown so we can scan for padding.",
+    );
+  } else {
+    confidenceReasons.push(`${d.fees.length} fee line${d.fees.length === 1 ? "" : "s"} itemized and scanned.`);
+  }
+  if (d.creditBand && d.creditBand !== "unknown") {
+    confidenceReasons.push("Credit band given — rate comparison is sharper.");
+  } else {
+    confidenceReasons.push("Credit band unknown — rate comparison stays cautious.");
+  }
+  if (d.outsideApproval) {
+    confidenceReasons.push(
+      "You have your own financing approved — you can compare the dealer's rate directly.",
+    );
+  }
+  if (warranty) {
+    confidenceReasons.push(
+      warranty.fairRange.confidence === "high"
+        ? "Warranty coverage and term provided — the fair-price range is tighter."
+        : "Warranty details were thin — its fair-price range is kept wide.",
+    );
+  }
+
   let headline: string;
   if (overallVerdict === "red") {
     headline =
@@ -1059,7 +1384,7 @@ function rollUp(
         : "This deal looks reasonable overall.";
   }
 
-  return { overallVerdict, headline, confidence };
+  return { overallVerdict, headline, confidence, confidenceReasons };
 }
 
 // ---------------------------------------------------------------------------
@@ -1098,11 +1423,13 @@ export const VERDICT_LABEL: Record<Verdict, string> = {
  */
 export const FLAG_TYPES: FlagType[] = [
   "junk_fee",
+  "government_fee",
   "apr_markup",
   "overpriced_addon",
   "redundant_addon",
   "overpriced_warranty",
   "payment_packing",
+  "financed_addon",
   "trade_lowball",
   "negative_equity",
   "missing_info",

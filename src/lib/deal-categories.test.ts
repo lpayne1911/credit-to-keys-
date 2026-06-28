@@ -13,6 +13,7 @@ function res(flags: Flag[]): FairnessResult {
     overallVerdict: "amber",
     headline: "",
     confidence: "medium",
+    confidenceReasons: [],
     flags,
     warranty: null,
     assumptions: [],

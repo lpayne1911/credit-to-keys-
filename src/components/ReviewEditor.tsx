@@ -9,8 +9,15 @@
  */
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import type { Flag, FlagSeverity, FlagType, Verdict } from "@/lib/fairness-engine";
+import type {
+  FairnessResult,
+  Flag,
+  FlagSeverity,
+  FlagType,
+  Verdict,
+} from "@/lib/fairness-engine";
 import { VERDICT_LABEL, FLAG_TYPES } from "@/lib/fairness-engine";
+import { VerdictView, type LoanInputs } from "@/components/VerdictView";
 
 const VERDICTS: Verdict[] = ["green", "amber", "red", "black"];
 
@@ -30,11 +37,18 @@ export function ReviewEditor({
   initialVerdict,
   initialHeadline,
   initialFlags,
+  autoResult = null,
+  loan = null,
+  vehicle = null,
 }: {
   dealId: string;
   initialVerdict: Verdict;
   initialHeadline: string;
   initialFlags: Flag[];
+  /** The automatic result, so the live preview can reuse warranty / assumptions / confidence. */
+  autoResult?: FairnessResult | null;
+  loan?: LoanInputs | null;
+  vehicle?: { year?: number | null; make?: string | null; model?: string | null } | null;
 }) {
   const router = useRouter();
   const [verdict, setVerdict] = useState<Verdict>(initialVerdict);
@@ -89,6 +103,19 @@ export function ReviewEditor({
       setBusy(false);
     }
   }
+
+  // The exact FairnessResult the customer would see if published right now —
+  // built from the live edits, reusing the auto result's warranty/assumptions.
+  const previewResult: FairnessResult = {
+    overallVerdict: verdict,
+    headline: headline.trim() || "Reviewed verdict",
+    confidence: autoResult?.confidence ?? "high",
+    confidenceReasons: autoResult?.confidenceReasons ?? [],
+    flags: flags.filter((f) => f.title || f.explanation),
+    warranty: autoResult?.warranty ?? null,
+    assumptions: autoResult?.assumptions ?? [],
+    engineVersion: autoResult?.engineVersion ?? "reviewed",
+  };
 
   return (
     <div className="space-y-5">
@@ -201,6 +228,24 @@ export function ReviewEditor({
       >
         {busy ? "Publishing…" : "Publish reviewed verdict to customer"}
       </button>
+
+      {/* Live customer preview — the exact Deal-report card the buyer will see,
+          updating as the operator edits the verdict, headline, and flags. */}
+      <div className="border-t border-navy/10 pt-5">
+        <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-navy">
+          What the customer will see
+          <span className="rounded-full bg-gold/12 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-gold-dark ring-1 ring-gold/25">
+            Live preview
+          </span>
+        </p>
+        <div className="rounded-2xl border border-navy/10 bg-cream-100/50 p-3">
+          <VerdictView
+            result={previewResult}
+            loan={loan ?? undefined}
+            vehicle={vehicle ?? undefined}
+          />
+        </div>
+      </div>
     </div>
   );
 }

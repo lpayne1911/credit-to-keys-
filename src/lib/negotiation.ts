@@ -94,16 +94,30 @@ function headingFor(flag: Flag): string {
       return "Trade-in offer";
     case "negative_equity":
       return "Trade-in payoff";
+    case "government_fee":
+      return "Government fees";
     default:
       return itemName(flag);
   }
+}
+
+/** True when a fee flag is specifically about the documentation fee. */
+function isDocFee(flag: Flag): boolean {
+  return /\bdoc(ument)?/i.test(flag.title);
 }
 
 /** The line a buyer can say for one flag, by type. */
 function sayFor(flag: Flag, ctx: SayContext): string {
   const impact = impactNote(flag);
   switch (flag.type) {
+    case "government_fee":
+      return `I'll pay the actual state title and registration fees — no problem. But I need that charge itemized against my state's real cost${impact}, with any dealer-retained padding removed.`;
     case "junk_fee":
+      // Doc fees are a REAL charge (sometimes state-capped) — don't demand it be
+      // removed; ask for an equivalent price reduction instead (offset).
+      if (isDocFee(flag)) {
+        return `On the documentation fee${impact}: if it's state-regulated and can't be lowered, then reduce the car's selling price by the same amount. What I care about is the out-the-door total, not which line it sits on.`;
+      }
       return `Please take the "${itemName(flag)}" charge off${impact}. I'm not paying a fee that isn't a real cost of the car.`;
     case "overpriced_addon":
     case "redundant_addon":

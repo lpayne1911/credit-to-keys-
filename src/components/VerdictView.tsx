@@ -18,7 +18,7 @@ import {
   TYPICAL_TAX_TITLE_PCT,
 } from "@/lib/fairness-engine";
 import { compareTerm, paymentBreakdown } from "@/lib/loan-math";
-import { savingsRange } from "@/lib/verdict-summary";
+import { savingsRange, savingsBreakdown } from "@/lib/verdict-summary";
 import { NegotiationScriptCard } from "@/components/NegotiationScriptCard";
 import type {
   FeeRiskAssessment,
@@ -31,6 +31,18 @@ import {
   type DealCategory,
   type CategoryLevel,
 } from "@/lib/deal-categories";
+import { AnimatedScore } from "@/components/ui/AnimatedScore";
+import { RiskBadge, type RiskTone } from "@/components/ui/RiskBadge";
+import type { DocFeeFinding } from "@/lib/intelligence/docFeeRules";
+
+/** Map a flag severity to a RiskBadge tone for the summary chip row. */
+function severityTone(severity: string): RiskTone {
+  return severity === "high"
+    ? "danger"
+    : severity === "medium"
+      ? "warning"
+      : "neutral";
+}
 
 /** The loan numbers needed to show what financing really costs over the term. */
 export interface LoanInputs {
@@ -151,7 +163,7 @@ export function VerdictGauge({ score }: { score: number }) {
 export function dealScore(result: FairnessResult): number {
   let score = 100;
   for (const f of result.flags) {
-    if (f.type === "missing_info" || f.type === "info") continue;
+    if (f.severity === "info") continue; // info notes (incl. legit gov fees) don't dock
     score -=
       f.severity === "high" ? 22 : f.severity === "medium" ? 11 : f.severity === "low" ? 5 : 0;
   }
@@ -174,6 +186,7 @@ export function SavingsHero({ result }: { result: FairnessResult }) {
       </div>
     );
   }
+  const lines = savingsBreakdown(result);
   return (
     <div className="border-t border-navy/10 bg-white/60 px-6 py-5">
       <p className="text-[11px] font-semibold uppercase tracking-wide text-navy/55">
@@ -182,7 +195,19 @@ export function SavingsHero({ result }: { result: FairnessResult }) {
       <p className="mt-0.5 font-serif text-3xl font-bold text-gold-dark">
         {money(impact.low)}–{money(impact.high)}
       </p>
-      <p className="mt-1 text-sm text-navy/60">
+      {lines.length > 0 && (
+        <ul className="mt-3 space-y-1.5">
+          {lines.map((l, i) => (
+            <li key={i} className="flex items-baseline justify-between gap-3 text-sm">
+              <span className="text-navy/70">{l.label}</span>
+              <span className="shrink-0 font-medium tabular-nums text-navy/80">
+                {money(l.low)}–{money(l.high)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="mt-2 text-sm text-navy/60">
         If you push back on the flags below. An estimate, not a guarantee.
       </p>
     </div>
@@ -257,7 +282,71 @@ export function FlagCard({ flag }: { flag: Flag }) {
           <RangePill range={flag.estimatedImpact} />
         </div>
       )}
+      {flag.docFee && <DocFeeRulePanel finding={flag.docFee} />}
     </li>
+  );
+}
+
+/**
+ * State doc-fee intelligence attached to a documentation/processing-fee flag.
+ * Shows the verified state rule status, what it means for the buyer, the action
+ * to take, and the cited source — with confidence and limitations.
+ */
+function DocFeeRulePanel({ finding }: { finding: DocFeeFinding }) {
+  const STATUS_LABEL: Record<string, string> = {
+    within_cap: "Within known cap",
+    over_cap: "Above known cap",
+    uncapped_dealer_controlled: "No state cap",
+    disclosure_only: "Disclosure-regulated",
+    needs_research: "State rule not researched yet",
+    unverified_rule: "Possible cap — not verified yet",
+    unknown_rule: "State cap unverified (sources conflict)",
+    state_missing: "State needed to verify",
+    not_doc_fee: "",
+  };
+  const tone =
+    finding.status === "over_cap"
+      ? "border-verdict-red/30 bg-verdict-red/5"
+      : finding.status === "within_cap"
+        ? "border-verdict-green/25 bg-verdict-green/5"
+        : "border-navy/15 bg-white";
+  return (
+    <div className={`mt-3 rounded-lg border ${tone} p-3`}>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[11px] font-bold uppercase tracking-wide text-navy/55">
+          State doc-fee rule{finding.jurisdiction ? ` · ${finding.jurisdiction}` : ""}
+        </p>
+        <span className="rounded-full bg-navy-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-navy/60">
+          {STATUS_LABEL[finding.status] || finding.status}
+        </span>
+      </div>
+      <p className="mt-1.5 text-sm leading-relaxed text-navy/75">
+        {finding.explanation}
+      </p>
+      <p className="mt-1.5 text-sm leading-relaxed text-navy/75">
+        <span className="font-semibold text-gold-dark">What to do: </span>
+        {finding.action}
+      </p>
+      {finding.source?.url && (
+        <p className="mt-2 text-xs text-navy/50">
+          Source:{" "}
+          <a
+            href={finding.source.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-gold-dark underline decoration-dotted underline-offset-2"
+          >
+            {finding.source.title ?? finding.source.url}
+          </a>
+          {finding.source.type ? ` (${finding.source.type.replace(/_/g, " ")})` : ""}
+        </p>
+      )}
+      <p className="mt-1 text-[11px] text-navy/45">
+        Confidence: {finding.confidence} · {finding.verified ? "verified source" : "unverified"}
+        {finding.humanReviewRecommended ? " · human review recommended" : ""}
+        {finding.limitations ? ` — ${finding.limitations}` : ""}
+      </p>
+    </div>
   );
 }
 
@@ -423,16 +512,22 @@ export function FeeSection({
   feeFlags: Flag[];
 }) {
   const hasFlags = feeFlags.length > 0;
+  // When a flag already carries the engine's SOURCED state doc-fee rule
+  // (DocFeeRulePanel), that verified finding supersedes the registry's parallel
+  // doc-fee note — so the same cap finding never shows twice.
+  const hasSourcedDocFee = feeFlags.some((f) => f.docFee);
   // The engine's fee/add-on flags already say "this looks padded." Keep the
   // state-cap critical and the tax/title sanity note (unique context), but drop
   // the generic "padded fee" warnings when a flag already covers it — so fees
   // live in ONE place without repeating themselves.
-  const messages = (feeRisk?.messages ?? []).filter(
-    (m) =>
+  const messages = (feeRisk?.messages ?? []).filter((m) => {
+    if (hasSourcedDocFee && /doc fee|processing fee/i.test(m.title)) return false;
+    return (
       m.severity === "critical" ||
       m.severity === "info" ||
-      (m.severity === "warning" && !hasFlags),
-  );
+      (m.severity === "warning" && !hasFlags)
+    );
+  });
   const lineItems = feeRisk?.lineItems ?? [];
   if (!hasFlags && messages.length === 0 && lineItems.length === 0) return null;
 
@@ -622,12 +717,16 @@ export function VerdictView({
   vehicle,
   loan,
   feeRisk,
+  expandDetails = false,
 }: {
   result: FairnessResult;
   reviewedNote?: string | null;
   vehicle?: { year?: number | null; make?: string | null; model?: string | null };
   loan?: LoanInputs | null;
   feeRisk?: FeeRiskAssessment | null;
+  /** When true, the red-flags / breakdown disclosure renders open (used by the
+   *  public sample report so the full evidence is visible without a tap). */
+  expandDetails?: boolean;
 }) {
   const s = VERDICT_STYLES[result.overallVerdict];
   // A "walk away" verdict pins the score to the bottom regardless of how many
@@ -640,6 +739,9 @@ export function VerdictView({
     (a, b) =>
       (SEVERITY_ORDER[a.severity] ?? 9) - (SEVERITY_ORDER[b.severity] ?? 9),
   );
+  // Partition by TYPE so fees live in their own "Fees & add-ons" section and the
+  // price/payment flags stay in the main list. `missing_info`/`info` types are
+  // surfaced separately as non-verdict notes (never shown as red flags).
   const { general: realFlags, fees: feeFlags } = partitionVerdictFlags(sortedFlags);
   const issueCount = realFlags.length + feeFlags.length;
   const infoFlags = sortedFlags.filter(
@@ -648,24 +750,41 @@ export function VerdictView({
 
   return (
     <div className="space-y-6">
-      {/* Overall verdict — the KBB-style "report" header */}
-      <div className={`overflow-hidden rounded-2xl ${s.bg} ring-1 ${s.ring}`}>
+      {/* Overall verdict — the premium "Deal report" card, matching the
+          landing-page mockup: window chrome, animated score, gauge, risk
+          chips, and the value-forward savings number. */}
+      <div className="overflow-hidden rounded-2xl glass">
+        {/* verdict-color accent line */}
+        <div className={`h-1.5 w-full ${s.dot}`} />
+        {/* window chrome */}
+        <div className="flex items-center justify-between border-b border-navy/10 bg-white/50 px-5 py-2.5">
+          <div className="flex items-center gap-1.5" aria-hidden>
+            <span className="h-2.5 w-2.5 rounded-full bg-flag-red/70" />
+            <span className="h-2.5 w-2.5 rounded-full bg-verdict-amber/80" />
+            <span className="h-2.5 w-2.5 rounded-full bg-flag-green/80" />
+          </div>
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-slate">
+            Deal report
+          </span>
+        </div>
+
         <div className="p-6">
           {vehicleName && (
-            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-navy/45">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate">
               {vehicleName}
             </p>
           )}
           <div className="flex items-end justify-between gap-3">
             <div>
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-navy/50">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate">
                 Deal score
               </span>
               <div className="flex items-baseline gap-1">
-                <span className={`font-serif text-5xl font-bold leading-none ${s.text}`}>
-                  {score}
-                </span>
-                <span className="text-lg font-semibold text-navy/35">/100</span>
+                <AnimatedScore
+                  value={score}
+                  className={`font-serif text-6xl font-bold leading-none tabular-nums ${s.text}`}
+                />
+                <span className="text-xl font-semibold text-navy/35">/100</span>
               </div>
             </div>
             <div className="flex flex-col items-end gap-2">
@@ -677,8 +796,26 @@ export function VerdictView({
           <h2 className={`mt-5 font-serif text-2xl font-semibold ${s.text}`}>
             {result.headline}
           </h2>
+
+          {/* Risk-flag chips — the at-a-glance summary, with the evidence one
+              tap away in the breakdown below. */}
+          {realFlags.length > 0 && (
+            <div className="mt-4">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate">
+                Risk flags
+              </p>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {realFlags.slice(0, 6).map((f, i) => (
+                  <RiskBadge key={i} tone={severityTone(f.severity)} wrap>
+                    {f.title}
+                  </RiskBadge>
+                ))}
+              </div>
+            </div>
+          )}
+
           {reviewedNote && (
-            <p className="mt-3 rounded-lg bg-white/70 px-3 py-2 text-sm text-navy/75">
+            <p className="mt-4 rounded-lg bg-white/70 px-3 py-2 text-sm text-navy/75">
               <span className="font-semibold">Reviewed by a human advocate:</span>{" "}
               {reviewedNote}
             </p>
@@ -697,7 +834,10 @@ export function VerdictView({
           and assumptions all live one tap away so the verdict + script lead.
           The script already enumerates every issue as an action; this is the
           evidence and the math behind it. */}
-      <details className="group overflow-hidden rounded-2xl border border-navy/10 bg-white">
+      <details
+        open={expandDetails}
+        className="group overflow-hidden rounded-2xl border border-navy/10 bg-white"
+      >
         <summary className="flex cursor-pointer list-none items-center justify-between px-5 py-4 text-sm font-semibold text-navy hover:bg-cream-100">
           <span>
             {issueCount > 0
@@ -763,6 +903,20 @@ export function VerdictView({
                     <span className="font-medium text-navy/80">{f.title}.</span>{" "}
                     {f.explanation}
                   </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {result.confidenceReasons && result.confidenceReasons.length > 0 && (
+            <div>
+              <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-navy/50">
+                Why we&apos;re {result.confidence} confidence
+                <ConfidenceBadge level={result.confidence} />
+              </h3>
+              <ul className="list-disc space-y-1.5 pl-5 text-xs text-navy/65">
+                {result.confidenceReasons.map((r, i) => (
+                  <li key={i}>{r}</li>
                 ))}
               </ul>
             </div>

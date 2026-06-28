@@ -42,6 +42,10 @@ export const dealSubmissionSchema = z.object({
       termMonths: numLike,
       monthlyPayment: numLike,
       creditBand: z.string().max(40).optional(),
+      outsideApproval: z.boolean().optional(),
+      addOnsFinanced: z.boolean().optional(),
+      addOnApr: numLike,
+      addOnTermMonths: numLike,
     })
     .optional(),
   warranty: z
@@ -50,6 +54,7 @@ export const dealSubmissionSchema = z.object({
       coverageTier: z.string().max(40).optional(),
       termMonths: numLike,
       termMiles: numLike,
+      deductible: numLike,
       priceQuoted: numLike,
     })
     .optional(),
@@ -60,6 +65,8 @@ export const dealSubmissionSchema = z.object({
       loanPayoff: numLike,
     })
     .optional(),
+  buyerState: z.string().max(8).optional(),
+  alreadySigned: z.boolean().optional(),
   // Internal location signal (not a scoring input). ZIP-derived; never shown to
   // the buyer. Optional so it never blocks a submission.
   location: z

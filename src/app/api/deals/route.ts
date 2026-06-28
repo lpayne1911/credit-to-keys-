@@ -33,17 +33,34 @@ export async function POST(req: Request) {
 
   const input = toFairnessInput(body);
 
-  // Require at least a vehicle make/model so we aren't scoring an empty form.
-  if (!input.vehicle.make && !input.vehicle.model) {
+  // Require SOME substantive input so we aren't scoring an empty form — but the
+  // focused checks (APR, add-ons) legitimately have no vehicle make/model, so we
+  // accept any meaningful signal: a vehicle, loan numbers, fees, or a warranty.
+  const hasSubstance = Boolean(
+    input.vehicle.make ||
+      input.vehicle.model ||
+      input.deal.apr != null ||
+      input.deal.vehiclePrice != null ||
+      input.deal.monthlyPayment != null ||
+      (input.deal.fees && input.deal.fees.length > 0) ||
+      (input.warranty &&
+        (input.warranty.priceQuoted != null ||
+          (input.warranty.coverageTier && input.warranty.coverageTier !== "unknown"))) ||
+      input.tradeIn,
+  );
+  if (!hasSubstance) {
     return NextResponse.json(
-      { error: "Please enter at least the vehicle make and model." },
+      { error: "Please enter at least one detail about your deal." },
       { status: 422 },
     );
   }
 
   const result = scoreDeal(input);
-  // Parallel, state-aware fee-risk channel (never feeds the score).
-  const feeRisk = reviewFees(input.deal.fees ?? [], body.location?.state ?? null);
+  // Parallel, state-aware fee-risk channel (never feeds the score). Prefer the
+  // buyer's explicit state, falling back to the ZIP-derived location signal —
+  // matching how `buyer_state` is resolved for persistence in toDealRow.
+  const feeRiskState = body.buyerState || body.location?.state || null;
+  const feeRisk = reviewFees(input.deal.fees ?? [], feeRiskState);
 
   const supabase = getServiceClient();
   if (!supabase) {

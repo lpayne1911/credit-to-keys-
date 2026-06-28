@@ -18,7 +18,13 @@ const inter = Inter({
   display: "swap",
 });
 
+// Canonical/OG base URL. Set NEXT_PUBLIC_SITE_URL in the deploy env (e.g.
+// https://driveway-advocate.com) so link previews + canonical URLs resolve.
+// Left undefined when unset rather than hardcoding a wrong domain.
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+
 export const metadata: Metadata = {
+  ...(siteUrl ? { metadataBase: new URL(siteUrl) } : {}),
   title: "Driveway Advocate — Is your car deal fair?",
   description:
     "Tap through a few questions or snap your dealer quote and get a clear, buyer-side Deal Score before you sign — with every red flag explained. The KBB for car deals and extended warranties.",

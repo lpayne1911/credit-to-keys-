@@ -90,6 +90,7 @@ describe("VerdictView renders", () => {
     });
     expect(html).toContain("Deal score");
     expect(html).toContain("What to say at the desk");
-    expect(html).toContain("tripped a flag");
+    // Clean-deal reassurance renders (no crash, honest "nothing jumped out").
+    expect(html).toContain("Nothing jumped out as a red flag");
   });
 });

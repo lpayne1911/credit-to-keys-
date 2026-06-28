@@ -20,26 +20,22 @@ import type { FairnessResult } from "@/lib/fairness-engine";
 import type { FeeRiskAssessment } from "@/lib/fee-classifier";
 import type { DealSubmission } from "@/lib/deal-mapper";
 import {
-  STEPS,
-  PROGRESS_STEPS,
-  progressPercent,
   continueEnabled,
+  stepsForFocus,
   type StepKey,
+  type Focus,
 } from "@/lib/deal-check-flow";
 import { VerdictView } from "@/components/VerdictView";
 import { VinAutofill } from "@/components/vehicle/VinAutofill";
 import type { DecodedVehicle } from "@/lib/vin";
 import { deriveZipContext } from "@/lib/zip-context";
+import { WARRANTY_DISPLAY_GROUPS } from "@/lib/warranty/warranty-catalog";
+import { VehicleSelector } from "@/components/vehicle/VehicleSelector";
+import { normalizeMake } from "@/lib/vehicles/vehicle-catalog";
 
 /* ---------------------------------------------------------------------------
  *  Tap data
  * ------------------------------------------------------------------------- */
-
-const MAKES = [
-  "Toyota", "Honda", "Ford", "Chevrolet", "Nissan", "Hyundai",
-  "Kia", "Jeep", "Subaru", "Mazda", "GMC", "RAM",
-  "BMW", "Mercedes", "Tesla", "VW",
-];
 
 const CREDIT_BANDS = [
   { value: "excellent", label: "Excellent", hint: "720+", emoji: "🟢" },
@@ -60,6 +56,36 @@ const COVERAGE_TIERS = [
 ];
 
 const WARRANTY_TERMS = [36, 48, 60, 72];
+
+/** US states + DC. Used for state-aware copy now and fee caps later. */
+const US_STATES: { code: string; name: string }[] = [
+  { code: "AL", name: "Alabama" }, { code: "AK", name: "Alaska" },
+  { code: "AZ", name: "Arizona" }, { code: "AR", name: "Arkansas" },
+  { code: "CA", name: "California" }, { code: "CO", name: "Colorado" },
+  { code: "CT", name: "Connecticut" }, { code: "DE", name: "Delaware" },
+  { code: "DC", name: "District of Columbia" }, { code: "FL", name: "Florida" },
+  { code: "GA", name: "Georgia" }, { code: "HI", name: "Hawaii" },
+  { code: "ID", name: "Idaho" }, { code: "IL", name: "Illinois" },
+  { code: "IN", name: "Indiana" }, { code: "IA", name: "Iowa" },
+  { code: "KS", name: "Kansas" }, { code: "KY", name: "Kentucky" },
+  { code: "LA", name: "Louisiana" }, { code: "ME", name: "Maine" },
+  { code: "MD", name: "Maryland" }, { code: "MA", name: "Massachusetts" },
+  { code: "MI", name: "Michigan" }, { code: "MN", name: "Minnesota" },
+  { code: "MS", name: "Mississippi" }, { code: "MO", name: "Missouri" },
+  { code: "MT", name: "Montana" }, { code: "NE", name: "Nebraska" },
+  { code: "NV", name: "Nevada" }, { code: "NH", name: "New Hampshire" },
+  { code: "NJ", name: "New Jersey" }, { code: "NM", name: "New Mexico" },
+  { code: "NY", name: "New York" }, { code: "NC", name: "North Carolina" },
+  { code: "ND", name: "North Dakota" }, { code: "OH", name: "Ohio" },
+  { code: "OK", name: "Oklahoma" }, { code: "OR", name: "Oregon" },
+  { code: "PA", name: "Pennsylvania" }, { code: "RI", name: "Rhode Island" },
+  { code: "SC", name: "South Carolina" }, { code: "SD", name: "South Dakota" },
+  { code: "TN", name: "Tennessee" }, { code: "TX", name: "Texas" },
+  { code: "UT", name: "Utah" }, { code: "VT", name: "Vermont" },
+  { code: "VA", name: "Virginia" }, { code: "WA", name: "Washington" },
+  { code: "WV", name: "West Virginia" }, { code: "WI", name: "Wisconsin" },
+  { code: "WY", name: "Wyoming" },
+];
 
 /**
  * The "no typing" centrepiece: a gallery of the add-ons the fairness engine
@@ -84,12 +110,10 @@ const ADD_ONS: AddOn[] = [
 
 type State = {
   make: string;
-  makeOther: string;
-  // Optional VIN (autofill). vinModel/vinTrim carry decode-only fields the
-  // tap flow doesn't otherwise collect, so they can persist.
+  model: string;
+  trim: string;
   vin: string;
-  vinModel: string;
-  vinTrim: string;
+  buyerState: string;
   // Optional ZIP — internal location signal, never shown back to the buyer.
   zip: string;
   year: number;
@@ -112,16 +136,17 @@ type State = {
   tradeValue: number;
   tradeStillOwe: boolean;
   tradePayoff: number;
+  warrantyFromUpload: boolean;
 };
 
 const NOW = new Date().getFullYear();
 
 const INITIAL: State = {
   make: "",
-  makeOther: "",
+  model: "",
+  trim: "",
   vin: "",
-  vinModel: "",
-  vinTrim: "",
+  buyerState: "",
   zip: "",
   year: NOW - 3,
   mileage: 40_000,
@@ -143,6 +168,7 @@ const INITIAL: State = {
   tradeValue: 10_000,
   tradeStillOwe: false,
   tradePayoff: 9_000,
+  warrantyFromUpload: false,
 };
 
 type Cta = { label: string; onClick: () => void; enabled: boolean };
@@ -151,7 +177,7 @@ type Cta = { label: string; onClick: () => void; enabled: boolean };
  *  Component
  * ------------------------------------------------------------------------- */
 
-export function GamifiedDealCheck() {
+export function GamifiedDealCheck({ focus = "full" }: { focus?: Focus } = {}) {
   const router = useRouter();
   const [stepIdx, setStepIdx] = useState(0);
   const [s, setS] = useState<State>(INITIAL);
@@ -162,15 +188,20 @@ export function GamifiedDealCheck() {
   const [parsing, setParsing] = useState(false);
   const [uploadedPath, setUploadedPath] = useState<string | null>(null);
 
-  const step = STEPS[stepIdx];
+  // The focused product routes (/warranty-check, /apr-check, /add-on-check)
+  // reuse this flow but only walk the steps relevant to their intent.
+  const steps = stepsForFocus(focus);
+  const step = steps[stepIdx];
+  const isLastStep = stepIdx === steps.length - 1;
   const set = <K extends keyof State>(k: K, v: State[K]) =>
     setS((prev) => ({ ...prev, [k]: v }));
 
-  const percent = progressPercent(stepIdx);
+  const percent =
+    stepIdx <= 0 ? 0 : Math.round((Math.min(stepIdx, steps.length - 1) / (steps.length - 1)) * 100);
 
   function next() {
     setError(null);
-    setStepIdx((i) => Math.min(i + 1, STEPS.length - 1));
+    setStepIdx((i) => Math.min(i + 1, steps.length - 1));
   }
   function back() {
     setError(null);
@@ -178,19 +209,22 @@ export function GamifiedDealCheck() {
   }
 
   // VIN autofill (optional): VIN is authoritative for the year and supplies the
-  // model/trim the tap flow doesn't otherwise collect. Make is already chosen on
-  // the brand step, so it's only filled if somehow empty — never clobbered.
+  // make/model/trim. We fill ONLY empty fields, so an explicit VehicleSelector
+  // choice on the brand step is never clobbered.
   function applyVin(d: DecodedVehicle) {
     setS((prev) => ({
       ...prev,
       year: d.year ?? prev.year,
       make: prev.make || (d.make ?? ""),
-      vinModel: d.model ?? prev.vinModel,
-      vinTrim: d.trim ?? prev.vinTrim,
+      model: prev.model || (d.model ?? ""),
+      trim: prev.trim || (d.trim ?? ""),
     }));
   }
 
-  /* ----- submission ----- */
+  /* ----- submission -----
+     Focus-aware: a focused check only submits the data it actually collected, so
+     unselected fields never reach the engine as defaults and produce spurious
+     flags (e.g. a warranty-only check must not flag a "marked-up APR"). */
   function buildSubmission(): DealSubmission {
     const fees = Object.entries(s.addOns).map(([key, v]) => {
       const def = ADD_ONS.find((a) => a.key === key);
@@ -198,31 +232,50 @@ export function GamifiedDealCheck() {
     });
     // Internal-only location signal (ZIP-derived). Never shown back to the buyer.
     const zc = s.zip ? deriveZipContext(s.zip) : null;
+    const vehicle = {
+      year: s.year,
+      make: s.make,
+      model: s.model,
+      trim: s.trim,
+      vin: s.vin,
+      mileage: s.mileage,
+    };
+    const warranty = s.hasWarranty
+      ? {
+          coverageTier: s.warrantyCoverageTier,
+          termMonths: s.warrantyTermMonths,
+          priceQuoted: s.warrantyPrice,
+        }
+      : undefined;
+    const financing = {
+      vehiclePrice: s.vehiclePrice,
+      downPayment: s.downPayment,
+      apr: s.apr,
+      termMonths: s.termMonths,
+      monthlyPayment: s.hasPayment ? s.monthlyPayment : undefined,
+      creditBand: s.creditBand || "unknown",
+    };
+    const meta = {
+      inputPath: (uploadedPath ? "upload" : "manual") as "upload" | "manual",
+      uploadedFilePath: uploadedPath ?? undefined,
+      buyerState: s.buyerState || undefined,
+      // Internal-only location signal (ZIP-derived). Never scored, never shown.
+      location: zc ? { zip: zc.zip, state: zc.state ?? undefined } : undefined,
+    };
+
+    if (focus === "warranty") {
+      return { vehicle, deal: { creditBand: "unknown", fees: [] }, warranty, ...meta };
+    }
+    if (focus === "apr") {
+      return { vehicle, deal: { ...financing, fees: [] }, ...meta };
+    }
+    if (focus === "addons") {
+      return { vehicle, deal: { creditBand: "unknown", fees }, warranty, ...meta };
+    }
     return {
-      vehicle: {
-        year: s.year,
-        make: s.make === "Other" ? s.makeOther : s.make === "VW" ? "Volkswagen" : s.make,
-        model: s.vinModel || "",
-        trim: s.vinTrim || undefined,
-        mileage: s.mileage,
-        vin: s.vin.trim() || undefined,
-      },
-      deal: {
-        vehiclePrice: s.vehiclePrice,
-        downPayment: s.downPayment,
-        apr: s.apr,
-        termMonths: s.termMonths,
-        monthlyPayment: s.hasPayment ? s.monthlyPayment : undefined,
-        creditBand: s.creditBand || "unknown",
-        fees,
-      },
-      warranty: s.hasWarranty
-        ? {
-            coverageTier: s.warrantyCoverageTier,
-            termMonths: s.warrantyTermMonths,
-            priceQuoted: s.warrantyPrice,
-          }
-        : undefined,
+      vehicle,
+      deal: { ...financing, fees },
+      warranty,
       tradeIn: s.hasTrade
         ? {
             offer: s.tradeOffer,
@@ -230,9 +283,7 @@ export function GamifiedDealCheck() {
             loanPayoff: s.tradeStillOwe ? s.tradePayoff : undefined,
           }
         : undefined,
-      location: zc ? { zip: zc.zip, state: zc.state ?? undefined } : undefined,
-      inputPath: uploadedPath ? "upload" : "manual",
-      uploadedFilePath: uploadedPath ?? undefined,
+      ...meta,
     };
   }
 
@@ -285,6 +336,9 @@ export function GamifiedDealCheck() {
         ...prev,
         year: numOr(ex.year, prev.year),
         make: matchMake(ex.make) ?? prev.make,
+        model: strOr(ex.model, prev.model),
+        trim: strOr(ex.trim, prev.trim),
+        vin: strOr(ex.vin, prev.vin),
         mileage: numOr(ex.mileage, prev.mileage),
         vehiclePrice: numOr(ex.vehiclePrice, prev.vehiclePrice),
         apr: numOr(ex.apr, prev.apr),
@@ -293,6 +347,7 @@ export function GamifiedDealCheck() {
         hasPayment: ex.monthlyPayment ? true : prev.hasPayment,
         warrantyPrice: numOr(ex.warrantyPrice, prev.warrantyPrice),
         hasWarranty: ex.warrantyPrice ? true : prev.hasWarranty,
+        warrantyFromUpload: ex.warrantyPrice ? true : prev.warrantyFromUpload,
         addOns: Array.isArray(ex.fees) ? feesToAddOns(ex.fees) : prev.addOns,
       }));
       setUploadedPath(data.uploadedFilePath ?? null);
@@ -308,18 +363,33 @@ export function GamifiedDealCheck() {
      The `enabled` gate comes from the shared, tested `continueEnabled`; only the
      label/action are UI concerns that stay here. */
   function cta(): Cta | null {
+    // On the final step of any (focused or full) flow, the button submits.
+    const verdict = (enabled: boolean): Cta => ({
+      label: "See my verdict →",
+      onClick: submit,
+      enabled,
+    });
     switch (step) {
       case "brand":
       case "specs":
+      case "state":
       case "price":
       case "financing":
-        return { label: "Continue", onClick: next, enabled: continueEnabled(step, s) };
+        return isLastStep
+          ? verdict(continueEnabled(step, s))
+          : { label: "Continue", onClick: next, enabled: continueEnabled(step, s) };
       case "addons":
-        return {
-          label: Object.keys(s.addOns).length ? "Continue" : "None of these — continue",
-          onClick: next,
-          enabled: continueEnabled(step, s),
-        };
+        return isLastStep
+          ? {
+              label: Object.keys(s.addOns).length ? "See my verdict →" : "None of these — see my verdict →",
+              onClick: submit,
+              enabled: true,
+            }
+          : {
+              label: Object.keys(s.addOns).length ? "Continue" : "None of these — continue",
+              onClick: next,
+              enabled: continueEnabled(step, s),
+            };
       case "trade":
         return {
           label: s.hasTrade ? "Continue" : "No trade — continue",
@@ -327,7 +397,7 @@ export function GamifiedDealCheck() {
           enabled: continueEnabled(step, s),
         };
       case "warranty":
-        return { label: "See my verdict →", onClick: submit, enabled: continueEnabled(step, s) };
+        return verdict(continueEnabled(step, s));
       default:
         return null; // start + credit auto-advance on tap
     }
@@ -355,7 +425,7 @@ export function GamifiedDealCheck() {
               feeRisk={inlineFeeRisk}
               vehicle={{
                 year: s.year,
-                make: s.make === "Other" ? s.makeOther : s.make === "VW" ? "Volkswagen" : s.make,
+                make: s.make,
               }}
               loan={{
                 vehiclePrice: s.vehiclePrice,
@@ -376,7 +446,7 @@ export function GamifiedDealCheck() {
   if (submitting) {
     return (
       <AppShell>
-        <TopBar showProgress percent={100} stepIdx={PROGRESS_STEPS} onBack={() => {}} hideBack />
+        <TopBar showProgress percent={100} stepIdx={steps.length - 1} onBack={() => {}} hideBack />
         <Center>
           <Analyzing />
         </Center>
@@ -398,34 +468,35 @@ export function GamifiedDealCheck() {
 
       <Center key={step}>
         <div className="animate-step-in">
-          {step === "start" && <StartStep parsing={parsing} onTap={next} onFile={handleParse} />}
+          {step === "start" && (
+            <StartStep
+              parsing={parsing}
+              onTap={next}
+              onFile={handleParse}
+              focus={focus}
+            />
+          )}
 
           {step === "brand" && (
-            <Step title="What are you buying?" sub="Tap the brand. One thing at a time.">
-              <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-                {[...MAKES, "Other"].map((m) => (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => {
-                      set("make", m);
-                      if (m !== "Other") next();
-                    }}
-                    className={`pill !rounded-xl py-3 ${s.make === m ? "pill--on" : ""}`}
-                  >
-                    {m}
-                  </button>
-                ))}
-              </div>
-              {s.make === "Other" && (
+            <Step title="What are you buying?" sub="Pick the make, then the model. Not sure? Choose “I don't know” — it's optional.">
+              <VehicleSelector
+                value={{ make: s.make, model: s.model, trim: s.trim }}
+                onChange={(v) => {
+                  set("make", v.make ?? "");
+                  set("model", v.model ?? "");
+                  set("trim", v.trim ?? "");
+                }}
+              />
+              <label className="mt-3 block">
+                <span className="field-label">VIN <span className="font-normal text-navy/40">(optional)</span></span>
                 <input
-                  autoFocus
-                  className="field-input mt-3"
-                  placeholder="Type the brand"
-                  value={s.makeOther}
-                  onChange={(e) => set("makeOther", e.target.value)}
+                  className="field-input font-mono uppercase"
+                  placeholder="17 characters, off the windshield or paperwork"
+                  maxLength={17}
+                  value={s.vin}
+                  onChange={(e) => set("vin", e.target.value.toUpperCase())}
                 />
-              )}
+              </label>
             </Step>
           )}
 
@@ -449,6 +520,31 @@ export function GamifiedDealCheck() {
                   </div>
                 </details>
               </div>
+            </Step>
+          )}
+
+          {step === "state" && (
+            <Step title="What state are you buying in?" sub="Fees, taxes, and doc-fee caps vary by state. We use this to tailor what's normal where you are. Not sure yet? Just continue.">
+              <label className="block">
+                <span className="field-label">State</span>
+                <select
+                  className="field-input"
+                  value={s.buyerState}
+                  onChange={(e) => set("buyerState", e.target.value)}
+                >
+                  <option value="">Select your state (optional)</option>
+                  {US_STATES.map((st) => (
+                    <option key={st.code} value={st.code}>{st.name}</option>
+                  ))}
+                </select>
+              </label>
+              {s.buyerState && (
+                <p className="mt-3 text-sm text-navy/55">
+                  We&apos;ll flag fees against {US_STATES.find((x) => x.code === s.buyerState)?.name ?? "your state"}
+                  &apos;s norms. Government title &amp; registration fees are legitimate — we only push back on
+                  dealer-retained padding.
+                </p>
+              )}
             </Step>
           )}
 
@@ -653,7 +749,7 @@ export function GamifiedDealCheck() {
           )}
 
           {step === "warranty" && (
-            <Step title="Extended warranty offered?" sub="The finance office's biggest markup. Let's price-check it.">
+            <Step title="Did they offer a warranty, service contract, protection plan, or mechanical breakdown coverage?" sub="Dealers use many names for this: VSC, extended service plan, vehicle protection plan, mechanical breakdown coverage, Honda Care, Mopar Maximum Care, Zurich, Endurance, CarShield, and more. It's the finance office's biggest markup — let's price-check it.">
               <div className="grid grid-cols-2 gap-2.5">
                 <button type="button" onClick={() => set("hasWarranty", false)}
                   className={`choice justify-center !py-5 ${s.hasWarranty === false ? "choice--on" : ""}`}>
@@ -664,6 +760,20 @@ export function GamifiedDealCheck() {
                   <span className="font-semibold text-navy">Yes, they did</span>
                 </button>
               </div>
+
+              {s.warrantyFromUpload && (
+                <div className="mt-4 rounded-xl border border-gold/40 bg-gold/5 px-4 py-3">
+                  <p className="text-sm font-semibold text-navy">
+                    📄 We spotted a service contract on your quote{s.warrantyPrice ? ` (about ${money(s.warrantyPrice)})` : ""}.
+                  </p>
+                  <p className="mt-1 text-sm text-navy/65">
+                    Please confirm the coverage, length, and price below before we score it — adjust anything we misread.
+                  </p>
+                </div>
+              )}
+
+              <ServiceContractNames />
+
               {s.hasWarranty && (
                 <div className="mt-7 space-y-7 animate-step-in">
                   <div>
@@ -719,7 +829,17 @@ export function GamifiedDealCheck() {
  * ======================================================================== */
 
 function AppShell({ children }: { children: React.ReactNode }) {
-  return <div className="flex min-h-[100dvh] flex-col bg-cream">{children}</div>;
+  return (
+    <div className="relative flex min-h-[100dvh] flex-col overflow-x-clip bg-cream">
+      {/* subtle layered background, matching the landing aesthetic */}
+      <div aria-hidden className="pointer-events-none absolute inset-0">
+        <div className="absolute inset-0 bg-grid opacity-30" />
+        <div className="orb -left-20 top-0 h-64 w-64 bg-gold/12" />
+        <div className="orb right-[-5rem] top-1/3 h-72 w-72 bg-paleblue/50" />
+      </div>
+      <div className="relative z-[1] flex min-h-[100dvh] flex-col">{children}</div>
+    </div>
+  );
 }
 
 /** Vertically-centered, scrollable content region. */
@@ -756,7 +876,7 @@ function TopBar({
   hideBack?: boolean;
 }) {
   return (
-    <header className="sticky top-0 z-10 bg-cream/90 backdrop-blur">
+    <header className="sticky top-0 z-10 bg-cream/70 backdrop-blur-xl supports-[backdrop-filter]:bg-cream/55">
       <div className="flex h-14 items-center justify-between px-3">
         {hideBack ? (
           <span className="w-9" />
@@ -788,7 +908,7 @@ function TopBar({
 
 function Footer({ children }: { children: React.ReactNode }) {
   return (
-    <footer className="sticky bottom-0 z-10 border-t border-navy/10 bg-cream/90 px-5 pb-[calc(env(safe-area-inset-bottom)+0.875rem)] pt-3.5 backdrop-blur">
+    <footer className="sticky bottom-0 z-10 border-t border-navy/10 bg-cream/80 px-5 pb-[calc(env(safe-area-inset-bottom)+0.875rem)] pt-3.5 backdrop-blur-xl">
       <div className="mx-auto w-full max-w-md">
         {children}
         <p className="mt-2 text-center text-[11px] text-navy/40">
@@ -813,23 +933,78 @@ function Step({ title, sub, children }: { title: string; sub?: string; children:
   );
 }
 
+/**
+ * Reassurance for the warranty step: dealers sell the same service contract
+ * under dozens of names, so we spell them out. The point is that ANY buyer
+ * recognizes their product here and knows to price-check it — they shouldn't
+ * have to know it's technically a "vehicle service contract."
+ */
+function ServiceContractNames() {
+  return (
+    <details className="mt-4 rounded-xl border border-navy/10 bg-white/60 px-4 py-3">
+      <summary className="cursor-pointer list-none text-sm font-semibold text-gold-dark">
+        Not sure if you got one? See the names it goes by →
+      </summary>
+      <div className="mt-3 space-y-3">
+        {WARRANTY_DISPLAY_GROUPS.map((g) => (
+          <div key={g.label}>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-navy/45">
+              {g.label}
+            </p>
+            <p className="mt-0.5 text-sm leading-relaxed text-navy/70">
+              {g.names.join(" · ")}
+            </p>
+          </div>
+        ))}
+        <p className="text-xs text-navy/50">
+          See any of these on your paperwork (or anything like them)? Tap
+          &ldquo;Yes&rdquo; above and enter the price — we&apos;ll price-check it.
+        </p>
+      </div>
+    </details>
+  );
+}
+
+/** Per-focus intro copy so each product route opens tailored to the intent. */
+const START_COPY: Record<Focus, { title: string; sub: string }> = {
+  full: {
+    title: "Let's check your deal.",
+    sub: "One quick question at a time. No forms, about a minute.",
+  },
+  warranty: {
+    title: "Let's price-check your warranty.",
+    sub: "Just a few questions about the service contract — not the whole deal. About 30 seconds.",
+  },
+  apr: {
+    title: "Let's check your rate & payment.",
+    sub: "A few questions about the financing — not the whole deal. About 30 seconds.",
+  },
+  addons: {
+    title: "Let's review your add-ons & fees.",
+    sub: "Tap the dealer fees and F&I add-ons on your paperwork. About 30 seconds.",
+  },
+};
+
 function StartStep({
   parsing,
   onTap,
   onFile,
+  focus = "full",
 }: {
   parsing: boolean;
   onTap: () => void;
   onFile: (f: File) => void;
+  focus?: Focus;
 }) {
+  const copy = START_COPY[focus];
+  // Upload is the deal-inspector's superpower; the focused checks are quick taps.
+  const showUpload = focus === "full";
   return (
     <div>
       <h1 className="font-serif text-[1.9rem] font-semibold leading-tight text-navy">
-        Let&apos;s check your deal.
+        {copy.title}
       </h1>
-      <p className="mt-2 text-[15px] text-navy/60">
-        One quick question at a time. No forms, about a minute.
-      </p>
+      <p className="mt-2 text-[15px] text-navy/60">{copy.sub}</p>
       <div className="mt-8">
         <button
           type="button"
@@ -840,30 +1015,32 @@ function StartStep({
           Start — it&apos;s free →
         </button>
       </div>
-      <div className="mt-5 text-center">
-        <label
-          className={`inline-flex items-center gap-2 text-sm font-semibold ${
-            parsing ? "text-navy/40" : "cursor-pointer text-gold-dark hover:underline"
-          }`}
-        >
-          {parsing ? "⏳ Reading your quote…" : "📸 Or snap a photo of the quote"}
-          <input
-            type="file"
-            accept="image/*,application/pdf"
-            className="sr-only"
-            disabled={parsing}
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) onFile(f);
-            }}
-          />
-        </label>
-        <p className="mt-1 text-xs text-navy/45">
-          {parsing
-            ? "Pulling the numbers — you'll confirm them next."
-            : "Photo or PDF — takes a few extra seconds."}
-        </p>
-      </div>
+      {showUpload && (
+        <div className="mt-5 text-center">
+          <label
+            className={`inline-flex items-center gap-2 text-sm font-semibold ${
+              parsing ? "text-navy/40" : "cursor-pointer text-gold-dark hover:underline"
+            }`}
+          >
+            {parsing ? "⏳ Reading your quote…" : "📸 Or snap a photo of the quote"}
+            <input
+              type="file"
+              accept="image/*,application/pdf"
+              className="sr-only"
+              disabled={parsing}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) onFile(f);
+              }}
+            />
+          </label>
+          <p className="mt-1 text-xs text-navy/45">
+            {parsing
+              ? "Pulling the numbers — you'll confirm them next."
+              : "Photo or PDF — takes a few extra seconds."}
+          </p>
+        </div>
+      )}
     </div>
   );
 }
@@ -874,18 +1051,52 @@ function Slider({
   label: string; value: number; min: number; max: number; step: number;
   onChange: (v: number) => void; format: (v: number) => string; big?: boolean;
 }) {
+  // Manual numeric fallback: tap the value to type an exact number. The slider
+  // is fast but coarse; some buyers know the precise figure off their paperwork.
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+  function commit() {
+    const n = Number(draft.replace(/[^0-9.\-]/g, ""));
+    if (Number.isFinite(n) && draft.trim() !== "") {
+      onChange(Math.min(max, Math.max(min, n)));
+    }
+    setEditing(false);
+  }
   return (
     <div>
-      <div className="mb-2 flex items-baseline justify-between">
+      <div className="mb-2 flex items-baseline justify-between gap-2">
         <span className="field-label !mb-0">{label}</span>
-        <span className={`font-serif font-semibold text-navy ${big ? "text-3xl" : "text-xl"}`}>
-          {format(value)}
-        </span>
+        {editing ? (
+          <input
+            type="number"
+            autoFocus
+            inputMode="decimal"
+            aria-label={`${label} — type exact value`}
+            className={`w-32 rounded-lg border border-gold/50 bg-white px-2 py-1 text-right font-serif font-semibold text-navy ${big ? "text-2xl" : "text-lg"}`}
+            defaultValue={value}
+            min={min}
+            max={max}
+            step={step}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={commit}
+            onKeyDown={(e) => { if (e.key === "Enter") commit(); }}
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={() => { setDraft(String(value)); setEditing(true); }}
+            aria-label={`${label} is ${format(value)} — tap to type an exact value`}
+            className={`font-serif font-semibold text-navy underline decoration-dotted decoration-navy/30 underline-offset-4 ${big ? "text-3xl" : "text-xl"}`}
+          >
+            {format(value)}
+          </button>
+        )}
       </div>
       <input type="range" className="range-gold" min={min} max={max} step={step}
         value={value} onChange={(e) => onChange(Number(e.target.value))} />
-      <div className="mt-1 flex justify-between text-[11px] text-navy/40">
+      <div className="mt-1 flex items-center justify-between text-[11px] text-navy/40">
         <span>{format(min)}</span>
+        <span className="text-navy/35">tap value to type it</span>
         <span>{format(max)}</span>
       </div>
     </div>
@@ -953,14 +1164,16 @@ function numOr(v: unknown, fallback: number): number {
   return Number.isFinite(n) ? n : fallback;
 }
 
+function strOr(v: unknown, fallback: string): string {
+  if (v === null || v === undefined) return fallback;
+  const s = String(v).trim();
+  return s.length ? s : fallback;
+}
+
 function matchMake(raw: unknown): string | null {
-  if (!raw) return null;
-  const v = String(raw).trim().toLowerCase();
-  const hit = MAKES.find((m) => m.toLowerCase() === v);
-  if (hit) return hit;
-  if (v.includes("mercedes")) return "Mercedes";
-  if (v.includes("volkswagen") || v === "vw") return "VW";
-  return null;
+  // Resolve to a CANONICAL make so it renders in the VehicleSelector dropdown
+  // (handles Chevy/VW/Mercedes/Range Rover and friends).
+  return normalizeMake(typeof raw === "string" ? raw : raw == null ? null : String(raw));
 }
 
 function feesToAddOns(fees: { label?: string; amount?: number | string }[]): Record<string, { amount: number }> {

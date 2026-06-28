@@ -40,10 +40,9 @@ describe("scoreDeal — overall verdict", () => {
   it("returns green for a clean deal with no problems and full info", () => {
     const r = scoreDeal(baseInput());
     expect(r.overallVerdict).toBe("green");
-    // No real (non-info) flags on a clean deal.
-    expect(
-      r.flags.filter((f) => f.type !== "missing_info" && f.type !== "info"),
-    ).toHaveLength(0);
+    // No real (non-info) flags on a clean deal. A legitimate title/registration
+    // fee yields only an INFO government_fee note, which doesn't count.
+    expect(r.flags.filter((f) => f.severity !== "info")).toHaveLength(0);
     // APR + fees provided → no missing-info notes → high confidence.
     expect(r.confidence).toBe("high");
   });
@@ -102,6 +101,15 @@ describe("scoreDeal — APR markup", () => {
     expect(apr!.estimatedImpact!.low).toBeLessThanOrEqual(
       apr!.estimatedImpact!.high,
     );
+    // The copy must surface that dollar impact, not just the percentages.
+    const usd = (n: number) =>
+      n.toLocaleString("en-US", {
+        style: "currency",
+        currency: "USD",
+        maximumFractionDigits: 0,
+      });
+    expect(apr!.explanation).toContain(usd(apr!.estimatedImpact!.low));
+    expect(apr!.explanation).toMatch(/extra interest/i);
   });
 
   it("does not flag an APR within the likely band", () => {
@@ -261,6 +269,18 @@ describe("scoreDeal — warranty pricing", () => {
     );
     expect(r.warranty!.rating).toBe("very_overpriced");
     expect(flagTypes(r.flags)).toContain("overpriced_warranty");
+    // The verdict copy must name specifics, not just "above our fair range":
+    // the quoted price, the dollar gap, and a concrete counter target.
+    const exp = r.warranty!.explanation;
+    const usd = (n: number) =>
+      n.toLocaleString("en-US", {
+        style: "currency",
+        currency: "USD",
+        maximumFractionDigits: 0,
+      });
+    expect(exp).toContain("$50,000"); // the quote, in plain numbers
+    expect(exp).toMatch(/\bcounter\b/i); // a concrete next action
+    expect(exp).toContain(usd(r.warranty!.fairRange.high)); // the counter target
   });
 
   it("rates a very low quote as fair", () => {
@@ -407,6 +427,40 @@ describe("auditFees — standalone Junk Fee Audit entry point", () => {
     const r = auditFees([{ label: "Title / registration", amount: 300 }]);
     expect(r.challengeCount).toBe(0);
     expect(r.estimatedSavings).toBeNull();
+    // It IS surfaced as an informational government-fee note, not as junk.
+    const gov = r.flags.find((f) => f.type === "government_fee");
+    expect(gov?.severity).toBe("info");
+    expect(r.flags.some((f) => f.type === "junk_fee")).toBe(false);
+  });
+
+  it("does NOT treat a normal government fee as junk", () => {
+    for (const label of ["Title / registration", "DMV registration", "License & plates"]) {
+      const r = auditFees([{ label, amount: 400 }]);
+      expect(r.flags.some((f) => f.type === "junk_fee"), label).toBe(false);
+      expect(r.challengeCount, label).toBe(0);
+    }
+  });
+
+  it("flags an INFLATED government fee as likely dealer padding (not junk_fee)", () => {
+    const r = auditFees([{ label: "Title / registration", amount: 2_200 }]);
+    const gov = r.flags.find((f) => f.type === "government_fee");
+    expect(gov).toBeTruthy();
+    expect(gov!.severity === "medium" || gov!.severity === "high").toBe(true);
+    expect(gov!.title).toMatch(/inflated/i);
+    expect(gov!.estimatedImpact).toBeTruthy();
+    expect(r.challengeCount).toBe(1);
+    expect(r.flags.some((f) => f.type === "junk_fee")).toBe(false);
+  });
+
+  it("flags DUPLICATE government-fee lines", () => {
+    const r = auditFees([
+      { label: "Title fee", amount: 200 },
+      { label: "Registration fee", amount: 250 },
+    ]);
+    const gov = r.flags.find((f) => f.type === "government_fee");
+    expect(gov).toBeTruthy();
+    expect(gov!.title).toMatch(/duplicate/i);
+    expect(gov!.severity).toBe("medium");
   });
 
   it("flags a doc fee above its reasonable ceiling", () => {
@@ -433,5 +487,132 @@ describe("auditFees — standalone Junk Fee Audit entry point", () => {
     expect(r.challengeCount).toBe(0);
     expect(r.flags).toEqual([]);
     expect(r.estimatedSavings).toBeNull();
+  });
+});
+
+describe("captured context fields change the verdict (issue #7 item 1)", () => {
+  const base: FairnessInput = {
+    vehicle: { year: 2021, make: "Toyota", model: "Camry", mileage: 30000 },
+    deal: { apr: 17, creditBand: "good", fees: [] },
+  };
+
+  it("APR markup script changes when the buyer has an outside pre-approval", () => {
+    const without = scoreDeal(base).flags.find((f) => f.type === "apr_markup");
+    const withApproval = scoreDeal({
+      ...base,
+      deal: { ...base.deal, outsideApproval: true },
+    }).flags.find((f) => f.type === "apr_markup");
+    expect(without?.explanation).toMatch(/bring a pre-approval/i);
+    expect(withApproval?.explanation).toMatch(/already have your own financing/i);
+  });
+
+  it("outside approval adds a confidence reason", () => {
+    const r = scoreDeal({ ...base, deal: { ...base.deal, outsideApproval: true } });
+    expect(r.confidenceReasons.some((s) => /your own financing approved/i.test(s))).toBe(true);
+  });
+
+  it("already-signed surfaces an informational note that doesn't worsen the verdict", () => {
+    const clean: FairnessInput = {
+      vehicle: { year: 2022, make: "Toyota", model: "Corolla", mileage: 12000 },
+      deal: { apr: 6, creditBand: "good", fees: [] },
+    };
+    const before = scoreDeal(clean);
+    const after = scoreDeal({ ...clean, alreadySigned: true });
+    const signedFlag = after.flags.find(
+      (f) => f.type === "info" && /already signed/i.test(f.title),
+    );
+    expect(signedFlag).toBeTruthy();
+    expect(signedFlag!.severity).toBe("info");
+    // verdict color is unchanged by an info note
+    expect(after.overallVerdict).toBe(before.overallVerdict);
+  });
+
+  it("a higher warranty deductible lowers the fair-price range", () => {
+    const mk = (deductible: number | null) =>
+      scoreDeal({
+        vehicle: { year: 2021, make: "Honda", model: "Accord", mileage: 30000 },
+        deal: { creditBand: "unknown", fees: [] },
+        warranty: { coverageTier: "stated_component", termMonths: 60, deductible, priceQuoted: 3000 },
+      }).warranty!.fairRange;
+    const zero = mk(0);
+    const high = mk(200);
+    expect(high.high).toBeLessThan(zero.high);
+    expect(high.low).toBeLessThanOrEqual(zero.low);
+  });
+});
+
+describe("financed add-ons (issue #11)", () => {
+  const addOnInput = (extra: Partial<FairnessInput["deal"]>): FairnessInput => ({
+    vehicle: { year: 2022, make: "Toyota", model: "Camry", mileage: 10000 },
+    deal: {
+      creditBand: "unknown",
+      fees: [{ label: "GAP", amount: 1000 }, { label: "Nitrogen tire fill", amount: 300 }],
+      ...extra,
+    },
+    warranty: { coverageTier: "unknown", priceQuoted: 2500 },
+  });
+  const fin = (r: ReturnType<typeof scoreDeal>) =>
+    r.flags.find((f) => f.type === "financed_addon");
+
+  it("financed WITH apr/term → estimated interest impact (a range)", () => {
+    const r = scoreDeal(addOnInput({ addOnsFinanced: true, addOnApr: 15, addOnTermMonths: 72 }));
+    const f = fin(r);
+    expect(f?.estimatedImpact).toBeTruthy();
+    expect(f!.estimatedImpact!.high).toBeGreaterThan(f!.estimatedImpact!.low);
+    expect(f!.estimatedImpact!.low).toBeGreaterThan(0);
+  });
+
+  it("financed WITHOUT apr/term → warning only, no number", () => {
+    const f = fin(scoreDeal(addOnInput({ addOnsFinanced: true })));
+    expect(f).toBeTruthy();
+    expect(f!.severity).toBe("info");
+    expect(f!.estimatedImpact ?? null).toBeNull();
+  });
+
+  it("NOT financed → no financed-add-on flag and no interest impact", () => {
+    const r = scoreDeal(addOnInput({ addOnsFinanced: false, addOnApr: 15, addOnTermMonths: 72 }));
+    expect(fin(r)).toBeUndefined();
+  });
+
+  it("does not reclassify: the financed estimate never turns fees into a warranty or vice-versa", () => {
+    const r = scoreDeal(addOnInput({ addOnsFinanced: true, addOnApr: 12, addOnTermMonths: 60 }));
+    expect(r.warranty).toBeTruthy(); // warranty stays its own assessment
+    expect(r.flags.find((f) => f.type === "financed_addon")).toBeTruthy();
+    // the APR-markup flag must NOT fire from the add-on financing inputs
+    expect(r.flags.find((f) => f.type === "apr_markup")).toBeUndefined();
+  });
+});
+
+describe("warranty mileage cap (issue #10)", () => {
+  const mk = (termMiles: number | null) =>
+    scoreDeal({
+      vehicle: { year: 2021, make: "Honda", model: "Accord", mileage: 40000 },
+      deal: { creditBand: "unknown", fees: [] },
+      warranty: { coverageTier: "stated_component", termMonths: 60, termMiles, priceQuoted: 3000 },
+    }).warranty!;
+
+  it("is disclosed in the assumptions when known, and noted as unpriced", () => {
+    const r = scoreDeal({
+      vehicle: { year: 2021, make: "Honda", model: "Accord", mileage: 40000 },
+      deal: { creditBand: "unknown", fees: [] },
+      warranty: { coverageTier: "stated_component", termMonths: 60, termMiles: 75000, priceQuoted: 3000 },
+    });
+    expect(r.assumptions.some((a) => /75,000-mi cap/.test(a))).toBe(true);
+    expect(r.assumptions.some((a) => /isn't priced in yet/i.test(a))).toBe(true);
+  });
+
+  it("a known mileage cap is an extra confidence signal (tightens vs unknown)", () => {
+    const rank: Record<string, number> = { low: 0, medium: 1, high: 2 };
+    expect(rank[mk(75000).fairRange.confidence]).toBeGreaterThanOrEqual(
+      rank[mk(null).fairRange.confidence],
+    );
+  });
+
+  it("does NOT move the fair-price magnitude on its own (no placeholder pricing yet)", () => {
+    const a = mk(40000).fairRange;
+    const b = mk(120000).fairRange;
+    // same confidence inputs → identical band; only disclosure/confidence use the cap
+    expect(a.low).toBe(b.low);
+    expect(a.high).toBe(b.high);
   });
 });

@@ -8,8 +8,9 @@
 
 export type StepKey =
   | "start"
-  | "brand"
+  | "brand" // the vehicle step: make + model (dependent) + trim + VIN, via VehicleSelector
   | "specs"
+  | "state"
   | "credit"
   | "price"
   | "financing"
@@ -22,6 +23,7 @@ export const STEPS: StepKey[] = [
   "start",
   "brand",
   "specs",
+  "state",
   "credit",
   "price",
   "financing",
@@ -29,6 +31,33 @@ export const STEPS: StepKey[] = [
   "trade",
   "warranty",
 ];
+
+/**
+ * Focused entry points. The product routes (/warranty-check, /apr-check,
+ * /add-on-check) reuse this same flow but only collect the steps relevant to
+ * the buyer's intent, so they aren't forced through the whole deal. The last
+ * step in each set submits.
+ */
+export type Focus = "full" | "warranty" | "apr" | "addons";
+
+export function stepsForFocus(focus: Focus = "full"): StepKey[] {
+  switch (focus) {
+    // Warranty fair-pricing uses the brand's reliability tier + age/mileage, so
+    // the warranty check legitimately asks for the vehicle.
+    case "warranty":
+      return ["start", "brand", "specs", "warranty"];
+    // APR/payment scoring uses credit band + the loan numbers — NOT the make —
+    // so the brand picker is dropped; the flow diverges immediately.
+    case "apr":
+      return ["start", "credit", "price", "financing"];
+    // Add-on/fee scoring keys off the fee labels (+ state), not the make.
+    case "addons":
+      return ["start", "state", "addons", "warranty"];
+    case "full":
+    default:
+      return STEPS;
+  }
+}
 
 /** Steps counted by the progress bar (everything after the intro). */
 export const PROGRESS_STEPS = STEPS.length - 1;
@@ -42,10 +71,16 @@ export function progressPercent(stepIdx: number): number {
 /** The slice of form state the continue-gates depend on. */
 export interface FlowState {
   make: string;
-  makeOther: string;
   hasWarranty: boolean | null;
   hasTrade: boolean | null;
 }
+
+/**
+ * Steps that collect optional context (vehicle identity, buyer state). They
+ * always allow Continue — they're never required, but capturing them means we
+ * don't identify or score a deal on year/mileage alone, and unlocks
+ * state-aware copy (and later, state fee caps).
+ */
 
 /**
  * Whether the sticky footer button is enabled for a step. Steps with no footer
@@ -55,13 +90,13 @@ export interface FlowState {
  */
 export function continueEnabled(step: StepKey, s: FlowState): boolean {
   switch (step) {
-    case "brand":
-      return Boolean(s.make && (s.make !== "Other" || s.makeOther.trim()));
     case "trade":
       return s.hasTrade !== null;
     case "warranty":
       return s.hasWarranty !== null;
+    case "brand": // vehicle identity is optional (the selector offers "I don't know")
     case "specs":
+    case "state":
     case "price":
     case "financing":
     case "addons":

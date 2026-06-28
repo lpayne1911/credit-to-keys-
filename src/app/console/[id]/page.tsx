@@ -208,6 +208,20 @@ export default async function ConsoleDealPage({
                     deal.reviewed_headline ?? auto?.headline ?? ""
                   }
                   initialFlags={initialFlags}
+                  autoResult={auto}
+                  loan={{
+                    vehiclePrice: deal.vehicle_price,
+                    downPayment: deal.down_payment,
+                    apr: deal.apr,
+                    termMonths: deal.term_months,
+                    fees: deal.fees,
+                    warrantyPrice: deal.warranty_price,
+                  }}
+                  vehicle={{
+                    year: deal.vehicle_year,
+                    make: deal.vehicle_make,
+                    model: deal.vehicle_model,
+                  }}
                 />
               </div>
             </section>
