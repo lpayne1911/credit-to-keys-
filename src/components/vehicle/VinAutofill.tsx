@@ -10,7 +10,7 @@
  * trim-confirmation step and no hard dependency — any failure degrades silently.
  */
 import { useEffect, useId, useRef, useState } from "react";
-import { looksLikeVin, type DecodedVehicle } from "@/lib/vin";
+import { looksLikeVin, vinCheckDigitValid, type DecodedVehicle } from "@/lib/vin";
 
 type Status = "idle" | "checking" | "found" | "not-found";
 
@@ -34,6 +34,8 @@ export function VinAutofill({
 
   const clean = value.trim().toUpperCase();
   const ready = looksLikeVin(clean);
+  // A failed check digit is a likely typo — a gentle nudge, never a blocker.
+  const looksTypo = ready && !vinCheckDigitValid(clean);
 
   async function decode() {
     if (!ready) return;
@@ -115,7 +117,9 @@ export function VinAutofill({
         )}
         {status === "not-found" && (
           <span className="text-navy/55">
-            Couldn&apos;t decode that VIN — no problem, just type the vehicle in below.
+            {looksTypo
+              ? "That VIN may have a typo — double-check it, or just type the vehicle in below."
+              : "Couldn't decode that VIN — no problem, just type the vehicle in below."}
           </span>
         )}
         {status === "idle" && (
