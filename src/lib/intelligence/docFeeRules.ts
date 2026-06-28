@@ -660,38 +660,67 @@ export function getDocFeeRuleForState(stateCode: string): DocFeeRule | undefined
   return DOC_FEE_RULES[stateCode.toUpperCase().trim().slice(0, 2)];
 }
 
-export type DocFeeFindingStatus =
-  | "not_doc_fee" // the fee label isn't a doc/processing/admin fee
-  | "state_missing" // no buyer state, can't apply a rule
-  | "needs_research" // state rule not yet researched
-  | "unverified_rule" // a tentative cap exists but isn't verified — no comparison
-  | "unknown_rule" // researched but inconclusive / conflicting
-  | "within_cap" // verified capped state, amount at/under the cap
-  | "over_cap" // verified capped state, amount over the cap
-  | "uncapped_dealer_controlled" // no cap; dealer-controlled
-  | "disclosure_only"; // no cap; disclosure/advertising regulated
+export type DocFeeComparisonStatus =
+  | "within_verified_cap"
+  | "above_verified_cap"
+  | "verified_uncapped"
+  | "verified_disclosure_only"
+  | "seeded_rule_no_comparison"
+  | "needs_research"
+  | "missing_state"
+  | "not_doc_fee";
+
+export type DocFeeRuleStatus =
+  | "verified"
+  | "seeded"
+  | "needs_research"
+  | "unknown"
+  | "missing"
+  | "not_doc_fee";
 
 export interface DocFeeFinding {
+  /** Two-letter jurisdiction code (and `jurisdiction` alias for back-compat). */
+  stateCode?: string;
+  jurisdiction?: string;
+  feeName: string;
+  amountCents: number;
   isDocFee: boolean;
-  status: DocFeeFindingStatus;
-  ruleKnown: boolean;
-  /** True only when the underlying rule is verified. */
-  verified: boolean;
+  /** Display-oriented rule state: Verified / Seeded / Needs research / Unknown. */
+  ruleStatus: DocFeeRuleStatus;
+  /** Lifecycle status of the matched rule, or "none". */
+  verificationStatus: VerificationStatus | "none";
+  capType?: DocFeeCapType;
+  maxAmountCents?: number;
+  /** The cap actually used in a comparison (when one ran). */
+  capAmountCents?: number;
+  comparisonStatus: DocFeeComparisonStatus;
   withinCap?: boolean;
   overCap?: boolean;
+  dealerControlled: boolean;
+  governmentFee: boolean;
+  taxable: boolean | null;
+  mustBeDisclosed: boolean | null;
+  confidence: Confidence;
+  /** True only when the underlying rule is verified. */
+  verified: boolean;
+  /** True when we have a usable, verified rule conclusion. */
+  ruleKnown: boolean;
+  buyerSummary: string;
+  whyItMatters: string;
+  whatToAsk: string;
+  scriptLine: string;
+  sourceSummary: string;
+  limitations?: string;
   humanReviewRecommended: boolean;
+  /** Back-compat aliases of buyerSummary / whatToAsk. */
   explanation: string;
   action: string;
-  confidence: Confidence;
-  jurisdiction?: string;
-  capAmountCents?: number;
   source?: {
     title?: string;
     url?: string;
     type?: RuleSourceType;
     quote?: string;
   };
-  limitations?: string;
 }
 
 function ruleSource(rule: DocFeeRule): DocFeeFinding["source"] {
@@ -708,189 +737,258 @@ function dollars(cents: number): string {
   return `$${Math.round(cents / 100).toLocaleString("en-US")}`;
 }
 
+/* ---------------------------------------------------------------------------
+ *  Buyer-facing copy builders. Each reads the finding's STRUCTURED fields and
+ *  produces conservative, decision-support language — never a legal conclusion.
+ * ------------------------------------------------------------------------- */
+
+export function shouldRecommendHumanReviewForDocFee(f: DocFeeFinding): boolean {
+  return (
+    f.comparisonStatus === "above_verified_cap" ||
+    f.comparisonStatus === "seeded_rule_no_comparison" ||
+    f.comparisonStatus === "needs_research" ||
+    f.comparisonStatus === "missing_state"
+  );
+}
+
+export function buildDocFeeBuyerSummary(f: DocFeeFinding): string {
+  switch (f.comparisonStatus) {
+    case "not_doc_fee":
+      return "This line does not look like a dealer documentation, processing, or administrative fee, so the state doc-fee rule does not apply to it.";
+    case "missing_state":
+      return "This appears to be a dealer-controlled doc or processing fee, not a required government fee. We need the state you're buying in to check it against the local rule.";
+    case "needs_research":
+      return "We don't have a verified doc-fee rule for this state yet. A doc or processing fee is still a dealer-controlled charge — not a required government tax, title, or registration fee.";
+    case "within_verified_cap":
+      return "This doc/processing fee appears within the verified state cap we have on file. It is still dealer-controlled, not a government tax or registration fee. Confirm it is itemized separately from required state charges.";
+    case "above_verified_cap":
+      return "Based on the verified state rule we have on file, this doc/processing fee appears above the listed cap. It is a dealer-controlled charge, not a required government fee. This is not a legal determination.";
+    case "verified_uncapped":
+      return "This state does not appear to cap dealer doc/processing fees based on the verified rule we have on file. That does not make the fee a government charge. Treat it as dealer-controlled and negotiate the total out-the-door price.";
+    case "verified_disclosure_only":
+      return "This state appears to regulate how the processing fee is disclosed rather than setting a fixed cap. It is a dealer-controlled charge, not a required government fee. Ask the dealer to clearly itemize it.";
+    case "seeded_rule_no_comparison":
+      if (f.stateCode === "DE") {
+        return "Delaware's state 'document fee' is a government titling charge and is different from a dealer doc/processing fee. Any dealer processing or administrative fee is dealer-controlled, and the rule we have for it is seeded (not yet verified).";
+      }
+      if (f.capType === "unknown") {
+        return "We can't confirm this state's doc-fee rule yet — the sources we have conflict. The fee is still a dealer-controlled charge, not a required government fee.";
+      }
+      if (f.capType === "uncapped") {
+        return "Based on a seeded (not yet verified) source, this state does not appear to cap dealer doc/processing fees. Treat the fee as dealer-controlled, not a government charge.";
+      }
+      if (f.capType === "disclosure_only") {
+        return "Based on a seeded (not yet verified) source, this state appears to regulate disclosure of the fee rather than capping it. Treat it as dealer-controlled, not a government charge.";
+      }
+      return "We have a seeded rule for this state, but it is not verified enough to run a cap comparison. Treat the fee as dealer-controlled and ask for itemization. Human review is recommended before relying on this rule.";
+  }
+}
+
+export function buildDocFeeWhyItMatters(f: DocFeeFinding): string {
+  if (f.comparisonStatus === "not_doc_fee") return "";
+  if (f.stateCode === "DE") {
+    return "In Delaware this matters because the state's percentage 'document fee' is a real government charge, while a separate dealer processing fee is not — the two are easy to confuse on a buyer's order.";
+  }
+  if (f.comparisonStatus === "above_verified_cap") {
+    return "Doc and processing fees are set by the dealer, not the government. An amount above the cap on file is worth questioning before you sign — the difference is money you may be able to push back on.";
+  }
+  if (f.comparisonStatus === "within_verified_cap") {
+    return "Doc and processing fees are set by the dealer, not the government. Even within the cap, it's a dealer charge you can factor into the out-the-door price.";
+  }
+  return "Doc, processing, and administrative fees are set by the dealer — not the same as government title, registration, or tax charges. Dealers sometimes present them as if they're mandatory. Knowing the state rule tells you how hard you can push.";
+}
+
+export function buildDocFeeWhatToAsk(f: DocFeeFinding): string {
+  if (f.stateCode === "DE") {
+    return "Ask the dealer to separate Delaware's state document fee from any dealer processing or administrative fee, and confirm the dealer fee in writing.";
+  }
+  switch (f.comparisonStatus) {
+    case "not_doc_fee":
+      return "No doc-fee action needed for this line.";
+    case "missing_state":
+      return "Add the state where you're buying so we can apply the right rule, and ask the dealer to itemize the charge separately from government fees.";
+    case "within_verified_cap":
+      return "Ask the dealer to confirm the fee is itemized separately from required state title and registration charges.";
+    case "above_verified_cap":
+      return "Ask the dealer to identify the statutory basis for the charge or provide a corrected buyer's order at or below the cap.";
+    case "verified_uncapped":
+      return "Ask the dealer to separate government charges from dealer-retained fees, and negotiate the total out-the-door price.";
+    case "verified_disclosure_only":
+      return "Ask the dealer to clearly itemize the fee and separate it from required government charges.";
+    default:
+      return "Ask the dealer to itemize the fee and separate it from required taxes, title, and registration charges, and confirm it in writing.";
+  }
+}
+
+export function buildDocFeeScriptLine(f: DocFeeFinding): string {
+  if (f.comparisonStatus === "not_doc_fee") return "";
+  if (f.stateCode === "DE") {
+    return "“Please separate Delaware's state document fee from your own dealer processing fee on my buyer's order.”";
+  }
+  switch (f.comparisonStatus) {
+    case "within_verified_cap":
+      return "“This processing fee is a dealer charge, not a government fee — please show it itemized separately from my title and registration.”";
+    case "above_verified_cap":
+      return "“This processing fee looks higher than my state's known limit. Can you show me the basis for it, or give me a corrected buyer's order?”";
+    case "verified_uncapped":
+      return "“I know this processing fee is set by the dealer, not the state — I'd like it reduced or folded into the out-the-door price.”";
+    case "verified_disclosure_only":
+      return "“Please itemize this processing fee and keep it separate from my taxes, title, and registration.”";
+    default:
+      return "“Please itemize this processing fee separately from my taxes, title, and registration so I can see what's a government charge and what's a dealer fee.”";
+  }
+}
+
+export function buildDocFeeSourceSummary(f: DocFeeFinding): string {
+  if (f.comparisonStatus === "not_doc_fee") return "";
+  if (!f.source?.title) {
+    return "No verified source on file for this state yet.";
+  }
+  const type = f.source.type ? ` (${f.source.type.replace(/_/g, " ")})` : "";
+  const trust = f.verified ? " — verified source on file." : " — seeded (unverified) source.";
+  return `${f.source.title}${type}${trust}`;
+}
+
+/* ---------------------------------------------------------------------------
+ *  Classifier
+ * ------------------------------------------------------------------------- */
+
+/** Build a finding from an explicit rule (or null). Exposed for testing and for
+ *  callers that already hold a rule. `classifyDocFeeAmount` is the usual entry. */
+export function buildDocFeeFinding(input: {
+  isDocFee: boolean;
+  feeName: string;
+  amountCents: number;
+  stateCode?: string;
+  rule: DocFeeRule | null;
+}): DocFeeFinding {
+  const { isDocFee, feeName, amountCents, stateCode, rule } = input;
+
+  let comparisonStatus: DocFeeComparisonStatus;
+  let ruleStatus: DocFeeRuleStatus;
+  let withinCap: boolean | undefined;
+  let overCap: boolean | undefined;
+  let capAmountCents: number | undefined;
+
+  if (!isDocFee) {
+    comparisonStatus = "not_doc_fee";
+    ruleStatus = "not_doc_fee";
+  } else if (!stateCode) {
+    comparisonStatus = "missing_state";
+    ruleStatus = "missing";
+  } else if (!rule || rule.verificationStatus === "needs_research") {
+    comparisonStatus = "needs_research";
+    ruleStatus = "needs_research";
+  } else if (rule.capType === "unknown") {
+    comparisonStatus = "seeded_rule_no_comparison";
+    ruleStatus = "unknown";
+  } else if (rule.verificationStatus !== "verified") {
+    comparisonStatus = "seeded_rule_no_comparison";
+    ruleStatus = "seeded";
+  } else {
+    // verified
+    ruleStatus = "verified";
+    if (rule.capType === "disclosure_only") {
+      comparisonStatus = "verified_disclosure_only";
+    } else if (rule.capType === "uncapped") {
+      comparisonStatus = "verified_uncapped";
+    } else {
+      const cap = rule.maxAmountCents;
+      if (cap === undefined) {
+        comparisonStatus = "seeded_rule_no_comparison";
+        ruleStatus = "seeded";
+      } else {
+        capAmountCents = cap;
+        if (amountCents > cap) {
+          comparisonStatus = "above_verified_cap";
+          overCap = true;
+          withinCap = false;
+        } else {
+          comparisonStatus = "within_verified_cap";
+          withinCap = true;
+          overCap = false;
+        }
+      }
+    }
+  }
+
+  const confidence: Confidence =
+    comparisonStatus === "not_doc_fee"
+      ? "high"
+      : comparisonStatus === "missing_state" || comparisonStatus === "needs_research"
+        ? "low"
+        : rule?.confidence ?? "low";
+
+  const verified = ruleStatus === "verified";
+
+  const f: DocFeeFinding = {
+    stateCode,
+    jurisdiction: stateCode,
+    feeName,
+    amountCents,
+    isDocFee,
+    ruleStatus,
+    verificationStatus: rule?.verificationStatus ?? "none",
+    capType: rule?.capType,
+    maxAmountCents: rule?.maxAmountCents,
+    capAmountCents,
+    comparisonStatus,
+    withinCap,
+    overCap,
+    dealerControlled: isDocFee ? rule?.dealerControlled ?? true : false,
+    governmentFee: rule?.governmentFee ?? false,
+    taxable: rule?.taxable ?? null,
+    mustBeDisclosed: rule?.mustBeDisclosed ?? null,
+    confidence,
+    verified,
+    ruleKnown:
+      comparisonStatus === "within_verified_cap" ||
+      comparisonStatus === "above_verified_cap" ||
+      comparisonStatus === "verified_uncapped" ||
+      comparisonStatus === "verified_disclosure_only",
+    source: rule ? ruleSource(rule) : undefined,
+    limitations: rule?.limitations,
+    // copy filled below
+    humanReviewRecommended: false,
+    buyerSummary: "",
+    whyItMatters: "",
+    whatToAsk: "",
+    scriptLine: "",
+    sourceSummary: "",
+    explanation: "",
+    action: "",
+  };
+
+  f.humanReviewRecommended = shouldRecommendHumanReviewForDocFee(f);
+  f.buyerSummary = buildDocFeeBuyerSummary(f);
+  f.whyItMatters = buildDocFeeWhyItMatters(f);
+  f.whatToAsk = buildDocFeeWhatToAsk(f);
+  f.scriptLine = buildDocFeeScriptLine(f);
+  f.sourceSummary = buildDocFeeSourceSummary(f);
+  f.explanation = f.buyerSummary;
+  f.action = f.whatToAsk;
+  return f;
+}
+
 /**
  * Classify a single fee line against the buyer's state doc-fee rule. Pure and
- * deterministic. Cap comparisons run ONLY against VERIFIED rules; seeded or
- * unresearched states never produce a cap-overage warning. Buyer copy is
- * decision-support only — never an accusation or a legal conclusion.
+ * deterministic. Cap comparisons run ONLY against VERIFIED rules; seeded,
+ * unknown, or unresearched states never produce a cap-overage warning. Buyer
+ * copy is decision-support only — never an accusation or a legal conclusion.
  */
 export function classifyDocFeeAmount(params: {
   stateCode?: string | null;
   feeName: string;
   amountCents: number;
 }): DocFeeFinding {
-  const { feeName, amountCents } = params;
-  const isDocFee = isDocFeeAlias(feeName);
-
-  if (!isDocFee) {
-    return {
-      isDocFee: false,
-      status: "not_doc_fee",
-      ruleKnown: false,
-      verified: false,
-      humanReviewRecommended: false,
-      explanation:
-        "This line does not look like a dealer documentation/processing fee, so the doc-fee rule does not apply to it.",
-      action: "No doc-fee action needed for this line.",
-      confidence: "high",
-    };
-  }
-
+  const isDocFee = isDocFeeAlias(params.feeName);
   const stateCode = (params.stateCode ?? "").toUpperCase().trim().slice(0, 2);
-  if (!stateCode) {
-    return {
-      isDocFee: true,
-      status: "state_missing",
-      ruleKnown: false,
-      verified: false,
-      humanReviewRecommended: true,
-      explanation:
-        "This appears to be a dealer-controlled doc/processing fee, not a required government fee. We need your state to check it against the local rule.",
-      action:
-        "Add the state where you're buying so we can apply the right doc-fee rule. Either way, ask the dealer to separate government charges from dealer-retained fees.",
-      confidence: "low",
-    };
-  }
-
-  const rule = getDocFeeRuleForState(stateCode);
-  if (!rule || rule.verificationStatus === "needs_research" || rule.capType === "needs_research") {
-    return {
-      isDocFee: true,
-      status: "needs_research",
-      ruleKnown: false,
-      verified: false,
-      humanReviewRecommended: true,
-      jurisdiction: stateCode,
-      explanation:
-        "We do not have a verified current doc-fee rule for this state yet. This is still a dealer-controlled charge, not a required government fee.",
-      action:
-        "Ask the dealer to itemize the charge and separate it from required government charges, and consider human review before relying on a specific cap.",
-      confidence: "low",
-      limitations: rule?.limitations,
-    };
-  }
-
-  const source = ruleSource(rule);
-  const verified = rule.verificationStatus === "verified";
-
-  if (rule.capType === "unknown") {
-    return {
-      isDocFee: true,
-      status: "unknown_rule",
-      ruleKnown: false,
-      verified,
-      humanReviewRecommended: true,
-      jurisdiction: stateCode,
-      explanation:
-        "We can't confirm this state's current doc-fee cap yet — available sources conflict. This is still a dealer-controlled charge, not a required government fee.",
-      action:
-        "Ask the dealer to put any basis for the amount in writing and to separate government charges from dealer-retained fees. Human review recommended before relying on the fee rule.",
-      confidence: "low",
-      source,
-      limitations: rule.limitations,
-    };
-  }
-
-  if (rule.capType === "disclosure_only") {
-    return {
-      isDocFee: true,
-      status: "disclosure_only",
-      ruleKnown: true,
-      verified,
-      humanReviewRecommended: false,
-      jurisdiction: stateCode,
-      explanation:
-        "Based on the source we have, this state regulates how the processing/doc fee is disclosed rather than setting a fixed cap. It is a dealer-controlled charge, not a required government fee.",
-      action:
-        "Ask the dealer to clearly itemize the fee and separate government charges from dealer-retained fees, then negotiate the out-the-door total.",
-      confidence: rule.confidence,
-      source,
-      limitations: rule.limitations,
-    };
-  }
-
-  if (rule.capType === "uncapped") {
-    return {
-      isDocFee: true,
-      status: "uncapped_dealer_controlled",
-      ruleKnown: true,
-      verified,
-      humanReviewRecommended: false,
-      jurisdiction: stateCode,
-      explanation:
-        "Based on the source we have, this state does not appear to cap dealer doc/processing fees. That does not make it a government charge — it is dealer-controlled.",
-      action:
-        "Treat it as dealer-controlled and negotiate the total out-the-door price. Ask the dealer to separate government charges from dealer-retained fees.",
-      confidence: rule.confidence,
-      source,
-      limitations: rule.limitations,
-    };
-  }
-
-  // capped or formula — only compare to the cap when the rule is VERIFIED.
-  const cap = rule.maxAmountCents;
-  if (!verified || cap === undefined) {
-    return {
-      isDocFee: true,
-      status: "unverified_rule",
-      ruleKnown: false,
-      verified: false,
-      humanReviewRecommended: true,
-      jurisdiction: stateCode,
-      explanation:
-        "We have a possible cap for this state, but we haven't verified it from an authoritative source yet — so we're not comparing your fee to it. This is still a dealer-controlled charge, not a government fee.",
-      action:
-        "Confirm the fee in writing and ask the dealer to separate government charges from dealer-retained fees. Human review recommended before relying on a cap figure.",
-      confidence: rule.confidence === "high" ? "medium" : rule.confidence,
-      source,
-      limitations: rule.limitations,
-    };
-  }
-
-  const overCap = amountCents > cap;
-  if (overCap) {
-    return {
-      isDocFee: true,
-      status: "over_cap",
-      ruleKnown: true,
-      verified: true,
-      withinCap: false,
-      overCap: true,
-      humanReviewRecommended: true,
-      jurisdiction: stateCode,
-      capAmountCents: cap,
-      explanation: `Based on the verified source we have, this doc/processing fee (${dollars(
-        amountCents,
-      )}) appears above the known cap of ${dollars(cap)}${
-        rule.capType === "formula" ? " (a formula/threshold that can vary)" : ""
-      }. It is a dealer-controlled charge, not a required government fee. This is not a legal determination.`,
-      action:
-        "Ask the dealer to put a corrected number in writing at or below the cap, and to separate government charges from dealer-retained fees.",
-      confidence: rule.confidence,
-      source,
-      limitations: rule.limitations,
-    };
-  }
-
-  return {
-    isDocFee: true,
-    status: "within_cap",
-    ruleKnown: true,
-    verified: true,
-    withinCap: true,
-    overCap: false,
-    humanReviewRecommended: false,
-    jurisdiction: stateCode,
-    capAmountCents: cap,
-    explanation: `This doc/processing fee (${dollars(
-      amountCents,
-    )}) appears within the known cap of ${dollars(
-      cap,
-    )} based on the verified source we have, but it is still a dealer-controlled charge, not a government tax or registration fee.`,
-    action:
-      "Confirm it is itemized correctly and that government charges are separated from dealer-retained fees.",
-    confidence: rule.confidence,
-    source,
-    limitations: rule.limitations,
-  };
+  const rule = stateCode ? getDocFeeRuleForState(stateCode) ?? null : null;
+  return buildDocFeeFinding({
+    isDocFee,
+    feeName: params.feeName,
+    amountCents: params.amountCents,
+    stateCode: stateCode || undefined,
+    rule,
+  });
 }

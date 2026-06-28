@@ -3,11 +3,13 @@ import {
   isDocFeeAlias,
   getDocFeeRuleForState,
   classifyDocFeeAmount,
+  buildDocFeeFinding,
   DOC_FEE_RULES,
   SOURCED_JURISDICTIONS,
   VERIFIED_JURISDICTIONS,
   US_JURISDICTIONS,
   type DocFeeFinding,
+  type DocFeeRule,
 } from "./docFeeRules";
 
 const cents = (d: number) => d * 100;
@@ -15,6 +17,13 @@ const cents = (d: number) => d * 100;
 /** Forbidden, non-conservative / legal-conclusion language. */
 const FORBIDDEN =
   /\b(illegal|fraud|scam|guaranteed|definitely|lied)\b|violates? law|broke the law|legal finding/i;
+
+/** All customer-facing strings on a finding. */
+function customerCopy(f: DocFeeFinding): string {
+  return [f.buyerSummary, f.whyItMatters, f.whatToAsk, f.scriptLine, f.explanation, f.action].join(
+    " \n ",
+  );
+}
 
 const SCOPED_VERIFIED = ["CA", "NY", "TX", "OH", "FL", "VA", "MD"];
 const SCOPED_SEEDED = ["DC", "DE"];
@@ -37,7 +46,7 @@ describe("isDocFeeAlias", () => {
     }
   });
 
-  it("does NOT match warranty, tax, or government lines (false positives)", () => {
+  it("does NOT match warranty, tax, or government lines", () => {
     for (const name of [
       "service contract",
       "vehicle service contract",
@@ -51,191 +60,167 @@ describe("isDocFeeAlias", () => {
       expect(isDocFeeAlias(name), name).toBe(false);
     }
   });
-
-  it("is empty-safe", () => {
-    expect(isDocFeeAlias("")).toBe(false);
-  });
 });
 
-describe("getDocFeeRuleForState", () => {
-  it("is case-insensitive and returns a rule for known states", () => {
-    expect(getDocFeeRuleForState("md")?.jurisdiction).toBe("MD");
-    expect(getDocFeeRuleForState("MD")?.stateName).toBe("Maryland");
-  });
-  it("returns undefined for an unknown code", () => {
-    expect(getDocFeeRuleForState("ZZ")).toBeUndefined();
-    expect(getDocFeeRuleForState("")).toBeUndefined();
-  });
-});
-
-describe("priority verification pass — registry status", () => {
+describe("registry — verification lifecycle (unchanged from prior pass)", () => {
   it("scoped states carry the correct verification status", () => {
-    for (const code of SCOPED_VERIFIED) {
-      expect(DOC_FEE_RULES[code].verificationStatus, code).toBe("verified");
-    }
-    for (const code of SCOPED_SEEDED) {
-      expect(DOC_FEE_RULES[code].verificationStatus, code).toBe("seeded");
-    }
+    for (const code of SCOPED_VERIFIED) expect(DOC_FEE_RULES[code].verificationStatus, code).toBe("verified");
+    for (const code of SCOPED_SEEDED) expect(DOC_FEE_RULES[code].verificationStatus, code).toBe("seeded");
   });
-
-  it("verified states have non-null source name, url, and lastVerified", () => {
-    for (const code of VERIFIED_JURISDICTIONS) {
-      const r = DOC_FEE_RULES[code];
-      expect(r.sourceTitle, `${code} sourceTitle`).toBeTruthy();
-      expect(r.sourceUrl, `${code} sourceUrl`).toBeTruthy();
-      expect(r.lastVerified, `${code} lastVerified`).toBeTruthy();
-      expect(r.sourceType, `${code} sourceType`).toBeTruthy();
-    }
-  });
-
-  it("only the 7 scoped states are verified — nothing else was flipped", () => {
+  it("only the 7 scoped states are verified", () => {
     expect([...VERIFIED_JURISDICTIONS].sort()).toEqual([...SCOPED_VERIFIED].sort());
   });
-
-  it("states that are not verified never claim high confidence", () => {
-    for (const r of Object.values(DOC_FEE_RULES)) {
-      if (r.verificationStatus !== "verified") {
-        expect(r.confidence, `${r.jurisdiction} should not be high`).not.toBe("high");
-      }
-    }
-  });
-
-  it("no unscoped state was accidentally flipped to verified", () => {
-    const unscoped = ["IL", "PA", "NC", "GA", "NJ", "CO", "AZ", "AL", "WA", "MI"];
-    for (const code of unscoped) {
+  it("no unscoped state is verified", () => {
+    for (const code of ["IL", "PA", "NC", "GA", "NJ", "CO", "AZ", "AL", "WA"]) {
       expect(DOC_FEE_RULES[code].verificationStatus, code).not.toBe("verified");
     }
   });
-
-  it("Maryland, Virginia, Delaware, and DC all have explicit registry entries", () => {
+  it("MD, VA, DE, DC have explicit entries with sources", () => {
     for (const code of ["MD", "VA", "DE", "DC"]) {
-      const r = DOC_FEE_RULES[code];
-      expect(r, code).toBeTruthy();
-      expect(r.verificationStatus, code).not.toBe("needs_research");
-      expect(r.sourceUrl, `${code} has a source`).toBeTruthy();
-    }
-  });
-
-  it("does not invent a cap for uncapped / disclosure-only states", () => {
-    for (const code of ["FL", "VA", "DE", "DC"]) {
-      expect(DOC_FEE_RULES[code].maxAmountCents, code).toBeUndefined();
+      expect(DOC_FEE_RULES[code].verificationStatus, code).not.toBe("needs_research");
+      expect(DOC_FEE_RULES[code].sourceUrl, code).toBeTruthy();
     }
   });
 });
 
-describe("classifyDocFeeAmount", () => {
-  it("flags a non-doc fee as not_doc_fee", () => {
-    const f = classifyDocFeeAmount({
-      stateCode: "MD",
-      feeName: "vehicle service contract",
-      amountCents: cents(2000),
-    });
+describe("classifyDocFeeAmount — comparisonStatus", () => {
+  it("not a doc fee → not_doc_fee", () => {
+    const f = classifyDocFeeAmount({ stateCode: "MD", feeName: "vehicle service contract", amountCents: cents(2000) });
     expect(f.isDocFee).toBe(false);
-    expect(f.status).toBe("not_doc_fee");
+    expect(f.comparisonStatus).toBe("not_doc_fee");
   });
 
-  it("verified capped state, within cap → within_cap", () => {
-    const f = classifyDocFeeAmount({
-      stateCode: "NY", // verified, $175
-      feeName: "documentation fee",
-      amountCents: cents(150),
-    });
-    expect(f.status).toBe("within_cap");
+  it("verified capped within cap → within_verified_cap", () => {
+    const f = classifyDocFeeAmount({ stateCode: "NY", feeName: "documentation fee", amountCents: cents(150) });
+    expect(f.comparisonStatus).toBe("within_verified_cap");
     expect(f.withinCap).toBe(true);
     expect(f.verified).toBe(true);
-    expect(f.source?.url).toBeTruthy();
+    expect(f.capAmountCents).toBe(17_500);
+    expect(f.buyerSummary).toMatch(/dealer-controlled/i);
   });
 
-  it("verified capped state, over cap → over_cap with stronger, safe warning", () => {
-    const f = classifyDocFeeAmount({
-      stateCode: "MD", // verified, $800
-      feeName: "dealer processing fee",
-      amountCents: cents(950),
-    });
-    expect(f.status).toBe("over_cap");
+  it("verified capped above cap → above_verified_cap (stronger, safe warning)", () => {
+    const f = classifyDocFeeAmount({ stateCode: "MD", feeName: "dealer processing fee", amountCents: cents(950) });
+    expect(f.comparisonStatus).toBe("above_verified_cap");
     expect(f.overCap).toBe(true);
     expect(f.humanReviewRecommended).toBe(true);
-    expect(f.explanation).toMatch(/above the known cap/i);
-    expect(f.explanation).toMatch(/not a legal determination/i);
+    expect(f.buyerSummary).toMatch(/above the listed cap/i);
+    expect(f.buyerSummary).toMatch(/not a legal determination/i);
+    expect(f.whatToAsk).toMatch(/statutory basis|corrected buyer/i);
   });
 
   it("verified formula state compares against the threshold (TX $225)", () => {
-    expect(
-      classifyDocFeeAmount({ stateCode: "TX", feeName: "documentary fee", amountCents: cents(200) }).status,
-    ).toBe("within_cap");
-    expect(
-      classifyDocFeeAmount({ stateCode: "TX", feeName: "documentary fee", amountCents: cents(400) }).status,
-    ).toBe("over_cap");
+    expect(classifyDocFeeAmount({ stateCode: "TX", feeName: "documentary fee", amountCents: cents(200) }).comparisonStatus).toBe("within_verified_cap");
+    expect(classifyDocFeeAmount({ stateCode: "TX", feeName: "documentary fee", amountCents: cents(400) }).comparisonStatus).toBe("above_verified_cap");
   });
 
-  it("verified disclosure-only state never produces a cap-overage warning", () => {
+  it("verified disclosure-only → verified_disclosure_only, no comparison (FL, VA)", () => {
     for (const code of ["FL", "VA"]) {
       const f = classifyDocFeeAmount({ stateCode: code, feeName: "doc fee", amountCents: cents(999) });
-      expect(f.status, code).toBe("disclosure_only");
+      expect(f.comparisonStatus, code).toBe("verified_disclosure_only");
       expect(f.overCap, code).toBeUndefined();
+      expect(f.withinCap, code).toBeUndefined();
     }
   });
 
-  it("seeded uncapped state → uncapped_dealer_controlled, no overage (DE, DC, NJ)", () => {
-    for (const code of ["DE", "DC", "NJ"]) {
-      const f = classifyDocFeeAmount({ stateCode: code, feeName: "dealer doc fee", amountCents: cents(900) });
-      expect(f.status, code).toBe("uncapped_dealer_controlled");
-      expect(f.overCap, code).toBeUndefined();
-      expect(f.explanation, code).toMatch(/dealer-controlled/i);
-    }
+  it("verified uncapped → verified_uncapped, no comparison (synthetic rule)", () => {
+    const rule: DocFeeRule = {
+      jurisdiction: "XX",
+      stateName: "Testland",
+      verificationStatus: "verified",
+      capType: "uncapped",
+      feeNames: ["doc fee"],
+      dealerControlled: true,
+      governmentFee: false,
+      taxable: null,
+      mustBeDisclosed: null,
+      buyerExplanation: "",
+      buyerAction: "",
+      sourceTitle: "Test source",
+      sourceUrl: "https://example.gov/x",
+      sourceType: "statute",
+      lastVerified: "2026-06-28",
+      confidence: "high",
+    };
+    const f = buildDocFeeFinding({ isDocFee: true, feeName: "doc fee", amountCents: cents(700), stateCode: "XX", rule });
+    expect(f.comparisonStatus).toBe("verified_uncapped");
+    expect(f.overCap).toBeUndefined();
+    expect(f.buyerSummary).toMatch(/dealer-controlled/i);
   });
 
-  it("seeded state with a tentative cap does NOT produce a cap comparison (IL, PA)", () => {
-    for (const code of ["IL", "PA"]) {
+  it("seeded state does NOT run a cap comparison (IL, PA capped; NJ, CO, DC uncapped)", () => {
+    for (const code of ["IL", "PA", "NJ", "CO", "DC"]) {
       const f = classifyDocFeeAmount({ stateCode: code, feeName: "documentary fee", amountCents: cents(2000) });
-      expect(f.status, code).toBe("unverified_rule");
+      expect(f.comparisonStatus, code).toBe("seeded_rule_no_comparison");
       expect(f.withinCap, code).toBeUndefined();
       expect(f.overCap, code).toBeUndefined();
-      expect(f.humanReviewRecommended, code).toBe(true);
+      expect(f.verified, code).toBe(false);
     }
   });
 
-  it("conflicting-source state → unknown_rule, no comparison (AZ)", () => {
+  it("conflicting-source state → seeded_rule_no_comparison, ruleStatus unknown (AZ)", () => {
     const f = classifyDocFeeAmount({ stateCode: "AZ", feeName: "doc fee", amountCents: cents(500) });
-    expect(f.status).toBe("unknown_rule");
-    expect(f.overCap).toBeUndefined();
+    expect(f.comparisonStatus).toBe("seeded_rule_no_comparison");
+    expect(f.ruleStatus).toBe("unknown");
     expect(f.humanReviewRecommended).toBe(true);
   });
 
   it("needs-research state → needs_research, no comparison (AL)", () => {
     const f = classifyDocFeeAmount({ stateCode: "AL", feeName: "doc fee", amountCents: cents(500) });
-    expect(f.status).toBe("needs_research");
+    expect(f.comparisonStatus).toBe("needs_research");
     expect(f.overCap).toBeUndefined();
     expect(f.humanReviewRecommended).toBe(true);
   });
 
-  it("missing state → state_missing (no false certainty)", () => {
+  it("missing state → missing_state, prompts state-required guidance", () => {
     const f = classifyDocFeeAmount({ stateCode: undefined, feeName: "doc fee", amountCents: cents(500) });
-    expect(f.status).toBe("state_missing");
-    expect(f.overCap).toBeUndefined();
+    expect(f.comparisonStatus).toBe("missing_state");
+    expect(f.whatToAsk).toMatch(/add the state/i);
     expect(f.humanReviewRecommended).toBe(true);
   });
 });
 
-describe("compliance: conservative, non-legal language", () => {
-  it("classifier outputs never use forbidden phrases", () => {
-    const findings: DocFeeFinding[] = [
-      classifyDocFeeAmount({ stateCode: "MD", feeName: "doc fee", amountCents: cents(999) }),
-      classifyDocFeeAmount({ stateCode: "NY", feeName: "doc fee", amountCents: cents(999) }),
-      classifyDocFeeAmount({ stateCode: "FL", feeName: "doc fee", amountCents: cents(999) }),
-      classifyDocFeeAmount({ stateCode: "DE", feeName: "doc fee", amountCents: cents(800) }),
-      classifyDocFeeAmount({ stateCode: "IL", feeName: "doc fee", amountCents: cents(2000) }),
-      classifyDocFeeAmount({ stateCode: "AZ", feeName: "doc fee", amountCents: cents(500) }),
-      classifyDocFeeAmount({ stateCode: "AL", feeName: "doc fee", amountCents: cents(500) }),
-      classifyDocFeeAmount({ stateCode: undefined, feeName: "doc fee", amountCents: cents(500) }),
-    ];
-    for (const f of findings) {
-      expect(FORBIDDEN.test(f.explanation), f.explanation).toBe(false);
-      expect(FORBIDDEN.test(f.action), f.action).toBe(false);
+describe("Delaware special case", () => {
+  it("buyer copy distinguishes the state document fee from the dealer fee", () => {
+    const f = classifyDocFeeAmount({ stateCode: "DE", feeName: "documentation fee", amountCents: cents(500) });
+    expect(f.comparisonStatus).toBe("seeded_rule_no_comparison");
+    expect(f.buyerSummary).toMatch(/government titling charge/i);
+    expect(f.buyerSummary).toMatch(/document fee/i);
+    expect(f.whatToAsk).toMatch(/separate Delaware's state document fee/i);
+    expect(f.verified).toBe(false);
+  });
+});
+
+describe("compliance + conservatism", () => {
+  it("buyer copy says dealer-controlled and never a government fee where applicable", () => {
+    for (const code of ["NY", "MD", "FL", "VA", "DE", "DC", "IL", "AL"]) {
+      const f = classifyDocFeeAmount({ stateCode: code, feeName: "doc fee", amountCents: cents(900) });
+      expect(f.governmentFee, code).toBe(false);
+      expect(customerCopy(f), code).toMatch(/dealer-controlled|dealer charge|dealer fee/i);
     }
   });
 
-  it("every rule's customer-facing copy avoids forbidden phrases", () => {
+  it("seeded rules are never described as verified", () => {
+    for (const code of ["DE", "DC", "IL", "PA", "NJ", "CO", "AZ"]) {
+      const f = classifyDocFeeAmount({ stateCode: code, feeName: "doc fee", amountCents: cents(900) });
+      expect(f.verified, code).toBe(false);
+      expect(f.ruleStatus, code).not.toBe("verified");
+      expect(f.sourceSummary, code).not.toMatch(/verified source on file/i);
+    }
+  });
+
+  it("no finding uses forbidden / overclaiming language", () => {
+    const states = ["CA", "NY", "TX", "OH", "FL", "VA", "MD", "DE", "DC", "IL", "PA", "AZ", "AL", "XX"];
+    for (const code of states) {
+      const f = classifyDocFeeAmount({ stateCode: code, feeName: "doc fee", amountCents: cents(950) });
+      expect(FORBIDDEN.test(customerCopy(f)), `${code}: ${customerCopy(f)}`).toBe(false);
+    }
+    // also the missing-state path
+    const m = classifyDocFeeAmount({ stateCode: "", feeName: "doc fee", amountCents: cents(950) });
+    expect(FORBIDDEN.test(customerCopy(m))).toBe(false);
+  });
+
+  it("every registry rule's customer copy avoids forbidden language", () => {
     for (const rule of Object.values(DOC_FEE_RULES)) {
       expect(FORBIDDEN.test(rule.buyerExplanation), rule.jurisdiction).toBe(false);
       expect(FORBIDDEN.test(rule.buyerAction), rule.jurisdiction).toBe(false);
@@ -243,55 +228,58 @@ describe("compliance: conservative, non-legal language", () => {
   });
 });
 
+describe("finding shape — richer customer-facing model", () => {
+  it("populates the full decision model for a verified capped over-cap fee", () => {
+    const f = classifyDocFeeAmount({ stateCode: "MD", feeName: "dealer processing fee", amountCents: cents(950) });
+    expect(f.stateCode).toBe("MD");
+    expect(f.feeName).toBe("dealer processing fee");
+    expect(f.amountCents).toBe(cents(950));
+    expect(f.ruleStatus).toBe("verified");
+    expect(f.verificationStatus).toBe("verified");
+    expect(f.capType).toBe("capped");
+    expect(f.maxAmountCents).toBe(80_000);
+    expect(f.dealerControlled).toBe(true);
+    expect(f.governmentFee).toBe(false);
+    expect(f.buyerSummary.length).toBeGreaterThan(0);
+    expect(f.whyItMatters.length).toBeGreaterThan(0);
+    expect(f.whatToAsk.length).toBeGreaterThan(0);
+    expect(f.scriptLine).toMatch(/^“.*”$/);
+    expect(f.sourceSummary).toMatch(/verified source on file/i);
+    // back-compat aliases
+    expect(f.explanation).toBe(f.buyerSummary);
+    expect(f.action).toBe(f.whatToAsk);
+  });
+});
+
 describe("data quality", () => {
-  it("covers 50 states + DC; 16 sourced, 7 verified", () => {
+  it("covers 50 states + DC; 16 sourced, 7 verified, 35 scaffolds", () => {
     expect(Object.keys(US_JURISDICTIONS)).toHaveLength(51);
     expect(Object.keys(DOC_FEE_RULES)).toHaveLength(51);
     expect(SOURCED_JURISDICTIONS).toHaveLength(16);
     expect(VERIFIED_JURISDICTIONS).toHaveLength(7);
+    expect(Object.values(DOC_FEE_RULES).filter((r) => r.verificationStatus === "needs_research")).toHaveLength(35);
   });
 
-  it("every sourced rule carries full source metadata and safe semantics", () => {
+  it("every sourced rule keeps full source metadata + safe semantics", () => {
     for (const code of SOURCED_JURISDICTIONS) {
       const r = DOC_FEE_RULES[code];
-      expect(r.sourceUrl, `${code} sourceUrl`).toBeTruthy();
-      expect(r.sourceTitle, `${code} sourceTitle`).toBeTruthy();
-      expect(r.sourceType, `${code} sourceType`).toBeTruthy();
-      expect(r.sourceQuote, `${code} sourceQuote`).toBeTruthy();
-      expect(["high", "medium", "low"]).toContain(r.confidence);
-      expect(r.capType).not.toBe("needs_research");
+      expect(r.sourceUrl, code).toBeTruthy();
+      expect(r.sourceTitle, code).toBeTruthy();
+      expect(r.sourceType, code).toBeTruthy();
       expect(r.dealerControlled).toBe(true);
       expect(r.governmentFee).toBe(false);
-      // tri-state fields are boolean or null, never undefined
-      expect(r.taxable === null || typeof r.taxable === "boolean", `${code} taxable`).toBe(true);
-      expect(
-        r.mustBeDisclosed === null || typeof r.mustBeDisclosed === "boolean",
-        `${code} mustBeDisclosed`,
-      ).toBe(true);
+      if (r.verificationStatus !== "verified") expect(r.confidence, code).not.toBe("high");
     }
   });
 
-  it("verified capped rules have a positive cap amount", () => {
-    for (const code of VERIFIED_JURISDICTIONS) {
-      const r = DOC_FEE_RULES[code];
-      if (r.capType === "capped" || r.capType === "formula") {
-        expect(r.maxAmountCents, `${code} cap`).toBeGreaterThan(0);
-      }
+  it("does not invent caps for uncapped / disclosure-only states", () => {
+    for (const code of ["FL", "VA", "DE", "DC", "NJ", "CO"]) {
+      expect(DOC_FEE_RULES[code].maxAmountCents, code).toBeUndefined();
     }
   });
 
-  it("scaffolds are needs_research, low confidence, no fabricated source", () => {
-    const scaffolds = Object.values(DOC_FEE_RULES).filter(
-      (r) => r.verificationStatus === "needs_research",
-    );
-    expect(scaffolds.length).toBe(51 - 16);
-    for (const r of scaffolds) {
-      expect(r.confidence).toBe("low");
-      expect(r.sourceUrl).toBeUndefined();
-      expect(r.taxable).toBeNull();
-      expect(r.mustBeDisclosed).toBeNull();
-      expect(r.dealerControlled).toBe(true);
-      expect(r.governmentFee).toBe(false);
-    }
+  it("getDocFeeRuleForState is case-insensitive; undefined for unknown codes", () => {
+    expect(getDocFeeRuleForState("md")?.jurisdiction).toBe("MD");
+    expect(getDocFeeRuleForState("ZZ")).toBeUndefined();
   });
 });

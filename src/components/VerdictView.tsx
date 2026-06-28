@@ -276,47 +276,102 @@ export function FlagCard({ flag }: { flag: Flag }) {
   );
 }
 
+/** Cap-status label per comparison status. Decision-first wording. */
+const DOC_FEE_CAP_LABEL: Record<string, string> = {
+  within_verified_cap: "Within verified cap",
+  above_verified_cap: "Above verified cap",
+  verified_uncapped: "No verified cap",
+  verified_disclosure_only: "Disclosure rule",
+  seeded_rule_no_comparison: "Not enough verified data",
+  needs_research: "Not enough verified data",
+  missing_state: "State needed",
+  not_doc_fee: "",
+};
+
+const DOC_FEE_RULE_LABEL: Record<string, string> = {
+  verified: "Verified",
+  seeded: "Seeded",
+  needs_research: "Needs research",
+  unknown: "Unknown",
+  missing: "—",
+  not_doc_fee: "",
+};
+
 /**
  * State doc-fee intelligence attached to a documentation/processing-fee flag.
- * Shows the verified state rule status, what it means for the buyer, the action
- * to take, and the cited source — with confidence and limitations.
+ * Decision first (is it dealer-controlled, what's the cap status, what to do +
+ * say); source and caveats second. Built from the sourced doc-fee registry.
  */
 function DocFeeRulePanel({ finding }: { finding: DocFeeFinding }) {
-  const STATUS_LABEL: Record<string, string> = {
-    within_cap: "Within known cap",
-    over_cap: "Above known cap",
-    uncapped_dealer_controlled: "No state cap",
-    disclosure_only: "Disclosure-regulated",
-    needs_research: "State rule not researched yet",
-    unverified_rule: "Possible cap — not verified yet",
-    unknown_rule: "State cap unverified (sources conflict)",
-    state_missing: "State needed to verify",
-    not_doc_fee: "",
-  };
   const tone =
-    finding.status === "over_cap"
+    finding.comparisonStatus === "above_verified_cap"
       ? "border-verdict-red/30 bg-verdict-red/5"
-      : finding.status === "within_cap"
+      : finding.comparisonStatus === "within_verified_cap"
         ? "border-verdict-green/25 bg-verdict-green/5"
         : "border-navy/15 bg-white";
+  const capLabel = DOC_FEE_CAP_LABEL[finding.comparisonStatus] || "";
+  const ruleLabel = DOC_FEE_RULE_LABEL[finding.ruleStatus] || "";
   return (
     <div className={`mt-3 rounded-lg border ${tone} p-3`}>
-      <div className="flex items-center justify-between gap-2">
+      {/* Header: what + where + rule status */}
+      <div className="flex items-start justify-between gap-2">
         <p className="text-[11px] font-bold uppercase tracking-wide text-navy/55">
-          State doc-fee rule{finding.jurisdiction ? ` · ${finding.jurisdiction}` : ""}
+          State doc-fee rule{finding.stateCode ? ` · ${finding.stateCode}` : ""}
         </p>
-        <span className="rounded-full bg-navy-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-navy/60">
-          {STATUS_LABEL[finding.status] || finding.status}
-        </span>
+        <div className="flex shrink-0 flex-wrap justify-end gap-1">
+          {capLabel && (
+            <span className="rounded-full bg-navy-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-navy/60">
+              {capLabel}
+            </span>
+          )}
+          {ruleLabel && (
+            <span
+              className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                finding.verified
+                  ? "bg-verdict-green/10 text-verdict-green"
+                  : "bg-gold/10 text-gold-dark"
+              }`}
+            >
+              {ruleLabel}
+            </span>
+          )}
+        </div>
       </div>
+
+      {/* Decision */}
       <p className="mt-1.5 text-sm leading-relaxed text-navy/75">
-        {finding.explanation}
+        {finding.buyerSummary}
       </p>
-      <p className="mt-1.5 text-sm leading-relaxed text-navy/75">
-        <span className="font-semibold text-gold-dark">What to do: </span>
-        {finding.action}
+
+      {/* Dealer-controlled vs government — the core distinction */}
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        <span className="rounded-full bg-gold/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-gold-dark">
+          {finding.dealerControlled ? "Dealer-controlled fee" : "Fee"}
+        </span>
+        {finding.governmentFee ? (
+          <span className="rounded-full bg-navy-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-navy/60">
+            Government charge
+          </span>
+        ) : (
+          <span className="rounded-full bg-navy-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-navy/60">
+            Not a government fee
+          </span>
+        )}
+      </div>
+
+      {/* Action + script */}
+      <p className="mt-2 text-sm leading-relaxed text-navy/75">
+        <span className="font-semibold text-gold-dark">Ask: </span>
+        {finding.whatToAsk}
       </p>
-      {finding.source?.url && (
+      {finding.scriptLine && (
+        <p className="mt-1.5 rounded-md bg-cream-100 px-3 py-2 text-sm italic leading-relaxed text-navy/75">
+          {finding.scriptLine}
+        </p>
+      )}
+
+      {/* Details second: source + caveats */}
+      {finding.source?.url ? (
         <p className="mt-2 text-xs text-navy/50">
           Source:{" "}
           <a
@@ -329,6 +384,10 @@ function DocFeeRulePanel({ finding }: { finding: DocFeeFinding }) {
           </a>
           {finding.source.type ? ` (${finding.source.type.replace(/_/g, " ")})` : ""}
         </p>
+      ) : (
+        finding.sourceSummary && (
+          <p className="mt-2 text-xs text-navy/50">{finding.sourceSummary}</p>
+        )
       )}
       <p className="mt-1 text-[11px] text-navy/45">
         Confidence: {finding.confidence} · {finding.verified ? "verified source" : "unverified"}

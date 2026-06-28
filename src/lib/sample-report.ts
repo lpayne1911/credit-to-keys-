@@ -18,6 +18,18 @@
  */
 import type { FairnessResult } from "@/lib/fairness-engine";
 import type { LoanInputs } from "@/components/VerdictView";
+import { classifyDocFeeAmount } from "@/lib/intelligence/docFeeRules";
+
+/**
+ * Sample doc-fee finding: a Maryland buyer charged an $899 dealer processing fee
+ * against MD's verified $800 cap → an "above verified cap" demonstration, shown
+ * on the dealer-fee flag so /sample exercises the real doc-fee intelligence.
+ */
+const SAMPLE_DOC_FEE = classifyDocFeeAmount({
+  stateCode: "MD",
+  feeName: "Dealer processing fee",
+  amountCents: 89_900,
+});
 
 export const SAMPLE_VEHICLE = {
   year: 2021,
@@ -68,6 +80,8 @@ export const SAMPLE_RESULT: FairnessResult = {
         confidence: "high",
         basis: "Typical removable dealer add-on padding on a worksheet like this.",
       },
+      // State-aware doc-fee intelligence: MD verified $800 cap, fee at $899.
+      docFee: SAMPLE_DOC_FEE,
     },
     {
       type: "apr_markup",
