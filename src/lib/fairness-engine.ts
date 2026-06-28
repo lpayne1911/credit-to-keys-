@@ -252,6 +252,9 @@ export interface FairnessResult {
   assumptions: string[];
   /** Engine version — bump when the real engine replaces these placeholders. */
   engineVersion: string;
+  /** How the deal's jurisdiction was resolved (drives state-aware rules and the
+   * "Using MD from the dealer ZIP — verify" note). Optional for back-compat. */
+  stateResolution?: StateResolution | null;
 }
 
 // ===========================================================================
@@ -602,6 +605,7 @@ export function scoreDeal(input: FairnessInput): FairnessResult {
     warranty,
     assumptions: dedupe(assumptions),
     engineVersion: ENGINE_VERSION,
+    stateResolution: stateRes,
   };
 }
 

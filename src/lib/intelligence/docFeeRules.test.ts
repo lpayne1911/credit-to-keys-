@@ -25,7 +25,8 @@ function customerCopy(f: DocFeeFinding): string {
   );
 }
 
-const SCOPED_VERIFIED = ["CA", "NY", "TX", "OH", "FL", "VA", "MD"];
+// Verified after the priority pass + the NC/GA/NJ/CO verification pass.
+const SCOPED_VERIFIED = ["CA", "NY", "TX", "OH", "FL", "VA", "MD", "NC", "GA", "NJ", "CO"];
 const SCOPED_SEEDED = ["DC", "DE"];
 
 describe("isDocFeeAlias", () => {
@@ -67,11 +68,11 @@ describe("registry — verification lifecycle (unchanged from prior pass)", () =
     for (const code of SCOPED_VERIFIED) expect(DOC_FEE_RULES[code].verificationStatus, code).toBe("verified");
     for (const code of SCOPED_SEEDED) expect(DOC_FEE_RULES[code].verificationStatus, code).toBe("seeded");
   });
-  it("only the 7 scoped states are verified", () => {
+  it("exactly the verified set is verified (no accidental flips)", () => {
     expect([...VERIFIED_JURISDICTIONS].sort()).toEqual([...SCOPED_VERIFIED].sort());
   });
-  it("no unscoped state is verified", () => {
-    for (const code of ["IL", "PA", "NC", "GA", "NJ", "CO", "AZ", "AL", "WA"]) {
+  it("still-seeded / unresearched states are not verified", () => {
+    for (const code of ["IL", "PA", "AZ", "DC", "DE", "AL", "WA"]) {
       expect(DOC_FEE_RULES[code].verificationStatus, code).not.toBe("verified");
     }
   });
@@ -114,12 +115,21 @@ describe("classifyDocFeeAmount — comparisonStatus", () => {
     expect(classifyDocFeeAmount({ stateCode: "TX", feeName: "documentary fee", amountCents: cents(400) }).comparisonStatus).toBe("above_verified_cap");
   });
 
-  it("verified disclosure-only → verified_disclosure_only, no comparison (FL, VA)", () => {
-    for (const code of ["FL", "VA"]) {
+  it("verified disclosure-only → verified_disclosure_only, no comparison (FL, VA, NC, GA)", () => {
+    for (const code of ["FL", "VA", "NC", "GA"]) {
       const f = classifyDocFeeAmount({ stateCode: code, feeName: "doc fee", amountCents: cents(999) });
       expect(f.comparisonStatus, code).toBe("verified_disclosure_only");
       expect(f.overCap, code).toBeUndefined();
       expect(f.withinCap, code).toBeUndefined();
+    }
+  });
+
+  it("verified uncapped (NJ, CO) → verified_uncapped, no comparison", () => {
+    for (const code of ["NJ", "CO"]) {
+      const f = classifyDocFeeAmount({ stateCode: code, feeName: "dealer doc fee", amountCents: cents(999) });
+      expect(f.comparisonStatus, code).toBe("verified_uncapped");
+      expect(f.verified, code).toBe(true);
+      expect(f.overCap, code).toBeUndefined();
     }
   });
 
@@ -148,8 +158,8 @@ describe("classifyDocFeeAmount — comparisonStatus", () => {
     expect(f.buyerSummary).toMatch(/dealer-controlled/i);
   });
 
-  it("seeded state does NOT run a cap comparison (IL, PA capped; NJ, CO, DC uncapped)", () => {
-    for (const code of ["IL", "PA", "NJ", "CO", "DC"]) {
+  it("seeded state does NOT run a cap comparison (IL, PA capped; DC uncapped)", () => {
+    for (const code of ["IL", "PA", "DC"]) {
       const f = classifyDocFeeAmount({ stateCode: code, feeName: "documentary fee", amountCents: cents(2000) });
       expect(f.comparisonStatus, code).toBe("seeded_rule_no_comparison");
       expect(f.withinCap, code).toBeUndefined();
@@ -201,7 +211,7 @@ describe("compliance + conservatism", () => {
   });
 
   it("seeded rules are never described as verified", () => {
-    for (const code of ["DE", "DC", "IL", "PA", "NJ", "CO", "AZ"]) {
+    for (const code of ["DE", "DC", "IL", "PA", "AZ"]) {
       const f = classifyDocFeeAmount({ stateCode: code, feeName: "doc fee", amountCents: cents(900) });
       expect(f.verified, code).toBe(false);
       expect(f.ruleStatus, code).not.toBe("verified");
@@ -252,11 +262,11 @@ describe("finding shape — richer customer-facing model", () => {
 });
 
 describe("data quality", () => {
-  it("covers 50 states + DC; 16 sourced, 7 verified, 35 scaffolds", () => {
+  it("covers 50 states + DC; 16 sourced, 11 verified, 35 scaffolds", () => {
     expect(Object.keys(US_JURISDICTIONS)).toHaveLength(51);
     expect(Object.keys(DOC_FEE_RULES)).toHaveLength(51);
     expect(SOURCED_JURISDICTIONS).toHaveLength(16);
-    expect(VERIFIED_JURISDICTIONS).toHaveLength(7);
+    expect(VERIFIED_JURISDICTIONS).toHaveLength(11);
     expect(Object.values(DOC_FEE_RULES).filter((r) => r.verificationStatus === "needs_research")).toHaveLength(35);
   });
 

@@ -23,6 +23,7 @@ import { NegotiationScriptCard } from "@/components/NegotiationScriptCard";
 import { AnimatedScore } from "@/components/ui/AnimatedScore";
 import { RiskBadge, type RiskTone } from "@/components/ui/RiskBadge";
 import type { DocFeeFinding } from "@/lib/intelligence/docFeeRules";
+import { stateSourceNote } from "@/lib/intelligence/resolveDealState";
 
 /** Map a flag severity to a RiskBadge tone for the summary chip row. */
 function severityTone(severity: string): RiskTone {
@@ -660,6 +661,23 @@ export function VerdictView({
             <p className="mt-4 rounded-lg bg-white/70 px-3 py-2 text-sm text-navy/75">
               <span className="font-semibold">Reviewed by a human advocate:</span>{" "}
               {reviewedNote}
+            </p>
+          )}
+
+          {/* Where the state used for state-aware rules came from (only shown
+              when it was inferred, e.g. from a ZIP or the dealer location). */}
+          {result.stateResolution && stateSourceNote(result.stateResolution) && (
+            <p className="mt-3 flex items-start gap-1.5 text-xs text-slate">
+              <svg viewBox="0 0 20 20" className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gold-dark" aria-hidden>
+                <path
+                  d="M10 2.5c-3 0-5.5 2.4-5.5 5.4 0 3.9 5.5 9.6 5.5 9.6s5.5-5.7 5.5-9.6c0-3-2.5-5.4-5.5-5.4Z"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.4"
+                />
+                <circle cx="10" cy="8" r="1.6" fill="currentColor" />
+              </svg>
+              {stateSourceNote(result.stateResolution)}
             </p>
           )}
         </div>

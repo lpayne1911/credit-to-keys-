@@ -78,23 +78,66 @@ export function normalizeStateCode(raw: string | null | undefined): string | nul
  * ------------------------------------------------------------------------- */
 
 type Zip3Range = [number, number];
+
+/**
+ * ZIP3-prefix → state for all 50 states + DC, from the public USPS ZIP-prefix
+ * allocation (stable). Known split prefixes are special-cased: 733 is TX
+ * (Austin) inside Oklahoma's range; 055 is MA inside Vermont's; 201 is VA and
+ * 200/202–205 are DC. Military/territory prefixes (006–009, 090–098, 340,
+ * 962–969) are intentionally omitted → null (unknown), never a wrong guess.
+ */
 const ZIP3_RANGES: { state: string; ranges: Zip3Range[] }[] = [
+  { state: "MA", ranges: [[10, 27], [55, 55]] },
+  { state: "RI", ranges: [[28, 29]] },
+  { state: "NH", ranges: [[30, 38]] },
+  { state: "ME", ranges: [[39, 49]] },
+  { state: "VT", ranges: [[50, 54], [56, 59]] },
+  { state: "CT", ranges: [[60, 69]] },
+  { state: "NJ", ranges: [[70, 89]] },
+  { state: "NY", ranges: [[100, 149]] },
+  { state: "PA", ranges: [[150, 196]] },
+  { state: "DE", ranges: [[197, 199]] },
   { state: "DC", ranges: [[200, 200], [202, 205]] },
   { state: "VA", ranges: [[201, 201], [220, 246]] },
   { state: "MD", ranges: [[206, 219]] },
-  { state: "NY", ranges: [[100, 149]] },
-  { state: "NJ", ranges: [[70, 89]] },
-  { state: "PA", ranges: [[150, 196]] },
-  { state: "DE", ranges: [[197, 199]] },
-  { state: "FL", ranges: [[320, 349]] },
-  { state: "GA", ranges: [[300, 319], [398, 399]] },
+  { state: "WV", ranges: [[247, 268]] },
   { state: "NC", ranges: [[270, 289]] },
+  { state: "SC", ranges: [[290, 299]] },
+  { state: "GA", ranges: [[300, 319], [398, 399]] },
+  { state: "FL", ranges: [[320, 339], [341, 342], [344, 349]] },
+  { state: "AL", ranges: [[350, 369]] },
+  { state: "TN", ranges: [[370, 385]] },
+  { state: "MS", ranges: [[386, 397]] },
+  { state: "KY", ranges: [[400, 427]] },
   { state: "OH", ranges: [[430, 459]] },
+  { state: "IN", ranges: [[460, 479]] },
+  { state: "MI", ranges: [[480, 499]] },
+  { state: "IA", ranges: [[500, 528]] },
+  { state: "WI", ranges: [[530, 549]] },
+  { state: "MN", ranges: [[550, 567]] },
+  { state: "SD", ranges: [[570, 577]] },
+  { state: "ND", ranges: [[580, 588]] },
+  { state: "MT", ranges: [[590, 599]] },
   { state: "IL", ranges: [[600, 629]] },
-  { state: "TX", ranges: [[750, 799], [885, 885]] },
-  { state: "CA", ranges: [[900, 961]] },
+  { state: "MO", ranges: [[630, 658]] },
+  { state: "KS", ranges: [[660, 679]] },
+  { state: "NE", ranges: [[680, 693]] },
+  { state: "LA", ranges: [[700, 714]] },
+  { state: "AR", ranges: [[716, 729]] },
+  { state: "OK", ranges: [[730, 732], [734, 749]] },
+  { state: "TX", ranges: [[733, 733], [750, 799], [885, 885]] },
   { state: "CO", ranges: [[800, 816]] },
+  { state: "WY", ranges: [[820, 831]] },
+  { state: "ID", ranges: [[832, 838]] },
+  { state: "UT", ranges: [[840, 847]] },
   { state: "AZ", ranges: [[850, 865]] },
+  { state: "NM", ranges: [[870, 884]] },
+  { state: "NV", ranges: [[889, 898]] },
+  { state: "CA", ranges: [[900, 961]] },
+  { state: "HI", ranges: [[967, 968]] },
+  { state: "OR", ranges: [[970, 979]] },
+  { state: "WA", ranges: [[980, 994]] },
+  { state: "AK", ranges: [[995, 999]] },
 ];
 
 /**

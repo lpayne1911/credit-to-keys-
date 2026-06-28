@@ -17,18 +17,29 @@ describe("normalizeStateCode", () => {
   });
 });
 
-describe("zipToState (verified ZIP3 prefixes)", () => {
-  it("maps known ZIPs for sourced states", () => {
+describe("zipToState (verified ZIP3 prefixes, all 50 + DC)", () => {
+  it("maps known ZIPs across regions", () => {
     expect(zipToState("20850")).toBe("MD"); // Rockville
     expect(zipToState("10001")).toBe("NY"); // NYC
     expect(zipToState("75201")).toBe("TX"); // Dallas
     expect(zipToState("19801")).toBe("DE"); // Wilmington
     expect(zipToState("20001")).toBe("DC"); // Washington
     expect(zipToState("22201")).toBe("VA"); // Arlington
+    expect(zipToState("99501")).toBe("AK"); // Anchorage
+    expect(zipToState("98101")).toBe("WA"); // Seattle
+    expect(zipToState("96813")).toBe("HI"); // Honolulu
+    expect(zipToState("02903")).toBe("RI"); // Providence
   });
-  it("returns null for partial ZIPs and out-of-table prefixes", () => {
+  it("handles known split-prefix edges", () => {
+    expect(zipToState("73301")).toBe("TX"); // Austin IRS — TX inside OK's range
+    expect(zipToState("74103")).toBe("OK"); // Tulsa
+    expect(zipToState("05501")).toBe("MA"); // Andover IRS — MA inside VT's range
+    expect(zipToState("05601")).toBe("VT"); // Montpelier
+  });
+  it("returns null for partial ZIPs, territories, and military prefixes", () => {
     expect(zipToState("208")).toBeNull(); // too short
-    expect(zipToState("99501")).toBeNull(); // AK — not in table
+    expect(zipToState("00601")).toBeNull(); // Puerto Rico — omitted
+    expect(zipToState("09001")).toBeNull(); // APO Europe — omitted
     expect(zipToState(null)).toBeNull();
   });
 });
@@ -88,7 +99,7 @@ describe("resolveDealState — priority", () => {
   });
 
   it("returns unknown (low) with a limitation when nothing resolves", () => {
-    const r = resolveDealState({ dealerZip: "99999" });
+    const r = resolveDealState({ dealerZip: "00601" }); // Puerto Rico — omitted
     expect(r.stateCode).toBeNull();
     expect(r.source).toBe("unknown");
     expect(r.confidence).toBe("low");

@@ -110,6 +110,9 @@ type State = {
   trim: string;
   vin: string;
   buyerState: string;
+  /** Buyer's registration ZIP — a high-value state signal when they skip the
+   * state picker. */
+  registrationZip: string;
   /** Dealer ZIP, captured from an uploaded quote — a state fallback. */
   dealerZip: string;
   year: number;
@@ -143,6 +146,7 @@ const INITIAL: State = {
   trim: "",
   vin: "",
   buyerState: "",
+  registrationZip: "",
   dealerZip: "",
   year: NOW - 3,
   mileage: 40_000,
@@ -239,6 +243,7 @@ export function GamifiedDealCheck({ focus = "full" }: { focus?: Focus } = {}) {
       inputPath: (uploadedPath ? "upload" : "manual") as "upload" | "manual",
       uploadedFilePath: uploadedPath ?? undefined,
       buyerState: s.buyerState || undefined,
+      registrationZip: s.registrationZip || undefined,
       dealerZip: s.dealerZip || undefined,
     };
 
@@ -502,6 +507,26 @@ export function GamifiedDealCheck({ focus = "full" }: { focus?: Focus } = {}) {
                     <option key={st.code} value={st.code}>{st.name}</option>
                   ))}
                 </select>
+              </label>
+              <label className="mt-4 block">
+                <span className="field-label">
+                  Registration ZIP{" "}
+                  <span className="font-normal text-navy/40">(optional)</span>
+                </span>
+                <input
+                  className="field-input"
+                  inputMode="numeric"
+                  maxLength={10}
+                  placeholder="Where you'll title & register the car"
+                  value={s.registrationZip}
+                  onChange={(e) =>
+                    set("registrationZip", e.target.value.replace(/[^0-9-]/g, ""))
+                  }
+                />
+                <span className="mt-1 block text-xs text-navy/45">
+                  Helps us pin the right state for doc-fee caps even if you skip the
+                  picker above.
+                </span>
               </label>
               {s.buyerState && (
                 <p className="mt-3 text-sm text-navy/55">
