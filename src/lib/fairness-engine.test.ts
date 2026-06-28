@@ -540,3 +540,79 @@ describe("captured context fields change the verdict (issue #7 item 1)", () => {
     expect(high.low).toBeLessThanOrEqual(zero.low);
   });
 });
+
+describe("financed add-ons (issue #11)", () => {
+  const addOnInput = (extra: Partial<FairnessInput["deal"]>): FairnessInput => ({
+    vehicle: { year: 2022, make: "Toyota", model: "Camry", mileage: 10000 },
+    deal: {
+      creditBand: "unknown",
+      fees: [{ label: "GAP", amount: 1000 }, { label: "Nitrogen tire fill", amount: 300 }],
+      ...extra,
+    },
+    warranty: { coverageTier: "unknown", priceQuoted: 2500 },
+  });
+  const fin = (r: ReturnType<typeof scoreDeal>) =>
+    r.flags.find((f) => f.type === "financed_addon");
+
+  it("financed WITH apr/term → estimated interest impact (a range)", () => {
+    const r = scoreDeal(addOnInput({ addOnsFinanced: true, addOnApr: 15, addOnTermMonths: 72 }));
+    const f = fin(r);
+    expect(f?.estimatedImpact).toBeTruthy();
+    expect(f!.estimatedImpact!.high).toBeGreaterThan(f!.estimatedImpact!.low);
+    expect(f!.estimatedImpact!.low).toBeGreaterThan(0);
+  });
+
+  it("financed WITHOUT apr/term → warning only, no number", () => {
+    const f = fin(scoreDeal(addOnInput({ addOnsFinanced: true })));
+    expect(f).toBeTruthy();
+    expect(f!.severity).toBe("info");
+    expect(f!.estimatedImpact ?? null).toBeNull();
+  });
+
+  it("NOT financed → no financed-add-on flag and no interest impact", () => {
+    const r = scoreDeal(addOnInput({ addOnsFinanced: false, addOnApr: 15, addOnTermMonths: 72 }));
+    expect(fin(r)).toBeUndefined();
+  });
+
+  it("does not reclassify: the financed estimate never turns fees into a warranty or vice-versa", () => {
+    const r = scoreDeal(addOnInput({ addOnsFinanced: true, addOnApr: 12, addOnTermMonths: 60 }));
+    expect(r.warranty).toBeTruthy(); // warranty stays its own assessment
+    expect(r.flags.find((f) => f.type === "financed_addon")).toBeTruthy();
+    // the APR-markup flag must NOT fire from the add-on financing inputs
+    expect(r.flags.find((f) => f.type === "apr_markup")).toBeUndefined();
+  });
+});
+
+describe("warranty mileage cap (issue #10)", () => {
+  const mk = (termMiles: number | null) =>
+    scoreDeal({
+      vehicle: { year: 2021, make: "Honda", model: "Accord", mileage: 40000 },
+      deal: { creditBand: "unknown", fees: [] },
+      warranty: { coverageTier: "stated_component", termMonths: 60, termMiles, priceQuoted: 3000 },
+    }).warranty!;
+
+  it("is disclosed in the assumptions when known, and noted as unpriced", () => {
+    const r = scoreDeal({
+      vehicle: { year: 2021, make: "Honda", model: "Accord", mileage: 40000 },
+      deal: { creditBand: "unknown", fees: [] },
+      warranty: { coverageTier: "stated_component", termMonths: 60, termMiles: 75000, priceQuoted: 3000 },
+    });
+    expect(r.assumptions.some((a) => /75,000-mi cap/.test(a))).toBe(true);
+    expect(r.assumptions.some((a) => /isn't priced in yet/i.test(a))).toBe(true);
+  });
+
+  it("a known mileage cap is an extra confidence signal (tightens vs unknown)", () => {
+    const rank: Record<string, number> = { low: 0, medium: 1, high: 2 };
+    expect(rank[mk(75000).fairRange.confidence]).toBeGreaterThanOrEqual(
+      rank[mk(null).fairRange.confidence],
+    );
+  });
+
+  it("does NOT move the fair-price magnitude on its own (no placeholder pricing yet)", () => {
+    const a = mk(40000).fairRange;
+    const b = mk(120000).fairRange;
+    // same confidence inputs → identical band; only disclosure/confidence use the cap
+    expect(a.low).toBe(b.low);
+    expect(a.high).toBe(b.high);
+  });
+});

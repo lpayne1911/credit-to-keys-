@@ -148,6 +148,19 @@ function Hero() {
               <FlowChip>Push back before signing</FlowChip>
             </div>
           </Reveal>
+
+          {/* Stressed buyer who only needs one thing — jump straight there
+              instead of scrolling to the product section. */}
+          <Reveal delay={360}>
+            <p className="mt-5 text-sm text-slate">
+              Just need one thing checked?{" "}
+              <Link href="/warranty-check" className="font-semibold text-gold-dark hover:underline">Warranty</Link>
+              {" · "}
+              <Link href="/apr-check" className="font-semibold text-gold-dark hover:underline">APR / payment</Link>
+              {" · "}
+              <Link href="/add-on-check" className="font-semibold text-gold-dark hover:underline">Add-ons &amp; fees</Link>
+            </p>
+          </Reveal>
         </div>
 
         {/* Mockup column with floating artifacts */}

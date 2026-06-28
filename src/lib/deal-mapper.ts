@@ -30,6 +30,10 @@ export interface DealSubmission {
     creditBand?: string;
     /** Buyer holds an outside (bank/credit-union) pre-approval. */
     outsideApproval?: boolean;
+    /** Add-ons rolled into the loan + the rate/term to estimate their interest. */
+    addOnsFinanced?: boolean;
+    addOnApr?: number | string;
+    addOnTermMonths?: number | string;
   };
   warranty?: {
     provider?: string;
@@ -109,6 +113,9 @@ export function toFairnessInput(s: DealSubmission): FairnessInput {
         ? (band as CreditBand)
         : "unknown") as CreditBand,
       outsideApproval: s.deal?.outsideApproval === true ? true : undefined,
+      addOnsFinanced: s.deal?.addOnsFinanced === true ? true : undefined,
+      addOnApr: num(s.deal?.addOnApr),
+      addOnTermMonths: num(s.deal?.addOnTermMonths),
     },
     warranty: {
       provider: str(s.warranty?.provider),

@@ -43,6 +43,9 @@ export const dealSubmissionSchema = z.object({
       monthlyPayment: numLike,
       creditBand: z.string().max(40).optional(),
       outsideApproval: z.boolean().optional(),
+      addOnsFinanced: z.boolean().optional(),
+      addOnApr: numLike,
+      addOnTermMonths: numLike,
     })
     .optional(),
   warranty: z
