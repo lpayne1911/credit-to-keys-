@@ -25,6 +25,7 @@ import type {
   FeeRiskSeverity,
   FeeCategory,
 } from "@/lib/fee-classifier";
+import { categorizeDeal, type DealCategory, type CategoryLevel } from "@/lib/deal-categories";
 
 /** The loan numbers needed to show what financing really costs over the term. */
 export interface LoanInputs {
@@ -338,6 +339,77 @@ const FEE_CATEGORY_LABEL: Record<FeeCategory, string> = {
  * compliance-safe guidance (consumer guidance, not legal advice). Presentation
  * only; it never affects the verdict/score. Mirrors the other detail cards.
  */
+const CATEGORY_LEVEL_STYLES: Record<
+  CategoryLevel,
+  { dot: string; pill: string; label: string }
+> = {
+  looks_clear: {
+    dot: "bg-verdict-green",
+    pill: "bg-verdict-green/10 text-verdict-green",
+    label: "Looks clear",
+  },
+  worth_a_look: {
+    dot: "bg-verdict-amber",
+    pill: "bg-verdict-amber/10 text-verdict-amber",
+    label: "Worth a look",
+  },
+  high_risk: {
+    dot: "bg-verdict-red",
+    pill: "bg-verdict-red/10 text-verdict-red",
+    label: "High risk",
+  },
+  needs_info: {
+    dot: "bg-navy/30",
+    pill: "bg-navy-50 text-navy/55",
+    label: "Needs info",
+  },
+};
+
+/**
+ * At-a-glance "Deal Score" breakdown — five buyer-facing categories derived
+ * (presentation only) from the engine flags + fee-risk channel. It summarizes
+ * what's below; it never changes the verdict or score.
+ */
+export function CategoryScorecard({
+  result,
+  feeRisk,
+}: {
+  result: FairnessResult;
+  feeRisk?: FeeRiskAssessment | null;
+}) {
+  const categories: DealCategory[] = categorizeDeal(result, feeRisk);
+  return (
+    <div className="card">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-lg font-semibold text-navy">Deal breakdown</h3>
+        <ConfidenceBadge level={result.confidence} />
+      </div>
+      <p className="mt-1 text-sm text-navy/55">
+        Based on what you entered — a buyer-side read, not legal advice.
+      </p>
+      <ul className="mt-4 divide-y divide-navy/5">
+        {categories.map((c) => {
+          const st = CATEGORY_LEVEL_STYLES[c.level];
+          return (
+            <li key={c.key} className="flex items-start gap-3 py-3">
+              <span className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${st.dot}`} aria-hidden />
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-semibold text-navy">{c.label}</span>
+                  <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${st.pill}`}>
+                    {st.label}
+                  </span>
+                </div>
+                <p className="mt-0.5 text-sm leading-relaxed text-navy/65">{c.note}</p>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
 export function FeeRiskCard({ feeRisk }: { feeRisk: FeeRiskAssessment }) {
   return (
     <div className="card">
@@ -576,6 +648,9 @@ export function VerdictView({
       </div>
 
       {/* Primary action — the words to use, right under the verdict. */}
+      {/* At-a-glance category breakdown, above the detailed disclosure. */}
+      <CategoryScorecard result={result} feeRisk={feeRisk} />
+
       <NegotiationScriptCard result={result} offeredApr={loan?.apr ?? null} />
 
       {/* Depth on demand — the detailed red flags, warranty, loan cost, gaps,
