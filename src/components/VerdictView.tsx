@@ -283,11 +283,12 @@ export function FlagCard({ flag }: { flag: Flag }) {
  */
 function DocFeeRulePanel({ finding }: { finding: DocFeeFinding }) {
   const STATUS_LABEL: Record<string, string> = {
-    within_cap: "Within state cap",
-    over_cap: "Over state cap",
+    within_cap: "Within known cap",
+    over_cap: "Above known cap",
     uncapped_dealer_controlled: "No state cap",
     disclosure_only: "Disclosure-regulated",
-    needs_research: "State rule not verified yet",
+    needs_research: "State rule not researched yet",
+    unverified_rule: "Possible cap — not verified yet",
     unknown_rule: "State cap unverified (sources conflict)",
     state_missing: "State needed to verify",
     not_doc_fee: "",
@@ -330,7 +331,7 @@ function DocFeeRulePanel({ finding }: { finding: DocFeeFinding }) {
         </p>
       )}
       <p className="mt-1 text-[11px] text-navy/45">
-        Confidence: {finding.confidence}
+        Confidence: {finding.confidence} · {finding.verified ? "verified source" : "unverified"}
         {finding.humanReviewRecommended ? " · human review recommended" : ""}
         {finding.limitations ? ` — ${finding.limitations}` : ""}
       </p>
