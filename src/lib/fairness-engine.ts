@@ -46,6 +46,11 @@ import {
   isDocFeeAlias,
   type DocFeeFinding,
 } from "./intelligence/docFeeRules";
+import {
+  resolveDealState,
+  stateSourceNote,
+  type StateResolution,
+} from "./intelligence/resolveDealState";
 
 // ---------------------------------------------------------------------------
 //  INPUT TYPES
@@ -153,6 +158,15 @@ export interface FairnessInput {
   /** Two-letter US jurisdiction code (state/DC) where the buyer is purchasing.
    * Drives state-aware doc-fee intelligence. Optional. */
   buyerState?: string | null;
+  /** Additional, lower-priority state signals. The engine resolves the best
+   * available jurisdiction from these via {@link resolveDealState}. All optional. */
+  registrationState?: string | null;
+  purchaseState?: string | null;
+  registrationZip?: string | null;
+  dealerZip?: string | null;
+  dealerState?: string | null;
+  dealerAddress?: string | null;
+  userProfileState?: string | null;
   /** True when the figures came from an uploaded quote (raises confidence). */
   documentUploaded?: boolean;
   /**
@@ -537,7 +551,19 @@ export function scoreDeal(input: FairnessInput): FairnessResult {
   }
 
   // --- Fees & add-ons ----------------------------------------------------
-  flags.push(...assessFees(input.deal.fees ?? [], assumptions, input.buyerState ?? null));
+  // Resolve the best available jurisdiction (registration > purchase > ZIP >
+  // dealer) so doc-fee rules fire on more than a single narrow state field.
+  const stateRes = resolveDealState({
+    registrationState: input.registrationState,
+    purchaseState: input.purchaseState,
+    buyerState: input.buyerState,
+    registrationZip: input.registrationZip,
+    dealerZip: input.dealerZip,
+    dealerState: input.dealerState,
+    dealerAddress: input.dealerAddress,
+    userProfileState: input.userProfileState,
+  });
+  flags.push(...assessFees(input.deal.fees ?? [], assumptions, stateRes));
 
   // --- Interest paid on add-ons financed into the loan -------------------
   const financedFlag = assessFinancedAddOns(input, assumptions);
@@ -1072,10 +1098,16 @@ export function auditFees(fees: ItemizedFee[]): FeeAuditResult {
   };
 }
 
+const UNKNOWN_STATE: StateResolution = {
+  stateCode: null,
+  source: "unknown",
+  confidence: "low",
+};
+
 function assessFees(
   fees: ItemizedFee[],
   assumptions: string[],
-  buyerState: string | null = null,
+  stateRes: StateResolution = UNKNOWN_STATE,
 ): Flag[] {
   const out: Flag[] = [];
   const govFees: ItemizedFee[] = [];
@@ -1086,7 +1118,7 @@ function assessFees(
     // not the flat dollar ceiling. This is what lets a $190 fee surface as over
     // a verified $175 cap even though it's below the old $200 trigger.
     if (isDocFeeAlias(fee.label)) {
-      out.push(buildDocFeeFlag(fee, buyerState, assumptions));
+      out.push(buildDocFeeFlag(fee, stateRes, assumptions));
       continue;
     }
 
@@ -1153,16 +1185,37 @@ function assessFees(
  * generic ceiling for a high fee, but always surface "add your state" guidance.
  * Compliance copy lives in the classifier; this only chooses severity/type.
  */
+/** The lower (more cautious) of two confidence levels. */
+function minConfidence(a: Confidence, b: Confidence): Confidence {
+  const rank: Record<Confidence, number> = { low: 0, medium: 1, high: 2 };
+  return rank[a] <= rank[b] ? a : b;
+}
+
 function buildDocFeeFlag(
   fee: ItemizedFee,
-  buyerState: string | null,
+  stateRes: StateResolution,
   assumptions: string[],
 ): Flag {
   const finding = classifyDocFeeAmount({
-    stateCode: buyerState,
+    stateCode: stateRes.stateCode,
     feeName: fee.label,
     amountCents: Math.round((fee.amount || 0) * 100),
   });
+
+  // Reflect how sure we are of the STATE, not just the rule: an inferred state
+  // (dealer ZIP, etc.) caps the finding's confidence and records where it came
+  // from, so the report can say "Using MD from the dealer ZIP — verify…".
+  finding.confidence = minConfidence(finding.confidence, stateRes.confidence);
+  const note = stateSourceNote(stateRes);
+  const stateCaveat = [note, stateRes.source !== "explicit_purchase_state" ? stateRes.limitations : ""]
+    .filter(Boolean)
+    .join(" ");
+  if (stateCaveat) {
+    finding.limitations = finding.limitations
+      ? `${stateCaveat} ${finding.limitations}`
+      : stateCaveat;
+  }
+
   const round25 = (n: number) => Math.round(n / 25) * 25;
 
   // Over a VERIFIED state cap → a real, scored risk flag at ANY dollar amount.

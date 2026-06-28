@@ -51,6 +51,14 @@ export interface DealSubmission {
   /** Two-letter US state code where the buyer is purchasing (state-aware copy
    * now, fee caps later). Optional. */
   buyerState?: string;
+  /** Additional state signals used to resolve the deal's jurisdiction. Optional;
+   * `dealerZip` is commonly captured from an uploaded quote. */
+  registrationState?: string;
+  purchaseState?: string;
+  registrationZip?: string;
+  dealerZip?: string;
+  dealerState?: string;
+  dealerAddress?: string;
   /** Buyer has already signed / spot-delivered. Surfaces a review/cancel note. */
   alreadySigned?: boolean;
   inputPath?: "manual" | "upload";
@@ -135,6 +143,12 @@ export function toFairnessInput(s: DealSubmission): FairnessInput {
         }
       : null,
     buyerState: str(s.buyerState)?.toUpperCase().slice(0, 2) ?? null,
+    registrationState: str(s.registrationState) ?? null,
+    purchaseState: str(s.purchaseState) ?? null,
+    registrationZip: str(s.registrationZip) ?? null,
+    dealerZip: str(s.dealerZip) ?? null,
+    dealerState: str(s.dealerState) ?? null,
+    dealerAddress: str(s.dealerAddress) ?? null,
     documentUploaded: s.inputPath === "upload",
     alreadySigned: s.alreadySigned === true ? true : undefined,
   };

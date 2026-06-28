@@ -110,6 +110,8 @@ type State = {
   trim: string;
   vin: string;
   buyerState: string;
+  /** Dealer ZIP, captured from an uploaded quote — a state fallback. */
+  dealerZip: string;
   year: number;
   mileage: number;
   creditBand: string;
@@ -141,6 +143,7 @@ const INITIAL: State = {
   trim: "",
   vin: "",
   buyerState: "",
+  dealerZip: "",
   year: NOW - 3,
   mileage: 40_000,
   creditBand: "",
@@ -236,6 +239,7 @@ export function GamifiedDealCheck({ focus = "full" }: { focus?: Focus } = {}) {
       inputPath: (uploadedPath ? "upload" : "manual") as "upload" | "manual",
       uploadedFilePath: uploadedPath ?? undefined,
       buyerState: s.buyerState || undefined,
+      dealerZip: s.dealerZip || undefined,
     };
 
     if (focus === "warranty") {
@@ -322,6 +326,7 @@ export function GamifiedDealCheck({ focus = "full" }: { focus?: Focus } = {}) {
         warrantyPrice: numOr(ex.warrantyPrice, prev.warrantyPrice),
         hasWarranty: ex.warrantyPrice ? true : prev.hasWarranty,
         warrantyFromUpload: ex.warrantyPrice ? true : prev.warrantyFromUpload,
+        dealerZip: strOr(ex.dealerZip, prev.dealerZip),
         addOns: Array.isArray(ex.fees) ? feesToAddOns(ex.fees) : prev.addOns,
       }));
       setUploadedPath(data.uploadedFilePath ?? null);

@@ -359,16 +359,11 @@ function DocFeeRulePanel({ finding }: { finding: DocFeeFinding }) {
         )}
       </div>
 
-      {/* Action + script */}
+      {/* Action — the exact desk sentence lives in the negotiation script card. */}
       <p className="mt-2 text-sm leading-relaxed text-navy/75">
         <span className="font-semibold text-gold-dark">Ask: </span>
         {finding.whatToAsk}
       </p>
-      {finding.scriptLine && (
-        <p className="mt-1.5 rounded-md bg-cream-100 px-3 py-2 text-sm italic leading-relaxed text-navy/75">
-          {finding.scriptLine}
-        </p>
-      )}
 
       {/* Details second: source + caveats */}
       {finding.source?.url ? (

@@ -829,7 +829,7 @@ export function buildDocFeeScriptLine(f: DocFeeFinding): string {
     case "within_verified_cap":
       return "“This processing fee is a dealer charge, not a government fee — please show it itemized separately from my title and registration.”";
     case "above_verified_cap":
-      return "“This processing fee looks higher than my state's known limit. Can you show me the basis for it, or give me a corrected buyer's order?”";
+      return "“Please show me the statutory basis for this processing fee, or provide a corrected buyer's order with the fee adjusted to match the verified cap.”";
     case "verified_uncapped":
       return "“I know this processing fee is set by the dealer, not the state — I'd like it reduced or folded into the out-the-door price.”";
     case "verified_disclosure_only":
