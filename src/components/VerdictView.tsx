@@ -441,11 +441,15 @@ export function VerdictView({
   reviewedNote,
   vehicle,
   loan,
+  expandDetails = false,
 }: {
   result: FairnessResult;
   reviewedNote?: string | null;
   vehicle?: { year?: number | null; make?: string | null; model?: string | null };
   loan?: LoanInputs | null;
+  /** When true, the red-flags / breakdown disclosure renders open (used by the
+   *  public sample report so the full evidence is visible without a tap). */
+  expandDetails?: boolean;
 }) {
   const s = VERDICT_STYLES[result.overallVerdict];
   // A "walk away" verdict pins the score to the bottom regardless of how many
@@ -521,7 +525,7 @@ export function VerdictView({
               </p>
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {realFlags.slice(0, 6).map((f, i) => (
-                  <RiskBadge key={i} tone={severityTone(f.severity)}>
+                  <RiskBadge key={i} tone={severityTone(f.severity)} wrap>
                     {f.title}
                   </RiskBadge>
                 ))}
@@ -546,7 +550,10 @@ export function VerdictView({
           and assumptions all live one tap away so the verdict + script lead.
           The script already enumerates every issue as an action; this is the
           evidence and the math behind it. */}
-      <details className="group overflow-hidden rounded-2xl border border-navy/10 bg-white">
+      <details
+        open={expandDetails}
+        className="group overflow-hidden rounded-2xl border border-navy/10 bg-white"
+      >
         <summary className="flex cursor-pointer list-none items-center justify-between px-5 py-4 text-sm font-semibold text-navy hover:bg-cream-100">
           <span>
             {realFlags.length > 0

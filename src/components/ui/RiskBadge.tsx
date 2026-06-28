@@ -37,17 +37,22 @@ export function RiskBadge({
   icon,
   className = "",
   pulse = false,
+  wrap = false,
 }: {
   children: ReactNode;
   tone?: RiskTone;
   icon?: ReactNode;
   className?: string;
   pulse?: boolean;
+  /** Allow the label to wrap (for long summary-chip titles); default keeps it on one line. */
+  wrap?: boolean;
 }) {
   const t = TONES[tone];
   return (
     <span
-      className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${t.wrap} ${className}`}
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${
+        wrap ? "text-left" : "whitespace-nowrap"
+      } ${t.wrap} ${className}`}
     >
       {icon ?? (
         <span

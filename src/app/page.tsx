@@ -196,6 +196,14 @@ function Hero() {
               </div>
             </FloatingArtifact>
           </div>
+          <p className="mt-5 text-center">
+            <Link
+              href="/sample"
+              className="text-sm font-semibold text-gold-dark hover:underline"
+            >
+              See a full sample report →
+            </Link>
+          </p>
         </Reveal>
       </div>
     </section>
@@ -319,10 +327,16 @@ function ProductSection({ secondary }: { secondary: typeof PRODUCTS }) {
                   <Link href={FREE_DEAL_INSPECTOR.route} className="btn-primary">
                     Start free deal check
                   </Link>
-                  <span className="text-sm text-slate">
-                    Free first scan · about a minute
-                  </span>
+                  <Link
+                    href="/sample"
+                    className="text-sm font-semibold text-gold-dark hover:underline"
+                  >
+                    See a sample report →
+                  </Link>
                 </div>
+                <p className="mt-2 text-sm text-slate">
+                  Free first scan · about a minute
+                </p>
               </div>
 
               {/* Visual side */}
