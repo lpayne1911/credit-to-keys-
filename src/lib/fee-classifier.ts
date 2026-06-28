@@ -2,15 +2,19 @@
  * Fee classifier — normalizes free-text fee labels into categories and turns a
  * buyer's fee list + state into compliance-safe, buyer-side guidance.
  *
- * This is the bridge between a buyer's worksheet and the fee-rule context. It is
+ * The bridge between a buyer's worksheet and the state fee-rule registry. It is
  * NOT legal advice and makes no legal determination. Messages are consumer
  * guidance only: they say what a line *appears* to be and ask the buyer to
  * confirm with the dealer in writing — never that anything is illegal.
  *
+ * State-rule confidence is honored: a cap comparison is made ONLY for seeded/
+ * verified capped states. For uncapped, unknown, or unverified states we make NO
+ * cap comparison and emit conservative, review-only guidance.
+ *
  * Pure + deterministic. It does NOT feed the fairness score; it's a parallel
  * output channel.
  */
-import { getFeeRules } from "./fee-rules";
+import { getStateFeeRule, type RuleVerificationStatus } from "./fee-rules";
 
 export type FeeCategory =
   | "doc_fee"
@@ -40,6 +44,8 @@ export interface FeeRiskAssessment {
   /** Resolved 2-letter state, or null when unknown. */
   state: string | null;
   ruleConfidence: "low" | "medium" | "high";
+  /** How verified the state's fee rules are (drives buyer-facing framing). */
+  ruleStatus?: RuleVerificationStatus;
   lineItems: FeeLineReview[];
   messages: FeeRiskMessage[];
 }
@@ -103,14 +109,22 @@ function money(n: number): string {
 }
 
 /**
- * Review a buyer's fee list against their state's rule context. Returns
- * normalized line items + buyer-facing guidance messages. `state` may be null.
+ * Review a buyer's fee list against their state's rule. Returns normalized line
+ * items + buyer-facing guidance messages. `state` may be null.
  */
 export function reviewFees(
   fees: { label: string; amount: number }[],
   state: string | null,
 ): FeeRiskAssessment {
-  const rules = getFeeRules(state);
+  const rule = getStateFeeRule(state);
+  const cap = rule.docFeePolicy.capAmount;
+  const capType = rule.docFeePolicy.capType;
+  const verified =
+    rule.source.verificationStatus === "seeded" ||
+    rule.source.verificationStatus === "verified";
+  // Only compare against a cap for a seeded/verified capped state.
+  const canCompareCap =
+    verified && cap != null && (capType === "hard_cap" || capType === "regulated");
 
   const lineItems: FeeLineReview[] = fees
     .filter((f) => (f.label ?? "").trim())
@@ -122,25 +136,28 @@ export function reviewFees(
 
   const messages: FeeRiskMessage[] = [];
 
-  // Doc fee vs. known cap.
   for (const d of lineItems.filter((l) => l.category === "doc_fee")) {
-    const overCap =
-      rules.docFeeCap != null &&
-      (rules.docFeeCapType === "hard_cap" || rules.docFeeCapType === "regulated") &&
-      d.amount > rules.docFeeCap;
-    if (overCap) {
-      const word = rules.docFeeCapType === "hard_cap" ? "cap" : "guideline";
+    if (canCompareCap && d.amount > (cap as number)) {
+      const hard = capType === "hard_cap";
       messages.push({
-        severity: rules.docFeeCapType === "hard_cap" ? "critical" : "warning",
-        title: "Doc fee appears above known state cap",
-        message: `The entered doc/processing fee (${money(d.amount)}) appears higher than ${rules.state}'s known ${word} of about ${money(rules.docFeeCap as number)}. Confirm the amount and ask the dealer to correct or explain it in writing.`,
+        severity: hard ? "critical" : "warning",
+        title: "Doc fee appears above the known cap",
+        message: `The entered doc/processing fee (${money(d.amount)}) appears higher than the known ${hard ? "limit" : "guideline"} we have on file for ${rule.stateCode} (about ${money(cap as number)}). Confirm the amount and ask the dealer to explain or correct it in writing.`,
       });
-    } else {
+    } else if (canCompareCap) {
       messages.push({
         severity: "warning",
         title: "Dealer processing fee may need review",
         message:
-          "This fee appears to be dealer-retained, not a government fee. Ask the dealer to identify whether it is optional, taxable, and negotiable, and to compare it against your state's known rules.",
+          "This fee appears to be dealer-retained, not a government fee. Ask the dealer whether it is optional, taxable, and negotiable, and to confirm it in writing.",
+      });
+    } else {
+      // No cap comparison for uncapped / unverified / unknown states — use the
+      // state's conservative, review-only language.
+      messages.push({
+        severity: "warning",
+        title: "Dealer processing fee — review item",
+        message: rule.docFeePolicy.customerLanguage,
       });
     }
   }
@@ -167,12 +184,20 @@ export function reviewFees(
       : "No itemized government fees (tax, title, registration) are visible yet. Ask the dealer for the full itemized out-the-door price so these can be reviewed separately.",
   });
 
-  const ruleConfidence =
-    rules.docFeeCapType === "unknown" ? "low" : rules.registrationRuleConfidence;
+  // When we don't know the state, tell the buyer how to unlock state rules.
+  if (rule.source.verificationStatus === "unknown" && lineItems.length > 0) {
+    messages.push({
+      severity: "info",
+      title: "State-specific fee check needs your location",
+      message:
+        "Add your ZIP (or the dealer's state) and we'll check these fees against that state's known rules.",
+    });
+  }
 
   return {
-    state: rules.state === "UNKNOWN" ? null : rules.state,
-    ruleConfidence,
+    state: rule.stateCode === "UNKNOWN" ? null : rule.stateCode,
+    ruleConfidence: rule.confidenceLevel,
+    ruleStatus: rule.source.verificationStatus,
     lineItems,
     messages,
   };

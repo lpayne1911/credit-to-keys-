@@ -447,6 +447,12 @@ export function FeeSection({
         {feeRisk?.state ? ` — checked against ${feeRisk.state}'s known rules` : ""}. A
         buyer-side read, not legal advice.
       </p>
+      {(feeRisk?.ruleStatus === "needs_research" || feeRisk?.ruleStatus === "unknown") && (
+        <p className="mt-2 text-xs text-navy/50">
+          We haven&apos;t verified this state&apos;s doc-fee cap yet — treat the fees
+          here as review items to confirm in writing, not a legal conclusion.
+        </p>
+      )}
 
       {lineItems.length > 0 && (
         <div className="mt-4 flex flex-wrap gap-2">
