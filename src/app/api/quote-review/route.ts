@@ -20,7 +20,9 @@ import { NextResponse } from "next/server";
 import { quoteReviewSchema } from "@/lib/schemas";
 import { normalizeDealInput } from "@/lib/deal-engine/normalizeDealInput";
 import { buildDealReview } from "@/lib/deal-engine/buildDealReview";
-import { getMarketRange } from "@/lib/marketcheck/client";
+import { runMarketCheck } from "@/lib/market-engine/runMarketCheck";
+import { isConfigured as isMarketCheckConfigured } from "@/lib/sources/marketcheck/connector";
+import type { PriceRange } from "@/lib/fairness-engine";
 import { getServiceClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
@@ -68,16 +70,31 @@ export async function POST(req: Request) {
     );
   }
 
-  // MarketCheck band (server-only). Failure or missing key → null (price check
-  // becomes lower confidence; never guessed).
-  const marketValue = await getMarketRange({
-    year: deal.vehicle.year,
-    make: deal.vehicle.make,
-    model: deal.vehicle.model,
-    trim: deal.vehicle.trim,
-    mileage: deal.vehicle.mileage,
-    zip: deal.sourceMetadata.registrationZip ?? deal.sourceMetadata.dealerZip ?? null,
-  }).catch(() => null);
+  // MarketCheck band (server-only). We only inject a REAL snapshot — never the
+  // demo mock — so a buyer's deal score is never based on fabricated market
+  // numbers. Failure or missing key → null (price check stays off; never guessed).
+  let marketValue: PriceRange | null = null;
+  if (isMarketCheckConfigured()) {
+    const mc = await runMarketCheck({
+      vin: deal.vehicle.vin,
+      year: deal.vehicle.year,
+      make: deal.vehicle.make,
+      model: deal.vehicle.model,
+      trim: deal.vehicle.trim,
+      mileage: deal.vehicle.mileage,
+      zipCode: deal.sourceMetadata.registrationZip ?? deal.sourceMetadata.dealerZip ?? null,
+      radiusMiles: 75,
+      dealerAskingPrice: deal.pricing.vehiclePrice,
+    }).catch(() => null);
+    if (mc && !mc.source.isMock && mc.snapshot.marketLow != null && mc.snapshot.marketHigh != null) {
+      marketValue = {
+        low: mc.snapshot.marketLow,
+        high: mc.snapshot.marketHigh,
+        confidence: mc.snapshot.confidence.level,
+        basis: mc.snapshot.confidence.reasons[0] ?? "MarketCheck comparable listings.",
+      };
+    }
+  }
 
   const result = buildDealReview(deal, { marketValue });
 
