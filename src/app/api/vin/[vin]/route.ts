@@ -15,7 +15,7 @@ export async function GET(
 ) {
   // Proxies an outbound decode per call — throttle per IP. NHTSA is free, so the
   // limit is generous; it just stops the endpoint being used as a flood relay.
-  const limit = rateLimit(req, { key: "vin-decode", limit: 60, windowMs: 5 * 60_000 });
+  const limit = await rateLimit(req, { key: "vin-decode", limit: 60, windowMs: 5 * 60_000 });
   if (!limit.ok) {
     return NextResponse.json(
       { vehicle: null },

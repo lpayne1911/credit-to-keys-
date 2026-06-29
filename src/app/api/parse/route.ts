@@ -29,7 +29,7 @@ const MAX_BYTES = 15 * 1024 * 1024; // 15 MB
 export async function POST(req: Request) {
   // Uploads cost storage and an LLM extraction call — throttle per IP so the
   // endpoint can't be looped to fill the bucket or run up extraction cost.
-  const limit = rateLimit(req, { key: "parse-upload", limit: 10, windowMs: 10 * 60_000 });
+  const limit = await rateLimit(req, { key: "parse-upload", limit: 10, windowMs: 10 * 60_000 });
   if (!limit.ok) {
     return NextResponse.json(
       { error: "Too many uploads. Please wait a bit and try again." },

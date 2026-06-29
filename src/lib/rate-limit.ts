@@ -14,21 +14,26 @@
  *  fill storage, or brute-force the console password. This module is the seam
  *  that closes that gap.
  *
- *  IMPLEMENTATION & ITS LIMITS (read before trusting this in prod)
+ *  BACKEND SELECTION (automatic)
  *  ---------------------------------------------------------------------------
- *  The default store is an in-process fixed-window counter. On a serverless
- *  platform (Vercel) each instance has its OWN memory, so the effective limit
- *  is `limit × live-instances`, and counters reset on cold start. That makes
- *  this a strong *courtesy* guard and a real brake on a single attacker from one
- *  IP — but NOT a hard, cluster-wide cap.
+ *  - If UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN are set, the limiter
+ *    uses a SHARED Redis counter (see `upstash-store.ts`). This is a HARD,
+ *    cluster-wide cap that survives cold starts and is consistent across every
+ *    serverless instance.
+ *  - Otherwise it falls back to an in-process fixed-window counter. That is
+ *    per-instance on serverless (effective limit = `limit × live-instances`,
+ *    resets on cold start) — a real brake on a single attacker from one IP, but
+ *    not a global guarantee. Configure Upstash/Vercel KV for production.
  *
- *  >>> For a hard guarantee, back this with a shared store (Upstash Redis,
- *      Supabase, Vercel KV). The `RateLimitStore` interface below is the seam:
- *      implement it against Redis and pass it in — no route changes needed. <<<
+ *  RESILIENCE: if the shared store errors (Redis outage, network blip) the
+ *  limiter degrades to the in-memory fallback rather than failing the request —
+ *  a limiter outage must never take down the buyer-facing API.
  *
  *  This file is SERVER ONLY.
  * ============================================================================
  */
+
+import { createUpstashStore } from "./rate-limit/upstash-store";
 
 export interface RateLimitResult {
   /** Whether the request is allowed (under the limit). */
@@ -50,18 +55,25 @@ export interface RateLimitOptions {
   windowMs: number;
 }
 
-/** Swap-in seam for a shared/distributed store (Redis, KV, Supabase). */
-export interface RateLimitStore {
-  hit(compositeKey: string, windowMs: number, now: number): {
-    count: number;
-    resetAt: number;
-  };
-}
-
-interface Bucket {
+/** A single window's state for one key. */
+export interface RateLimitHit {
   count: number;
   resetAt: number;
 }
+
+/**
+ * Swap-in seam for a shared/distributed store (Redis, KV, Supabase). May be
+ * sync (in-memory) or async (network-backed) — callers always `await` it.
+ */
+export interface RateLimitStore {
+  hit(
+    compositeKey: string,
+    windowMs: number,
+    now: number,
+  ): RateLimitHit | Promise<RateLimitHit>;
+}
+
+type Bucket = RateLimitHit;
 
 /**
  * Default in-process fixed-window store. Best-effort on serverless (per
@@ -94,7 +106,25 @@ class MemoryStore implements RateLimitStore {
   }
 }
 
-const defaultStore = new MemoryStore();
+/**
+ * In-memory fallback, always available. Used directly when no shared store is
+ * configured, and as the degradation path if the shared store errors.
+ */
+const memoryFallback = new MemoryStore();
+
+let cachedStore: RateLimitStore | null = null;
+
+/**
+ * Resolve the active store once per process: Upstash Redis when configured,
+ * otherwise the in-memory fallback. Cached so we don't re-read env per request.
+ */
+function getStore(): RateLimitStore {
+  if (cachedStore) return cachedStore;
+  const url = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  cachedStore = url && token ? createUpstashStore(url, token) : memoryFallback;
+  return cachedStore;
+}
 
 /**
  * Best-effort client IP from proxy headers. On Vercel, `x-forwarded-for` is set
@@ -114,23 +144,32 @@ export function clientIp(req: Request): string {
 }
 
 /**
- * Record a hit and report whether the caller is within its limit.
- * Pass `store` to use a shared/distributed backend; defaults to in-memory.
+ * Record a hit and report whether the caller is within its limit. Uses the
+ * configured shared store (Upstash) when available, the in-memory fallback
+ * otherwise. If the shared store throws, it degrades to in-memory rather than
+ * failing the request. Pass an explicit `store` to override (used in tests).
  */
-export function rateLimit(
+export async function rateLimit(
   req: Request,
   opts: RateLimitOptions,
-  store: RateLimitStore = defaultStore,
+  store: RateLimitStore = getStore(),
   now: number = Date.now(),
-): RateLimitResult {
+): Promise<RateLimitResult> {
   const composite = `${opts.key}:${clientIp(req)}`;
-  const { count, resetAt } = store.hit(composite, opts.windowMs, now);
-  const remaining = Math.max(0, opts.limit - count);
+  let hit: RateLimitHit;
+  try {
+    hit = await store.hit(composite, opts.windowMs, now);
+  } catch {
+    // Shared-store outage: fall back to the per-instance counter so the limiter
+    // still applies *some* cap and the request isn't dropped.
+    hit = memoryFallback.hit(composite, opts.windowMs, now);
+  }
+  const remaining = Math.max(0, opts.limit - hit.count);
   return {
-    ok: count <= opts.limit,
+    ok: hit.count <= opts.limit,
     limit: opts.limit,
     remaining,
-    retryAfterSec: Math.max(1, Math.ceil((resetAt - now) / 1000)),
+    retryAfterSec: Math.max(1, Math.ceil((hit.resetAt - now) / 1000)),
   };
 }
 

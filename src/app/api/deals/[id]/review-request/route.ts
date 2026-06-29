@@ -21,7 +21,7 @@ export async function POST(
 ) {
   // Unauthenticated state change (status flip + lead insert) keyed on a
   // capability UUID — throttle per IP to prevent lead-spam / status churn.
-  const limit = rateLimit(req, { key: "review-request", limit: 20, windowMs: 10 * 60_000 });
+  const limit = await rateLimit(req, { key: "review-request", limit: 20, windowMs: 10 * 60_000 });
   if (!limit.ok) {
     return NextResponse.json(
       { ok: false, error: "Too many requests. Please wait and try again." },

@@ -17,7 +17,7 @@ export async function POST(req: Request) {
   // Brute-force brake: the console is gated by a single shared password, so a
   // tight per-IP limit on attempts is the primary defense until real auth lands
   // (see docs/console-auth-plan.md).
-  const limit = rateLimit(req, { key: "console-login", limit: 10, windowMs: 10 * 60_000 });
+  const limit = await rateLimit(req, { key: "console-login", limit: 10, windowMs: 10 * 60_000 });
   if (!limit.ok) {
     return NextResponse.json(
       { ok: false, error: "Too many attempts. Please wait and try again." },

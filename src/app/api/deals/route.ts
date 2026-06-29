@@ -20,7 +20,7 @@ export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   // Persists rows and may trigger a paid MarketCheck call — throttle per IP.
-  const limit = rateLimit(req, { key: "deals", limit: 30, windowMs: 5 * 60_000 });
+  const limit = await rateLimit(req, { key: "deals", limit: 30, windowMs: 5 * 60_000 });
   if (!limit.ok) {
     return NextResponse.json(
       { error: "Too many requests. Please slow down." },

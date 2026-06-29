@@ -16,7 +16,7 @@ export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   // Unauthenticated write path — throttle per IP to prevent lead/row spam.
-  const limit = rateLimit(req, { key: "intake", limit: 20, windowMs: 10 * 60_000 });
+  const limit = await rateLimit(req, { key: "intake", limit: 20, windowMs: 10 * 60_000 });
   if (!limit.ok) {
     return NextResponse.json(
       { error: "Too many requests. Please wait and try again." },

@@ -13,7 +13,7 @@ export const runtime = "nodejs";
 export async function POST(req: Request) {
   // This route triggers a PAID MarketCheck API call on an unauthenticated
   // request — throttle per IP to prevent quota/cost-amplification abuse.
-  const limit = rateLimit(req, { key: "market-check", limit: 20, windowMs: 5 * 60_000 });
+  const limit = await rateLimit(req, { key: "market-check", limit: 20, windowMs: 5 * 60_000 });
   if (!limit.ok) {
     return NextResponse.json(
       { error: "Too many requests. Please slow down." },

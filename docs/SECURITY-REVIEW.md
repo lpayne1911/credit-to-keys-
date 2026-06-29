@@ -20,7 +20,7 @@ below. The console-auth replacement is specified separately in
 | 1 | No rate limiting on public/auth routes (brute-force + cost amplification) | High | **Fixed** |
 | 2 | `/api/parse` trusted client MIME + user filename in storage key | Medium | **Fixed** |
 | 3 | Console auth is a single shared password, no accounts/audit | Medium | Planned (stopgap, documented) |
-| 4 | In-memory rate limiter is per-instance on serverless | Low | Documented (seam for shared store) |
+| 4 | In-memory rate limiter is per-instance on serverless | Low | **Fixed** (Upstash/KV shared store; in-memory fallback) |
 | 5 | `email` fields validated for length only, not format | Low | Accept (not used for auth) |
 
 ## What's already strong (verified, not assumed)
@@ -112,13 +112,22 @@ the password, and the 8-hour session is the only expiry. The rate limit (finding
 [`docs/console-auth-plan.md`](./console-auth-plan.md). **Do not launch the
 operator console publicly on the shared-password gate.**
 
-### 4. In-memory limiter is per-instance on serverless — **Low** — Documented
+### 4. In-memory limiter is per-instance on serverless — **Low** — Fixed
 
-On Vercel each instance has its own memory, so the effective ceiling is
-`limit × live-instances` and counters reset on cold start. This is a strong
-courtesy guard and a real brake on a single attacker from one IP, but not a hard
-cluster-wide cap. `RateLimitStore` is the documented seam to back it with Upstash
-Redis / Vercel KV for a hard guarantee — do this before high-traffic launch.
+Originally the limiter was in-memory only, so on Vercel the effective ceiling was
+`limit × live-instances` and counters reset on cold start — not a hard cap.
+
+**Fix.** The limiter now auto-selects a **shared Upstash Redis** store
+(`src/lib/rate-limit/upstash-store.ts`) when `UPSTASH_REDIS_REST_URL` +
+`UPSTASH_REDIS_REST_TOKEN` are set, giving a hard, cluster-wide fixed-window cap
+that survives cold starts (atomic `INCR` + `PEXPIRE … NX` + `PTTL` in one REST
+round-trip; no new npm dependency; Vercel KV exposes the same URL+token). When
+the env vars are absent it uses the in-memory counter, and **if the shared store
+errors it degrades to in-memory** rather than failing requests — a limiter
+outage can't take down the buyer-facing API. Unit-tested with a mocked `fetch`
+(`upstash-store.test.ts`) and a degradation test in `rate-limit.test.ts`.
+
+Set the two env vars in Vercel to activate the hard cap in production.
 
 ### 5. `email` validated for length only — **Low** — Accept
 
@@ -142,7 +151,8 @@ built (it's on the deferred list).
 ## Recommended next steps (priority order)
 
 1. Ship real console auth before any public operator access — see the plan doc.
-2. Back the rate limiter with a shared store (Upstash/KV) before high traffic.
+2. Set `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` in Vercel to turn on
+   the hard cluster-wide rate-limit cap (code is wired; it just needs the store).
 3. Add `.email()` validation when email automation is introduced.
 4. Re-run this review whenever payments, accounts, or a live parser provider land
    — each adds materially new surface (CROA/TSR advance-fee seam, owner-scoped

@@ -36,7 +36,7 @@ function verdictFromScore(score: number): "green" | "amber" | "red" {
 
 export async function POST(req: Request) {
   // Persists rows and may trigger a paid MarketCheck call — throttle per IP.
-  const limit = rateLimit(req, { key: "quote-review", limit: 20, windowMs: 5 * 60_000 });
+  const limit = await rateLimit(req, { key: "quote-review", limit: 20, windowMs: 5 * 60_000 });
   if (!limit.ok) {
     return NextResponse.json(
       { error: "Too many requests. Please slow down." },
