@@ -17,7 +17,7 @@ export default function FiProductReviewCheckPage() {
       <main>
         <section className="mx-auto max-w-3xl px-4 pb-6 pt-12 sm:pt-16">
           <div className="flex flex-wrap items-center gap-3">
-            <span className="inline-block rounded-full bg-gold/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gold-dark">
+            <span className="inline-block rounded-full bg-green-soft px-3 py-1 text-xs font-semibold uppercase tracking-wide text-green">
               F&amp;I Product Review · pilot
             </span>
             <span className="rounded-full bg-navy-50 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-navy/45">
@@ -41,7 +41,7 @@ export default function FiProductReviewCheckPage() {
           <div className="mt-5">
             <Link
               href="/services/fi-product-review"
-              className="text-sm font-semibold text-gold-dark hover:underline"
+              className="text-sm font-semibold text-green hover:underline"
             >
               ← Back to the F&amp;I Product Review overview
             </Link>
