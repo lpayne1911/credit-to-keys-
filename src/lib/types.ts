@@ -102,3 +102,62 @@ export interface FindingRow {
   source: "auto" | "reviewed";
   created_at: string;
 }
+
+// ---------------------------------------------------------------------------
+//  Engagements + Cases spine (Phase A). See docs/PRODUCT-ARCHITECTURE.md §4–§5.
+//  Engagement = a service LINE a customer uses; Case = a unit of WORK under it.
+// ---------------------------------------------------------------------------
+
+/** A service line a customer can engage. */
+export type EngagementService =
+  | "deal_check"
+  | "quote_review"
+  | "deal_rescue"
+  | "buyer_advocate"
+  | "credit_to_keys"
+  | "concierge";
+
+/** The ONE canonical case-status taxonomy. Every feature reads this. */
+export type CaseStatus =
+  | "scanned" // free verdict generated; no paid service engaged
+  | "submitted" // customer opened/requested a paid service
+  | "review_requested" // queued for an operator
+  | "in_review" // operator actively working it
+  | "needs_customer_info" // blocked on the customer (drives a Customer Action)
+  | "ready_for_delivery" // work complete, awaiting publish
+  | "delivered" // deliverable published + delivery event recorded
+  | "payment_pending" // delivered, awaiting capture (capture-after-delivery)
+  | "active" // long-running recurring case (Credit-to-Keys / Ownership)
+  | "closed"
+  | "cancelled";
+
+/** Row in `engagements`. */
+export interface EngagementRow {
+  id: string;
+  user_id: string | null;
+  service: EngagementService;
+  status: "active" | "closed";
+  created_at: string;
+  updated_at: string;
+}
+
+/** Row in `cases`. The operational unit of work. */
+export interface CaseRow {
+  id: string;
+  engagement_id: string | null;
+  user_id: string | null;
+  type: EngagementService;
+  status: CaseStatus;
+  stage: string | null;
+  priority: number;
+  assigned_operator_id: string | null;
+  due_at: string | null;
+  sla_status: "on_track" | "at_risk" | "breached" | null;
+  escalation_reason: string | null;
+  intake_completeness: number | null;
+  deal_id: string | null;
+  intake_id: string | null;
+  title: string | null;
+  created_at: string;
+  updated_at: string;
+}
