@@ -261,9 +261,9 @@ export function UsedCarRiskReview() {
   return (
     <div className="space-y-6">
       {/* Pilot banner */}
-      <div className="rounded-xl border border-gold/30 bg-gold/[0.06] px-4 py-3">
+      <div className="rounded-xl border border-blue/30 bg-blue-soft px-4 py-3">
         <p className="text-sm leading-relaxed text-navy/75">
-          <span className="font-semibold text-gold-dark">Pilot preview.</span>{" "}
+          <span className="font-semibold text-blue">Pilot preview.</span>{" "}
           This is a free, buyer-side decision-support tool — not a paid report,
           not a mechanical, title, safety, or legal determination, and not legal,
           financial, tax, or insurance advice. It collects no payment, and nothing
@@ -372,15 +372,15 @@ export function UsedCarRiskReview() {
                 type="button"
                 aria-pressed={on}
                 onClick={() => toggleConcern(c.value)}
-                className={`flex items-start gap-3 rounded-xl border-2 px-4 py-3 text-left text-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-1 ${
+                className={`flex items-start gap-3 rounded-xl border-2 px-4 py-3 text-left text-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue focus-visible:ring-offset-1 ${
                   on
-                    ? "border-gold bg-gold/[0.07] text-navy"
-                    : "border-navy/10 bg-white text-navy/75 hover:border-gold/50"
+                    ? "border-blue bg-blue-soft text-navy"
+                    : "border-navy/10 bg-white text-navy/75 hover:border-blue/50"
                 }`}
               >
                 <span
                   className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 text-xs font-bold ${
-                    on ? "border-gold bg-gold text-white" : "border-navy/25 text-transparent"
+                    on ? "border-blue bg-blue text-white" : "border-navy/25 text-transparent"
                   }`}
                   aria-hidden
                 >
@@ -408,7 +408,7 @@ export function UsedCarRiskReview() {
           <div className="rounded-xl border border-verdict-amber/30 bg-verdict-amber/5 px-4 py-3 text-sm text-navy/75">
             Your inputs changed since this preview was generated.{" "}
             <button type="button" onClick={generate}
-              className="font-semibold text-gold-dark underline underline-offset-2">
+              className="font-semibold text-blue underline underline-offset-2">
               Update the preview
             </button>{" "}
             to refresh it.
@@ -483,7 +483,7 @@ function RiskPreview({ result }: { result: UsedCarRiskResult }) {
         <ol className="space-y-2">
           {result.nextSteps.map((s, i) => (
             <li key={i} className="flex gap-3 text-sm text-navy/75">
-              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gold/15 text-xs font-semibold text-gold-dark">
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-soft text-xs font-semibold text-blue">
                 {i + 1}
               </span>
               <span className="leading-relaxed">{s}</span>
@@ -559,7 +559,7 @@ function SectionCard({
   return (
     <section className="card">
       <div className="mb-4 flex items-center gap-3">
-        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gold/15 font-serif text-base font-semibold text-gold-dark">
+        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-soft text-base font-bold text-blue">
           {step}
         </span>
         <h2 className="font-serif text-xl font-semibold text-navy">{title}</h2>
@@ -612,7 +612,7 @@ function CardChoice<T extends string>({
               <span
                 aria-hidden
                 className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 text-xs font-bold ${
-                  on ? "border-gold bg-gold text-white" : "border-navy/25 text-transparent"
+                  on ? "border-blue bg-blue text-white" : "border-navy/25 text-transparent"
                 }`}
               >
                 ✓
@@ -662,7 +662,7 @@ function Bullets({ items }: { items: string[] }) {
     <ul className="space-y-2">
       {items.map((it, i) => (
         <li key={i} className="flex items-start gap-2 text-sm leading-relaxed text-navy/75">
-          <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-gold" />
+          <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-blue" />
           <span>{it}</span>
         </li>
       ))}

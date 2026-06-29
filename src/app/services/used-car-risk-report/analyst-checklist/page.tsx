@@ -211,7 +211,7 @@ export default function AnalystChecklistPage() {
           <div className="mt-5">
             <Link
               href="/services/used-car-risk-report"
-              className="text-sm font-semibold text-gold-dark hover:underline"
+              className="text-sm font-semibold text-blue hover:underline"
             >
               ← Back to the Used-Car Risk Report overview
             </Link>
@@ -239,7 +239,7 @@ export default function AnalystChecklistPage() {
               <ol className="space-y-2.5">
                 {REVIEW_SEQUENCE.map((s, i) => (
                   <li key={i} className="flex gap-3 text-sm text-navy/75">
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gold/15 text-xs font-semibold text-gold-dark">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-soft text-xs font-semibold text-blue">
                       {i + 1}
                     </span>
                     <span className="leading-relaxed">{s}</span>
@@ -359,10 +359,10 @@ function Block({
   return (
     <div>
       <div className="mb-3 flex items-center gap-3">
-        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gold/15 font-serif text-sm font-semibold text-gold-dark">
+        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-soft text-sm font-bold text-blue">
           {step}
         </span>
-        <h2 className="font-serif text-sm font-bold uppercase tracking-widest text-gold-dark">
+        <h2 className="text-sm font-semibold uppercase tracking-widest text-blue">
           {title}
         </h2>
         <span className="h-px flex-1 bg-navy/10" />
@@ -381,7 +381,7 @@ function BulletList({ items }: { items: string[] }) {
     <ul className="space-y-2">
       {items.map((it, i) => (
         <li key={i} className="flex items-start gap-2 text-sm leading-relaxed text-navy/75">
-          <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-gold" />
+          <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-blue" />
           <span>{it}</span>
         </li>
       ))}
