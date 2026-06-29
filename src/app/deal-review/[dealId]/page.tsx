@@ -6,12 +6,14 @@
  * `schemaVersion: "deal-review-1"` — guarding against the shared column also
  * used by the fairness-engine /verdict flow. When the DB isn't configured (or
  * the row isn't found), we hand off to a client fallback that reads the result
- * the intake form stashed in sessionStorage.
+ * the intake form saved to the on-device workspace.
  */
 import Link from "next/link";
 import { Disclaimer } from "@/components/Disclaimer";
 import { DealReviewView } from "@/components/deal-review/DealReviewView";
+import { RequestReviewButton } from "@/components/RequestReviewButton";
 import { getDealById } from "@/lib/deals";
+import { isDealReviewResult } from "@/lib/deal-engine/is-deal-review";
 import type { DealReviewResult } from "@/lib/deal-engine/types";
 import { DealReviewClientFallback } from "./DealReviewClientFallback";
 
@@ -19,23 +21,19 @@ export const metadata = {
   title: "Your Deal Review — Driveway Advocate",
 };
 
-function isDealReview(value: unknown): value is DealReviewResult {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    (value as { schemaVersion?: string }).schemaVersion === "deal-review-1"
-  );
-}
-
 export default async function DealReviewPage({
   params,
 }: {
   params: { dealId: string };
 }) {
   const deal = await getDealById(params.dealId);
-  const persisted = isDealReview(deal?.auto_result)
+  const persisted = isDealReviewResult(deal?.auto_result)
     ? (deal!.auto_result as unknown as DealReviewResult)
     : null;
+  const alreadyRequested =
+    deal?.status === "review_requested" ||
+    deal?.status === "in_review" ||
+    deal?.status === "reviewed";
 
   return (
     <div className="relative flex min-h-[100dvh] flex-col bg-cream">
@@ -50,6 +48,7 @@ export default async function DealReviewPage({
           {persisted ? (
             <div className="space-y-6">
               <DealReviewView result={persisted} />
+              <RequestReviewButton dealId={params.dealId} alreadyRequested={alreadyRequested} />
               <Disclaimer />
               <Link
                 href="/quote-review/intake"

@@ -11,14 +11,15 @@
  *    extractor is unconfigured or fails, the form is simply blank to fill in.
  *  - Manual: type every line of the deal.
  *
- * On submit it POSTs to /api/quote-review. When the DB isn't configured the
- * result comes back un-persisted; we stash it in sessionStorage so the
- * /deal-review/[dealId] page can render it, then navigate there.
+ * On submit it POSTs to /api/quote-review, then saves the result to the on-device
+ * workspace (so it appears in My Reports and the /deal-review/[dealId] page can
+ * render it when the DB isn't the source), and navigates there.
  */
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { VehicleSelector, type VehicleValue } from "@/components/vehicle/VehicleSelector";
 import type { ExtractedFields } from "@/lib/parse/extract";
+import { saveReport } from "@/lib/workspace/store";
 
 type Mode = "choose" | "upload" | "manual";
 
@@ -290,19 +291,16 @@ export function QuoteReviewIntakeForm() {
       }
       const data = (await res.json()) as {
         dealId: string;
-        result: unknown;
+        result: { vehicleLabel?: string; dealScore?: number } & Record<string, unknown>;
         persisted: boolean;
       };
-      if (!data.persisted) {
-        try {
-          sessionStorage.setItem(
-            `deal-review:${data.dealId}`,
-            JSON.stringify(data.result),
-          );
-        } catch {
-          // storage blocked — the page will show a graceful "not found here" notice
-        }
-      }
+      // Always register in the workspace so it shows in "My Reports" and the
+      // result page can render it locally when the DB isn't the source.
+      saveReport("quote-review", data.dealId, data.result, {
+        title: data.result?.vehicleLabel || "Deal Review",
+        subtitle: typeof data.result?.dealScore === "number" ? `Deal Score ${data.result.dealScore}` : undefined,
+        href: `/deal-review/${data.dealId}`,
+      });
       router.push(`/deal-review/${data.dealId}`);
     } catch {
       setError("Network error. Please try again.");

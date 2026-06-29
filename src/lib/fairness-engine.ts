@@ -401,7 +401,8 @@ const WARRANTY_VERY_OVERPRICED_THRESHOLD = 1.6; // >60% over → "very_overprice
  * ASSUMPTION: reflects a generic used-car financing environment.
  */
 // PLACEHOLDER — replace with real engine value (owner's rate model / live data)
-const LIKELY_APR_BAND: Record<CreditBand, { low: number; high: number }> = {
+// Exported so the Build My Plan engine benchmarks financing off the same band.
+export const LIKELY_APR_BAND: Record<CreditBand, { low: number; high: number }> = {
   excellent: { low: 4.5, high: 7.5 },
   good: { low: 6.5, high: 10.5 },
   fair: { low: 9.5, high: 15.0 },

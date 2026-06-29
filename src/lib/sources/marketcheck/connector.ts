@@ -24,6 +24,9 @@ export interface RawListing {
   dist?: number;
   dealer?: { name?: string; city?: string; state?: string; zip?: string };
   build?: { year?: number; make?: string; model?: string; trim?: string };
+  /** Present on the recents/sold feed — when the listing left the market. */
+  last_seen_at?: string;
+  scraped_at?: string;
 }
 
 export interface RawActiveResponse {
@@ -60,10 +63,14 @@ export async function fetchActiveListings(
   if (!key) return null;
   const { vin, year, make, model, trim, zipCode, radiusMiles, condition } = request;
   const params = new URLSearchParams({ api_key: key, rows: "50", stats: "price" });
-  if (vin) {
-    params.set("vins", vin);
-  } else if (year && make && model) {
+  // Prefer a year/make/model query so we get true COMPARABLES. A `vins=` query
+  // matches only that one exact car, which yields too few comps to price against
+  // — so use it only as a last resort when the vehicle is otherwise unknown
+  // (e.g. the VIN decode failed upstream).
+  if (year && make && model) {
     params.set("ymmt", [year, make, model, trim].filter(Boolean).join("|"));
+  } else if (vin) {
+    params.set("vins", vin);
   } else {
     return null; // too thin to query
   }
@@ -75,6 +82,47 @@ export async function fetchActiveListings(
   return getJson<RawActiveResponse>(`${BASE}/search/car/active?${params.toString()}`, ACTIVE_TTL);
 }
 
+/** Fetch the single active listing that exactly matches a VIN — gives the real
+ *  dealer + days-on-market for the searched car. Null when unconfigured/no match. */
+export async function fetchListingByVin(vin: string): Promise<RawListing | null> {
+  const key = apiKey();
+  if (!key || !/^[A-HJ-NPR-Z0-9]{17}$/i.test(vin)) return null;
+  const params = new URLSearchParams({ api_key: key, vins: vin, rows: "1" });
+  const data = await getJson<RawActiveResponse>(
+    `${BASE}/search/car/active?${params.toString()}`,
+    ACTIVE_TTL,
+  );
+  return data?.listings?.[0] ?? null;
+}
+
+/** Fetch recently-removed/sold comparable listings for a real price trend.
+ *  Plan-dependent: returns null when unconfigured or the endpoint isn't in the
+ *  plan, so the caller degrades to the price-distribution. Mirrors the active query. */
+export async function fetchRecentListings(
+  request: MarketCheckRequest,
+): Promise<RawActiveResponse | null> {
+  const key = apiKey();
+  if (!key) return null;
+  const { vin, year, make, model, trim, zipCode, radiusMiles, condition } = request;
+  const params = new URLSearchParams({ api_key: key, rows: "50" });
+  if (year && make && model) {
+    params.set("ymmt", [year, make, model, trim].filter(Boolean).join("|"));
+  } else if (vin) {
+    params.set("vins", vin);
+  } else {
+    return null;
+  }
+  params.set("car_type", condition === "new" ? "new" : "used");
+  if (zipCode && /^\d{5}/.test(zipCode)) {
+    params.set("zip", zipCode.slice(0, 5));
+    params.set("radius", String(radiusMiles ?? 100));
+  }
+  return getJson<RawActiveResponse>(
+    `${BASE}/search/car/recents?${params.toString()}`,
+    ACTIVE_TTL,
+  );
+}
+
 /** Decode a 17-char VIN to specs/equipment. Null when unconfigured/invalid. */
 export async function decodeVin(vin: string): Promise<RawSpecs | null> {
   const key = apiKey();
@@ -84,4 +132,23 @@ export async function decodeVin(vin: string): Promise<RawSpecs | null> {
 
 export function isConfigured(): boolean {
   return Boolean(apiKey());
+}
+
+/**
+ * Whether an optional PREMIUM MarketCheck endpoint is explicitly enabled. These
+ * default OFF so the Free plan (Inventory Search + decode only) never spends a
+ * call on — or 403s against — an endpoint it doesn't have. Flip the matching env
+ * var to "true" after upgrading to Basic+:
+ *   - "specs"   → MARKETCHECK_SPECS_ENABLED   (NeoVIN/Epi specs decode; MSRP/equipment)
+ *   - "history" → MARKETCHECK_HISTORY_ENABLED (Dealer Recent Inventory; price trend)
+ *   - "dealer"  → MARKETCHECK_DEALER_ENABLED  (Dealer API; same-dealer rows)
+ */
+export function featureEnabled(feature: "specs" | "history" | "dealer"): boolean {
+  const env =
+    feature === "specs"
+      ? process.env.MARKETCHECK_SPECS_ENABLED
+      : feature === "history"
+        ? process.env.MARKETCHECK_HISTORY_ENABLED
+        : process.env.MARKETCHECK_DEALER_ENABLED;
+  return env === "true";
 }

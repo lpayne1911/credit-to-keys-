@@ -6,10 +6,17 @@
  */
 import {
   fetchActiveListings,
+  fetchRecentListings,
   decodeVin,
+  featureEnabled,
+  type RawActiveResponse,
 } from "@/lib/sources/marketcheck/connector";
-import { normalizeListings, mergeSpecs, vehicleIdentityFromRequest, backfillIdentityFromListings } from "@/lib/sources/marketcheck/normalize";
+import { demandFromDom, rankAmong } from "./signals";
+import { buildHistoryPoints, type DatedPrice } from "./priceHistory";
+import { decodeVinDetailed, looksLikeVin } from "@/lib/vin";
+import { normalizeListings, mergeSpecs, vehicleIdentityFromRequest, backfillIdentityFromListings, applyEquipment } from "@/lib/sources/marketcheck/normalize";
 import { buildMockMarket } from "@/lib/sources/marketcheck/mock";
+import type { VehicleEquipment } from "@/lib/vin";
 import type {
   ComparableListing,
   DealerMarketInsight,
@@ -44,8 +51,18 @@ function deriveTrendFromComps(comps: ComparableListing[], numFound: number): Mar
     bestNearbyDeal: prices.length ? Math.min(...prices) : null,
     bestNearbyDistanceMiles: cheapest?.distanceMiles ?? null,
     supplyLevel: supply >= 30 ? "high" : supply >= 12 ? "moderate" : "low",
-    demandLevel: "moderate",
+    demandLevel: demandFromDom(avgDom),
   };
+}
+
+/** Turn a recents/sold response into dated prices for the trend aggregator. */
+function recentToDated(recent: RawActiveResponse): DatedPrice[] {
+  return (recent.listings ?? [])
+    .map((l) => ({
+      price: typeof l.price === "number" ? l.price : 0,
+      date: l.last_seen_at ?? l.scraped_at ?? "",
+    }))
+    .filter((r) => r.price > 0 && r.date);
 }
 
 /** Market-level dealer/inventory context derived from the comp set. Dealer-
@@ -54,8 +71,9 @@ function deriveTrendFromComps(comps: ComparableListing[], numFound: number): Mar
 function deriveDealerInsight(
   comps: ComparableListing[],
   trend: MarketTrend,
+  extra: { dealerName?: string | null; thisDom?: number | null; refPrice?: number | null } = {},
 ): DealerMarketInsight | null {
-  if (comps.length === 0) return null;
+  if (comps.length === 0 && !extra.dealerName) return null;
   const competition = trend.supplyLevel; // low | moderate | high
   const insight =
     competition === "high"
@@ -63,11 +81,22 @@ function deriveDealerInsight(
       : competition === "low"
         ? "Comparable inventory is thin nearby, which can reduce your negotiating leverage."
         : `${trend.activeListings} comparable listings are active nearby — a balanced local market.`;
+  // Real, listings-derived fields for the searched car (when its VIN appears in
+  // the comps we already fetched). similarAtDealer / avgPriceAtDealer need the
+  // dealer-inventory API (premium), so they stay null and the report hides them.
+  const dealerName = extra.dealerName?.trim() || null;
+  const thisListingDaysOnMarket =
+    typeof extra.thisDom === "number" ? extra.thisDom : null;
+  const priceRankAtDealer =
+    extra.refPrice != null
+      ? rankAmong(extra.refPrice, comps.map((c) => c.listPrice))
+      : null;
   return {
+    dealerName,
     similarAtDealer: null,
     avgPriceAtDealer: null,
-    thisListingDaysOnMarket: null,
-    priceRankAtDealer: null,
+    thisListingDaysOnMarket,
+    priceRankAtDealer,
     localCompetition: competition,
     insight,
   };
@@ -110,32 +139,91 @@ export async function runMarketCheck(request: MarketCheckRequest): Promise<Marke
   const expiresAt = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString();
   const id = `mc_${crypto.randomUUID()}`;
 
-  let identity: VehicleIdentity = vehicleIdentityFromRequest(request);
+  // Resolve the vehicle from the VIN FIRST, with the free key-less NHTSA decoder,
+  // when the request didn't already carry year/make/model. This is what makes a
+  // VIN search actually reflect the vehicle: the resolved year/make/model then
+  // feed both the live comparables query (by ymm, not the single VIN) and the
+  // deterministic mock fallback — so the price and identity vary per VIN even
+  // when MarketCheck isn't configured. Best-effort: degrades to null silently.
+  let request2: MarketCheckRequest = request;
+  let vpicEquipment: VehicleEquipment | null = null;
+  if (request.vin && looksLikeVin(request.vin)) {
+    const decoded = await decodeVinDetailed(request.vin);
+    if (decoded) {
+      // Equipment is free from vPIC, so capture it on every VIN search (it backs
+      // the equipment block even when the paid MarketCheck specs decode is off).
+      vpicEquipment = decoded.equipment;
+      if (!(request.year && request.make && request.model)) {
+        request2 = {
+          ...request,
+          year: request.year ?? decoded.year,
+          make: request.make ?? decoded.make,
+          model: request.model ?? decoded.model,
+          trim: request.trim ?? decoded.trim,
+        };
+      }
+    }
+  }
+
+  let identity: VehicleIdentity = vehicleIdentityFromRequest(request2);
   let comps: ComparableListing[] = [];
   let trend: MarketTrend;
   let dealerInsight: DealerMarketInsight | null = null;
   let isMock = false;
 
-  const raw = await fetchActiveListings(request);
+  const raw = await fetchActiveListings(request2);
   if (raw && (raw.listings?.length ?? 0) > 0) {
     // Resolve the target identity BEFORE scoring comps. A VIN-only request has
     // no year/make/model, so decode the VIN and backfill from the listings —
     // otherwise every comp is scored against an empty target and reads "poor".
-    if (request.vin) {
-      const specs = await decodeVin(request.vin);
+    // vPIC equipment is the baseline; the MarketCheck specs decode (when the key
+    // is set) overrides it via mergeSpecs where it has richer data.
+    identity = applyEquipment(identity, vpicEquipment);
+    // The MarketCheck specs decode is a PREMIUM endpoint (403 on Free) and vPIC
+    // already supplies equipment for free — so only call it when explicitly
+    // enabled. MSRP (specs-only) stays null on Free and the report shows "—".
+    if (request2.vin && featureEnabled("specs")) {
+      const specs = await decodeVin(request2.vin);
       identity = mergeSpecs(identity, specs);
     }
     identity = backfillIdentityFromListings(identity, raw.listings ?? []);
     comps = normalizeListings(raw, identity);
     trend = deriveTrendFromComps(comps, raw.num_found ?? comps.length);
-    dealerInsight = deriveDealerInsight(comps, trend);
+
+    // Dealer name + days-on-market for the searched car, taken from the comps we
+    // ALREADY fetched (its VIN usually appears among the active listings) — no
+    // extra MarketCheck call, which matters on the 500-call Free plan.
+    const matched =
+      request2.vin
+        ? comps.find((c) => c.vin && c.vin.toUpperCase() === request2.vin!.toUpperCase()) ?? null
+        : null;
+    const refPrice =
+      request2.dealerAskingPrice ??
+      (typeof matched?.listPrice === "number" ? matched.listPrice : null);
+    dealerInsight = deriveDealerInsight(comps, trend, {
+      dealerName: matched?.dealerName ?? null,
+      thisDom: matched?.daysOnMarket ?? null,
+      refPrice,
+    });
+
+    // Real price history needs the recents/sold endpoint (PREMIUM, 403 on Free).
+    // Gated so the Free plan never wastes a call; otherwise the report shows the
+    // real price-distribution instead. Lights up on upgrade via the env flag.
+    if (featureEnabled("history")) {
+      const recent = await fetchRecentListings(request2);
+      const history = recent ? buildHistoryPoints(recentToDated(recent)) : null;
+      if (history) {
+        trend = { ...trend, points: history.points, trendDirection: history.trendDirection };
+      }
+    }
   } else {
     trend = deriveTrendFromComps([], 0); // placeholder; replaced below by mock
   }
 
   if (comps.length < 3) {
-    const m = buildMockMarket(request);
-    identity = m.identity;
+    const m = buildMockMarket(request2);
+    // Real vPIC equipment overrides the mock's hardcoded placeholder specs.
+    identity = applyEquipment(m.identity, vpicEquipment);
     comps = m.comps;
     trend = m.trend;
     dealerInsight = m.dealerInsight;
@@ -143,7 +231,7 @@ export async function runMarketCheck(request: MarketCheckRequest): Promise<Marke
   }
 
   comps = [...comps].sort((a, b) => b.matchScore - a.matchScore);
-  const snapshot = buildMarketSnapshot(comps, request, { id, fetchedAt, expiresAt });
+  const snapshot = buildMarketSnapshot(comps, request2, { id, fetchedAt, expiresAt });
   const takeaways = buildTakeaways(snapshot, trend, dealerInsight);
 
   return {

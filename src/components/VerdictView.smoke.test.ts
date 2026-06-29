@@ -62,7 +62,7 @@ describe("VerdictView renders", () => {
     expect(html).toContain("negative equity"); // trade line
 
     // The detailed flags live in the disclosure, not the default view.
-    expect(html).toMatch(/See all \d+ red flags/);
+    expect(html).toMatch(/See all \d+ flags/);
 
     // Loan-cost panel quantifies the tax it leaves out, pinned to independently
     // computed values so a math/format regression (round25, currency, the tax %)
@@ -90,6 +90,7 @@ describe("VerdictView renders", () => {
     });
     expect(html).toContain("Deal score");
     expect(html).toContain("What to say at the desk");
-    expect(html).toContain("tripped a red flag");
+    // Clean-deal reassurance renders (no crash, honest "nothing jumped out").
+    expect(html).toContain("Nothing jumped out as a red flag");
   });
 });

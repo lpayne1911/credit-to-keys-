@@ -12,6 +12,7 @@
  */
 
 import type { Flag, FairnessResult, Verdict } from "./fairness-engine";
+import type { FeeLineReview } from "./fee-classifier";
 
 export type DealStatus =
   | "new" // auto-verdict generated, no human review requested
@@ -32,6 +33,9 @@ export interface LeadRow {
 export interface DealRow {
   id: string;
   lead_id: string | null;
+  // Owning buyer (Supabase auth user) when the deal was run while signed in.
+  // null for anonymous/legacy deals (capability-URL only).
+  user_id: string | null;
 
   // Where the buyer is purchasing (two-letter state code). Drives state-aware
   // copy and, later, state-specific fee caps.
@@ -60,6 +64,14 @@ export interface DealRow {
   warranty_term_months: number | null;
   warranty_term_miles: number | null;
   warranty_price: number | null;
+
+  // Buyer location (internal analytics signal only; never buyer-facing/scored).
+  // `buyer_state` is declared above (shared with the state-aware copy field).
+  buyer_zip: string | null;
+  buyer_income_band: string | null;
+
+  // Normalized fee categories (state-aware), persisted for analytics.
+  fee_categories: FeeLineReview[] | null;
 
   // Upload
   uploaded_file_path: string | null;

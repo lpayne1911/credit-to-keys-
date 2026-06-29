@@ -67,6 +67,12 @@ export function MobileNav({ links, primary }: { links: NavLink[]; primary?: NavL
             </div>
 
             <nav className="flex-1 overflow-y-auto px-2 py-3">
+              <Link
+                href="/dashboard"
+                className="block rounded-lg px-3 py-3 text-base font-semibold text-white/80 transition hover:bg-white/10 hover:text-white"
+              >
+                Account
+              </Link>
               {links.map((l) => (
                 <Link
                   key={l.href}

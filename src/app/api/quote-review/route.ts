@@ -7,8 +7,8 @@
  *
  * Persistence mirrors /api/deals: when Supabase is configured we store the
  * result in `deals.auto_result` (JSONB) and return the row id; when it isn't, we
- * generate an id and return the result so the client can stash it in
- * sessionStorage and still render the Deal Review page. The result is branded
+ * generate an id and return the result so the client can save it to the on-device
+ * workspace and still render the Deal Review page. The result is branded
  * with `schemaVersion: "deal-review-1"` so it never collides with a
  * fairness-engine verdict read by /verdict.
  *
@@ -24,6 +24,8 @@ import { runMarketCheck } from "@/lib/market-engine/runMarketCheck";
 import { isConfigured as isMarketCheckConfigured } from "@/lib/sources/marketcheck/connector";
 import type { PriceRange } from "@/lib/fairness-engine";
 import { getServiceClient } from "@/lib/supabase/server";
+import { rateLimit, rateLimitHeaders } from "@/lib/rate-limit";
+import { getBuyer } from "@/lib/buyer-auth";
 
 export const runtime = "nodejs";
 
@@ -34,6 +36,15 @@ function verdictFromScore(score: number): "green" | "amber" | "red" {
 }
 
 export async function POST(req: Request) {
+  // Persists rows and may trigger a paid MarketCheck call — throttle per IP.
+  const limit = await rateLimit(req, { key: "quote-review", limit: 20, windowMs: 5 * 60_000 });
+  if (!limit.ok) {
+    return NextResponse.json(
+      { error: "Too many requests. Please slow down." },
+      { status: 429, headers: rateLimitHeaders(limit) },
+    );
+  }
+
   let raw: unknown;
   try {
     raw = await req.json();
@@ -100,7 +111,7 @@ export async function POST(req: Request) {
 
   const supabase = getServiceClient();
   if (!supabase) {
-    // Not configured — return the result + a generated id for sessionStorage.
+    // Not configured — return the result + a generated id for the workspace.
     return NextResponse.json({
       dealId: randomUUID(),
       result,
@@ -111,7 +122,10 @@ export async function POST(req: Request) {
   try {
     const inputPath: "manual" | "upload" =
       deal.sourceMetadata.documentUploaded ? "upload" : "manual";
+    // Stamp ownership when the buyer is signed in (shows on their dashboard).
+    const buyer = await getBuyer();
     const row = {
+      user_id: buyer?.id ?? null,
       buyer_state: deal.sourceMetadata.buyerState,
       vehicle_year: deal.vehicle.year,
       vehicle_make: deal.vehicle.make,

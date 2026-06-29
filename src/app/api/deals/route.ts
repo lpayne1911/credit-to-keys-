@@ -9,15 +9,27 @@
  */
 import { NextResponse } from "next/server";
 import { scoreDeal } from "@/lib/fairness-engine";
+import { reviewFees } from "@/lib/fee-classifier";
 import { toFairnessInput, toDealRow } from "@/lib/deal-mapper";
 import { dealSubmissionSchema } from "@/lib/schemas";
 import { getServiceClient } from "@/lib/supabase/server";
 import { runMarketCheck } from "@/lib/market-engine/runMarketCheck";
 import { isConfigured as isMarketCheckConfigured } from "@/lib/sources/marketcheck/connector";
+import { rateLimit, rateLimitHeaders } from "@/lib/rate-limit";
+import { getBuyer } from "@/lib/buyer-auth";
 
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
+  // Persists rows and may trigger a paid MarketCheck call — throttle per IP.
+  const limit = await rateLimit(req, { key: "deals", limit: 30, windowMs: 5 * 60_000 });
+  if (!limit.ok) {
+    return NextResponse.json(
+      { error: "Too many requests. Please slow down." },
+      { status: 429, headers: rateLimitHeaders(limit) },
+    );
+  }
+
   let raw: unknown;
   try {
     raw = await req.json();
@@ -86,11 +98,16 @@ export async function POST(req: Request) {
   }
 
   const result = scoreDeal(input);
+  // Parallel, state-aware fee-risk channel (never feeds the score). Prefer the
+  // buyer's explicit state, falling back to the ZIP-derived location signal —
+  // matching how `buyer_state` is resolved for persistence in toDealRow.
+  const feeRiskState = body.buyerState || body.location?.state || null;
+  const feeRisk = reviewFees(input.deal.fees ?? [], feeRiskState);
 
   const supabase = getServiceClient();
   if (!supabase) {
     // Not configured — return the verdict for inline display, no persistence.
-    return NextResponse.json({ id: null, result, persisted: false });
+    return NextResponse.json({ id: null, result, feeRisk, persisted: false });
   }
 
   try {
@@ -107,7 +124,9 @@ export async function POST(req: Request) {
       if (!leadErr && lead) leadId = lead.id as string;
     }
 
-    const row = toDealRow(body, input, result, leadId);
+    // Stamp ownership when the buyer is signed in, so it shows on their dashboard.
+    const buyer = await getBuyer();
+    const row = { ...toDealRow(body, input, result, leadId), user_id: buyer?.id ?? null };
     const { data: deal, error: dealErr } = await supabase
       .from("deals")
       .insert(row)
@@ -116,7 +135,7 @@ export async function POST(req: Request) {
 
     if (dealErr || !deal) {
       // Persistence failed — degrade gracefully, still return the verdict.
-      return NextResponse.json({ id: null, result, persisted: false });
+      return NextResponse.json({ id: null, result, feeRisk, persisted: false });
     }
 
     // Mirror flags into the normalized findings table for the console.
@@ -132,8 +151,8 @@ export async function POST(req: Request) {
       await supabase.from("findings").insert(findings);
     }
 
-    return NextResponse.json({ id: deal.id, result, persisted: true });
+    return NextResponse.json({ id: deal.id, result, feeRisk, persisted: true });
   } catch {
-    return NextResponse.json({ id: null, result, persisted: false });
+    return NextResponse.json({ id: null, result, feeRisk, persisted: false });
   }
 }

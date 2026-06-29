@@ -17,6 +17,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { FairnessResult } from "@/lib/fairness-engine";
+import type { FeeRiskAssessment } from "@/lib/fee-classifier";
 import type { DealSubmission } from "@/lib/deal-mapper";
 import {
   continueEnabled,
@@ -25,6 +26,9 @@ import {
   type Focus,
 } from "@/lib/deal-check-flow";
 import { VerdictView } from "@/components/VerdictView";
+import { VinAutofill } from "@/components/vehicle/VinAutofill";
+import type { DecodedVehicle } from "@/lib/vin";
+import { deriveZipContext } from "@/lib/zip-context";
 import { WARRANTY_DISPLAY_GROUPS } from "@/lib/warranty/warranty-catalog";
 import { VehicleSelector } from "@/components/vehicle/VehicleSelector";
 import { normalizeMake } from "@/lib/vehicles/vehicle-catalog";
@@ -111,7 +115,7 @@ type State = {
   vin: string;
   buyerState: string;
   /** Buyer's registration ZIP — a high-value state signal when they skip the
-   * state picker. */
+   * state picker. Also drives the internal ZIP->location analytics signal. */
   registrationZip: string;
   /** Dealer ZIP, captured from an uploaded quote — a state fallback. */
   dealerZip: string;
@@ -184,6 +188,7 @@ export function GamifiedDealCheck({ focus = "full" }: { focus?: Focus } = {}) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [inlineResult, setInlineResult] = useState<FairnessResult | null>(null);
+  const [inlineFeeRisk, setInlineFeeRisk] = useState<FeeRiskAssessment | null>(null);
   const [parsing, setParsing] = useState(false);
   const [uploadedPath, setUploadedPath] = useState<string | null>(null);
 
@@ -207,6 +212,19 @@ export function GamifiedDealCheck({ focus = "full" }: { focus?: Focus } = {}) {
     setStepIdx((i) => Math.max(i - 1, 0));
   }
 
+  // VIN autofill (optional): VIN is authoritative for the year and supplies the
+  // make/model/trim. We fill ONLY empty fields, so an explicit VehicleSelector
+  // choice on the brand step is never clobbered.
+  function applyVin(d: DecodedVehicle) {
+    setS((prev) => ({
+      ...prev,
+      year: d.year ?? prev.year,
+      make: prev.make || (d.make ?? ""),
+      model: prev.model || (d.model ?? ""),
+      trim: prev.trim || (d.trim ?? ""),
+    }));
+  }
+
   /* ----- submission -----
      Focus-aware: a focused check only submits the data it actually collected, so
      unselected fields never reach the engine as defaults and produce spurious
@@ -216,6 +234,11 @@ export function GamifiedDealCheck({ focus = "full" }: { focus?: Focus } = {}) {
       const def = ADD_ONS.find((a) => a.key === key);
       return { label: def?.label ?? key, amount: v.amount };
     });
+    // Internal-only location signal (ZIP-derived). Never shown back to the buyer.
+    // Internal location signal derives from the registration ZIP (one ZIP field
+    // for the buyer, not two). Never scored, never shown back.
+    const regZip5 = (s.registrationZip || "").replace(/[^0-9]/g, "").slice(0, 5);
+    const zc = regZip5.length === 5 ? deriveZipContext(regZip5) : null;
     const vehicle = {
       year: s.year,
       make: s.make,
@@ -245,6 +268,8 @@ export function GamifiedDealCheck({ focus = "full" }: { focus?: Focus } = {}) {
       buyerState: s.buyerState || undefined,
       registrationZip: s.registrationZip || undefined,
       dealerZip: s.dealerZip || undefined,
+      // Internal-only location signal (ZIP-derived). Never scored, never shown.
+      location: zc ? { zip: zc.zip, state: zc.state ?? undefined } : undefined,
     };
 
     if (focus === "warranty") {
@@ -293,6 +318,7 @@ export function GamifiedDealCheck({ focus = "full" }: { focus?: Focus } = {}) {
         router.push(`/verdict/${data.id}`);
       } else {
         setInlineResult(data.result as FairnessResult);
+        setInlineFeeRisk((data.feeRisk as FeeRiskAssessment) ?? null);
         setSubmitting(false);
         window.scrollTo({ top: 0, behavior: "smooth" });
       }
@@ -397,6 +423,7 @@ export function GamifiedDealCheck({ focus = "full" }: { focus?: Focus } = {}) {
           stepIdx={0}
           onBack={() => {
             setInlineResult(null);
+            setInlineFeeRisk(null);
             setS(INITIAL);
             setStepIdx(0);
           }}
@@ -405,6 +432,7 @@ export function GamifiedDealCheck({ focus = "full" }: { focus?: Focus } = {}) {
           <div className="animate-pop">
             <VerdictView
               result={inlineResult}
+              feeRisk={inlineFeeRisk}
               vehicle={{
                 year: s.year,
                 make: s.make,
@@ -489,6 +517,18 @@ export function GamifiedDealCheck({ focus = "full" }: { focus?: Focus } = {}) {
                   onChange={(v) => set("year", v)} format={(v) => String(v)} big />
                 <Slider label="Mileage" value={s.mileage} min={0} max={200_000} step={2_500}
                   onChange={(v) => set("mileage", v)} format={(v) => `${v.toLocaleString()} mi`} />
+                <details className="rounded-xl border border-navy/10 bg-white/60 px-4 py-3">
+                  <summary className="cursor-pointer text-sm font-semibold text-gold-dark">
+                    Have the VIN? Auto-fill the vehicle (optional)
+                  </summary>
+                  <div className="mt-3">
+                    <VinAutofill
+                      value={s.vin}
+                      onChange={(vin) => set("vin", vin)}
+                      onDecoded={applyVin}
+                    />
+                  </div>
+                </details>
               </div>
             </Step>
           )}
