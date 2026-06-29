@@ -2,17 +2,18 @@
 
 > Companion to `ROADMAP.md` (how we build) and `GO-TO-MARKET.md` (how we get
 > bought). **This is the architectural constitution for the customer-facing
-> platform: the journey, the layered data model, and the dashboard-as-command-center.**
+> platform: the journey, the layered data model, and the operating system that
+> runs cases from intake to delivery.**
 >
-> **READ THIS FIRST, AND DO NOT DRIFT:**
-> 1. Driveway Advocate is **not** a SaaS subscription product. There are **no
->    Bronze/Silver/Gold tiers**, and access is **never** unlocked by capturing a
->    payment. Access follows the **service the customer is engaged in**; money is
->    captured **after delivery**.
-> 2. **Every case must produce a tangible deliverable.** A service that doesn't
->    end in a concrete artifact (a report, an action plan, a purchase plan, case
->    deliverables) is not a service — it's a feature subscription, which we don't
->    sell. If you can't name the deliverable, it's not a case.
+> **READ THIS FIRST — THE FOUR LAWS (do not drift):**
+> 1. **No subscription tiers.** No Bronze/Silver/Gold; access is never unlocked by
+>    capturing a payment. Access follows the **service the customer is engaged in**.
+> 2. **No advance fee.** Payment is **captured after delivery** (Credit-to-Keys
+>    monthly in arrears). See the **delivery definition (§16)** — it is the keystone.
+> 3. **Every case produces a tangible deliverable.** If you can't name the
+>    deliverable, it isn't a case — it's a feature subscription, which we don't sell.
+> 4. **Every state change is logged and attributable.** Customers see a case
+>    timeline; operators/admins act only through audited transitions.
 
 ## 0. The mental model
 
@@ -21,455 +22,407 @@ Customer
    ↓
 Engagements      ← the service LINES a customer uses ("My Services")
    ↓
-Cases            ← discrete units of WORK, each with a lifecycle + a deliverable ("My Cases")
+Cases            ← discrete units of WORK: lifecycle + SLA + primitives + a deliverable ("My Cases")
    ↓
 Entitlements     ← capability flags DERIVED from engagements + cases (never tiers)
+   +  Object permissions  ← can THIS principal touch THIS exact object (§8)
    ↓
 Customer Home    ← the command center: "what do I need to do next?"
    ↓
-Workspaces       ← per-case rooms (Overview + the universal primitives)
+Workspaces       ← per-case rooms (Overview + universal primitives)
    ↓
-Deliverables     ← the tangible output every case must produce
+Deliverables     ← the tangible output every case must produce (capture trigger)
    ↓
 Recommendations  ← signal-driven cross-sell to the next service
    ↓
-Long-Term Ownership ← the post-purchase retention engine (keeps customers for years)
+Long-Term Ownership ← the post-purchase retention engine
 ```
 
-**The dashboard is a customer workspace, not the product.** The products are the
-services. The dashboard is the **command center** where a customer moves their
-**cases** forward. What a customer sees is driven by **customer state (their
-engagements + cases)**, never by a subscription level.
-
-### The four layers, defined
-- **Engagement** — the customer's relationship with a **service line** (Deal
-  Check, Deal Rescue, Buyer Advocate, Credit-to-Keys). Answers *"what services
-  does this customer use?"* This is the commercial/billing anchor. Surfaced as
-  **My Services**.
+### The layers, defined
+- **Engagement** — relationship with a **service line** (Deal Check, Deal Rescue,
+  Buyer Advocate, Credit-to-Keys). "My Services." Billing/relationship anchor.
 - **Case** — a **discrete unit of work** under an engagement, with its own
-  lifecycle, the universal primitives (messages/docs/tasks/timeline), and a
-  **mandatory deliverable**. A Deal Check is one case; a Deal Rescue is one case;
-  Credit-to-Keys is one long-running, stage-driven case. **A customer has many
-  cases.** Surfaced as **My Cases**. *All case logic lives here — never pushed up
-  into engagements.*
-- **Entitlement** — a derived capability flag (see §6). Computed from the
-  customer's engagements + cases. Never stored as a tier.
-- **Workspace** — the per-case UI room (see §8): an Overview plus the universal
-  primitives, gated by entitlement.
-
-> Why Cases are their own layer: customers will have multiple, concurrent,
-> repeat units of work (Deal Check #1, Deal Check #2, a Deal Rescue). Modeling the
-> unit of work explicitly is what lets this scale to millions of customers without
-> cramming case logic into the engagement/service layer.
+  lifecycle, **SLA/ownership**, universal **primitives**, and a **mandatory
+  deliverable**. A Deal Check is one case; Credit-to-Keys is one long-running,
+  stage-driven case. **A customer has many cases.** All case logic lives here.
+- **Entitlement** — a derived capability flag (§7). **Object permission** — whether
+  a specific principal may touch a specific object (§8). Both gate access; neither
+  is a tier.
+- **Workspace** — the per-case UI room (§11).
 
 ---
+
+# PART I — JOURNEY & MODEL
 
 ## 1. Current state vs target state
 
-### Current state (as built — migrations 0001–0007)
-- **Free scan works** anonymously: `/check` (`GamifiedDealCheck`) → `POST /api/deals` → `/verdict/[id]`. Quote Review: `/quote-review/intake` → `/api/deals` → `/deal-review/[id]`.
-- **Buyer accounts exist** (`lib/buyer-auth.ts` `getBuyer()`), but account creation happens *before* value, and `/dashboard` shows a **flat list of all the buyer's deals** — not case/workspace-driven.
-- **Deals own a `user_id`** (owner-scoped SELECT RLS); anonymous deals are `user_id = null`, capability-URL only.
-- **Non-automated services** (`human-review`, `deal-rescue`, `build-my-plan`, `concierge`) submit to `POST /api/intake` → `product_intakes` (write-once). Quote Review + Deal Check write to `deals`.
-- **Operator console** is live and **already separate** (`/console/*`): Supabase Auth + `operators` allowlist + roles + `review_audit`.
-- **No payments. No Cases layer. No universal primitives (messages/docs/tasks/timeline). No recommendations. No ownership engine. No document system.** Homepage self-segments into 4 funnel lanes.
+### Current (migrations 0001–0007)
+- Free scan works anonymously (`/check` → `/api/deals` → `/verdict/[id]`; Quote Review → `/deal-review/[id]`).
+- Buyer accounts exist; account creation is *before* value; `/dashboard` is a flat deal list.
+- `deals.user_id` + owner-scoped RLS; anonymous deals are capability-URL only.
+- Non-automated services → `POST /api/intake` → `product_intakes` (write-once). Operator console live + separate (`/console/*`, `operators` allowlist, `review_audit`).
+- **Missing:** Cases, SLA/ownership, a canonical status taxonomy, universal primitives, customer-visible timeline, notifications, document lifecycle, delivery definition, cancellation rules, evidence/retention policy, recommendations, ownership engine, payments.
 
-### Target state
-- Homepage asks **one question** with **3 doors** (§2).
-- Free scan → soft paywall → **post-scan account creation that claims the deal** and opens a Deal Check **case** (§3).
-- A layered spine: **Engagements → Cases → Entitlements** (§4–§6), with **universal primitives** (§5) attached to cases.
-- **Customer Home = command center** (§7) answering *"what do I need to do next?"*.
-- **Workspaces compose per case** (§8); every case yields a **deliverable** (§9).
-- A **recommendation engine** (§10) drives cross-sell; an **ownership engine** (§11) drives long-term retention.
-- A **first-class document system** (§13). Operator console stays separate (§12).
-- Payments (later) are **authorize-on-request / capture-on-delivery** — never capture-to-unlock.
-
----
+### Target
+The layered spine (§4–§8) + the operating system (Part II) + the command center
+(§9) and workspaces (§11), with delivery (§16) wired to the capture-after-delivery
+compliance model.
 
 ## 2. Homepage 3-door journey
+One question — **"Where are you in your car-buying journey?"** — three doors:
 
-The homepage forces one question: **"Where are you in your car-buying journey?"**
-(Consolidates today's 4 funnel cards into 3 intent doors; existing funnel routes
-are reused as destinations.)
-
-| Door | Buyer state | Primary CTAs | Routes (existing) |
+| Door | Buyer state | CTAs | Routes |
 |---|---|---|---|
-| **A — "I have a deal in front of me"** (panic) | Has a quote/worksheet, about to sign | Scan My Deal · Upload Buyer's Order · Get My Verdict | `/check`, `/quote-review/intake` |
-| **B — "I'm shopping for a vehicle"** | No car yet; wants a pro from the start | Start Credit-to-Keys · Get Pre-Qualified · Build My Purchase Plan | `/credit-to-keys`, `/build-my-plan` |
-| **C — "I already bought, something's wrong"** | Already signed | Deal Rescue · Contract Review · Dealer Complaint Help | `/post-sale-triage` |
+| **A — deal in hand** (panic) | About to sign | Scan My Deal · Upload Buyer's Order · Get My Verdict | `/check`, `/quote-review/intake` |
+| **B — shopping** | No car yet | Start Credit-to-Keys · Get Pre-Qualified · Build My Plan | `/credit-to-keys`, `/build-my-plan` |
+| **C — already bought** | Signed | Deal Rescue · Contract Review · Complaint Help | `/post-sale-triage` |
 
----
-
-## 3. Free scan → post-scan account creation flow
-
-1. **Free Red-Flag Scan** (Door A) — no payment, **no account required**. Verdict:
-   **Great Deal · Fair Deal · Questionable · Bad Deal · Run Away** (engine
-   green/amber/red + human-only `black` = walk away).
-2. **Soft paywall** below the verdict — *where paid services begin*: "Want to know
-   **why**?" (Deal Check) · "Review every fee?" (Junk Fee Audit) · "Negotiation
-   strategy?" (scripts) · "Want an advocate?" (Deal Rescue / Buyer Advocate). Each
-   is a **recommendation** (§10), not an upsell-to-tier.
-3. **Account creation happens HERE — after the scan.** *"Create your free account
-   to save your deal."* On signup the anonymous deal is **claimed** (`user_id`
-   set) and a **Deal Check case** (status `scanned`) is opened under a Deal Check
-   engagement.
-4. Account → **Customer Home** (command center).
-
-**Rule:** the free scan never requires an account or payment. The account is a
-*save* action; paid services are *engagements/cases*, not unlocks.
-
----
+## 3. Free scan → post-scan account creation
+1. **Free Red-Flag Scan** — no payment, no account. Verdict: Great · Fair · Questionable · Bad · Run Away.
+2. **Soft paywall** — recommendations (§14), not tier upsell: "know **why**?" (Deal Check) · "review every fee?" (Junk Fee Audit) · "negotiation strategy?" · "want an advocate?".
+3. **Account creation AFTER the scan** — "save your deal." Claims the anonymous deal (`user_id`) and opens a `deal_check` **case** (status `scanned`).
+4. → **Customer Home**. The free scan is never gated by account or payment.
 
 ## 4. The core spine: Engagements → Cases
 
-**Engagements** and **Cases** are the source of truth. Existing artifacts
-(`deals`, `product_intakes`, `market_snapshots`) are the **work products** a case
-points at; the **case** carries lifecycle + deliverable + primitives.
+### 4.1 engagements (service-line relationship)
+```
+engagements(id, user_id->auth.users [nullable until claimed],
+            service: deal_check|deal_rescue|buyer_advocate|credit_to_keys|concierge,
+            status: active|closed, created_at, updated_at)
+```
 
-### 4.1 Engagements (service-line relationship)
+### 4.2 cases (the operational heart — lifecycle + SLA + ownership)
 ```
-engagements
-  id          uuid pk
-  user_id     uuid -> auth.users           [nullable until claimed]
-  service     text  -- 'deal_check' | 'deal_rescue' | 'buyer_advocate'
-                    --  | 'credit_to_keys' | 'concierge'
-  status      text  -- 'active' | 'closed'
-  created_at  timestamptz
-  updated_at  timestamptz
+cases(
+  id, engagement_id->engagements, user_id->auth.users [owner-scoped RLS],
+  type,                       -- mirrors engagement.service
+  status,                     -- canonical taxonomy, §5
+  stage,                      -- Credit-to-Keys only (7 stages, §11)
+  priority,                   -- queue priority, §15
+  assigned_operator_id->operators [nullable],
+  due_at timestamptz [nullable],         -- SLA target
+  sla_status: on_track|at_risk|breached [derived],
+  escalation_reason text [nullable],
+  intake_completeness numeric [0..1],    -- §21
+  deal_id->deals [nullable], intake_id->product_intakes [nullable],
+  deliverable_id->deliverables [nullable],
+  title, created_at, updated_at)
 ```
-One row per service line a customer uses. Repeat work under the same service line
-reuses the engagement (e.g. two Deal Checks = one Deal Check engagement, two
-cases). This is the **billing/relationship anchor** (esp. recurring Credit-to-Keys).
-
-### 4.2 Cases (the unit of work — the operational heart)
-```
-cases
-  id            uuid pk
-  engagement_id uuid -> engagements
-  user_id       uuid -> auth.users          [denormalized for owner-scoped RLS]
-  type          text  -- mirrors engagement.service (deal_check, deal_rescue, …)
-  status        text  -- 'scanned' | 'requested' | 'in_progress' | 'in_review'
-                      --  | 'delivered' | 'closed'
-  stage         text  -- Credit-to-Keys only: 'prepare'|'qualify'|'shop'|'negotiate'
-                      --  |'purchase'|'delivery'|'ownership' (else null)
-  deal_id       uuid -> deals (nullable)            -- deal_check / quote_review
-  intake_id     uuid -> product_intakes (nullable)  -- rescue / build / concierge
-  deliverable_id uuid -> deliverables (nullable)    -- the tangible output (§9)
-  title         text
-  created_at    timestamptz
-  updated_at    timestamptz
-```
-- A claimed free scan = a `deal_check` case, status `scanned`, → its `deals` row.
-- A paid request moves the case `requested → in_progress/in_review → delivered`
-  (the deliverable is ready; this is also the payment **capture** event).
-- Credit-to-Keys = **one long-running case** driven by `stage`.
-- **Every case must reference a deliverable by the time it's `delivered`** (§9, invariant 2).
-- RLS: default-deny, owner-scoped SELECT (`user_id = auth.uid()`), like `deals`.
+Free scan → `deal_check` case (`scanned`). Paid request advances the case through
+the taxonomy (§5). Credit-to-Keys = one long-running `active` case driven by `stage`.
 
 ---
 
-## 5. Universal primitives (every workspace inherits these)
+## 5. Status taxonomy (the ONE official list)
 
-Every service becomes communication. So **Messages, Notifications, Tasks,
-Documents, and Timeline are universal primitives** attached to a **case** (and,
-where relevant, the customer). They are built **once** and every workspace inherits
-them — this is the single biggest future-dev simplifier.
+Every feature, dashboard, email, queue, and payment reads **this** enum. Do not
+invent per-feature statuses.
 
 ```
-messages        (case_id, sender: 'customer'|'operator', body, created_at)
-notifications   (user_id, case_id?, kind, body, read_at, created_at)
-tasks           (case_id, owner: 'customer'|'operator', label, done, due_at)
-documents       (see §13 — first-class system)
-timeline_events (case_id, kind, summary, actor, created_at)   -- append-only audit/history
+scanned             -- free verdict generated; no paid service engaged
+submitted           -- customer opened/requested a paid service (case created)
+review_requested    -- queued for an operator (human services)
+in_review           -- operator actively working it
+needs_customer_info -- BLOCKED on the customer (drives a Customer Action, §10)
+ready_for_delivery  -- work complete, awaiting publish
+delivered           -- deliverable published to dashboard + delivery event recorded (§16)
+payment_pending     -- delivered, awaiting capture (capture-AFTER-delivery)
+active              -- long-running recurring case (Credit-to-Keys / Ownership)
+closed              -- done (paid/complete or no further action)
+cancelled           -- abandoned/cancelled (§19)
 ```
 
-Every **Workspace** (§8) therefore has the same skeleton:
-```
-Workspace
-├── Overview      (service-specific summary + the deliverable)
-├── Messages
-├── Documents
-├── Tasks
-└── Timeline
-```
-RLS owner-scoped to the case's `user_id`; operators access via the service client.
+Allowed transitions are enforced in the service layer; every transition writes a
+`timeline_event` (§6) and, for operator/admin actions, a `review_audit` row (§22).
+`delivered` is the **only** gateway to `payment_pending` (no capture before it).
 
 ---
 
-## 6. Entitlements model
+## 6. Universal primitives (every workspace inherits these)
 
-Entitlements are **derived, never stored as tiers.** A pure, unit-testable
-function maps a customer's engagements + cases → capability flags:
+Messages, Notifications, Tasks, Documents, and **Timeline** are universal, attached
+to a **case**, built once. The Timeline is the **customer-visible event log**
+(reduces support load, builds trust): "Deal uploaded → Review started → More info
+requested → Report delivered → Payment captured → Case closed."
 
+```
+messages        (case_id, sender: customer|operator|system, body, created_at)
+notifications   (user_id, case_id?, channel: dashboard|email|sms, kind, body, read_at, sent_at)  -- §17
+tasks           (case_id, owner: customer|operator, label, blocking bool, done, due_at)            -- §10 when owner=customer
+documents       (§15 — first-class lifecycle)
+timeline_events (case_id, kind, summary, actor: customer|operator|system, visibility: customer|internal, created_at)
+```
+Every **Workspace** skeleton: `Overview · Messages · Documents · Tasks · Timeline`.
+RLS owner-scoped to the case's `user_id`; operators via service client + assignment (§8).
+
+## 7. Entitlements (derived capability flags)
 ```
 entitlementsFor(engagements, cases): {
-  can_scan:                  boolean  // always true (free)
-  can_save_deals:            boolean  // has an account
-  can_view_reports:          boolean  // has a delivered deal_check/quote_review case
-  can_message_advocate:      boolean  // has an active rescue/advocate/credit_to_keys case
-  can_access_credit_to_keys: boolean  // has a credit_to_keys engagement
-  can_upload_documents:      boolean  // has an active case that needs docs
-  can_download_reports:      boolean  // has a delivered deliverable
-  can_track_ownership:       boolean  // has reached the ownership stage / bought a vehicle
+  can_scan, can_save_deals, can_view_reports, can_message_advocate,
+  can_access_credit_to_keys, can_upload_documents, can_download_reports,
+  can_track_ownership
 }
 ```
+Granted by engaged services + case state. **Never** by a tier. A
+`plan`/`tier`/`subscription_level` field anywhere is a defect.
 
-Granted by **engaged services + open/delivered cases + customer state** — **never**
-by `Bronze | Silver | Gold`. There is no subscription level in the data model, the
-UI, or the code. A `plan`/`tier`/`subscription_level` field anywhere is a defect.
+## 8. Object-level permissions (beyond entitlements)
+Entitlements say what a user can do *in general*; **object permissions** answer
+*"may this exact principal touch this exact object?"*:
+- **Customer ↔ own data:** owner-scoped RLS (`user_id = auth.uid()`) on cases,
+  deals, documents, messages, timeline (customer-visible only).
+- **Operator ↔ case:** service-client access **plus assignment** —
+  `assigned_operator_id` (and role) determine who may act on / message a case.
+- **Document deletion/visibility:** governed by `document_permissions` (§15), not
+  blanket entitlements (e.g., a customer may delete an unverified upload but not a
+  delivered report; an advocate may message only their assigned buyer).
+- Object-level checks are enforced server-side on every mutating action, in
+  addition to RLS.
 
----
-
-## 7. Customer Home — the command center
-
-There is **one** customer home at `/dashboard`. It does **not** switch by tier; it
-**composes** from the customer's engagements + cases and answers the only question
-a stressed buyer cares about: **"What do I need to do next?"**
-
+## 9. Customer Home — the command center
+One home at `/dashboard`. Composes from engagements + cases. Answers **"what do I
+need to do next?"**:
 ```
-Customer Home
-├── Next Actions     ← open tasks across all cases, deadline-sorted (the answer to "what next?")
-├── My Cases         ← every case (Deal Check #1/#2, Deal Rescue, Credit-to-Keys …) + status
-├── My Services      ← engagements (service lines the customer uses)
-├── My Deals         ← saved scans / verdict history
-├── Documents        ← cross-case document center (§13)
-├── Messages         ← unified inbox across cases
-├── Recommendations  ← suggested next service (§10)
-└── Progress         ← e.g. Credit-to-Keys stage progress
+Next Actions   ← blocking customer tasks across all cases, deadline-sorted (§10) — the heartbeat
+My Cases       ← every case + status (§5) + sla_status
+My Services    ← engagements
+My Deals       ← saved scans / verdict history
+Documents      ← cross-case document center (§15)
+Messages       ← unified inbox
+Recommendations← next service (§14)
+Progress       ← Credit-to-Keys stage progress
 ```
 
-Clicking a case opens its **Workspace** (§8). A brand-new free customer sees the
-Free experience: saved deals, **recommendations**, and "engage this service" CTAs
-(never "upgrade to Gold").
+## 10. Customer Action System (the heartbeat)
+The dashboard must tell the buyer **what to do**, not just show data. A "customer
+action" is a **blocking task** (`tasks.owner = customer, blocking = true`) that
+typically moves a case out of `needs_customer_info`. Examples: *Upload buyer's
+order · Confirm lender approval · Answer trade-in question · Review delivered
+report · Approve next step.* Next Actions on the home (§9) is the prioritized list
+of these. Completing one writes a `timeline_event` and can auto-transition the case.
 
----
+## 11. Workspaces (per case; Overview + primitives)
+- **Free Customer:** saved deals · history · "engage this service" CTAs · recommendations.
+- **Deal Check:** Overview = status + notes + **delivered report** + scripts.
+- **Deal Rescue:** Overview = advocate + next actions + **action plan**.
+- **Credit-to-Keys (guided OS):** 7 stages — Prepare → Qualify → Shop → Negotiate →
+  Purchase → Delivery → **Ownership** (`case.stage`); deliverable = **purchase plan**;
+  recurring, billed monthly in arrears; hands off to Ownership (§ below).
+- **Buyer Advocate:** case-management portal; deliverable = **case strategy/bundle**.
 
-## 8. Workspace definitions
-
-Each workspace is **per case**, gated by entitlement, and built on the §5 skeleton
-(Overview + Messages + Documents + Tasks + Timeline). Reuse existing data: `deals`
-(verdict/findings/reviewed_*), `product_intakes` (intake payloads), `review_audit`
-(delivery proof), `market_snapshots`.
-
-- **Free Customer (no paid case):** saved deals · scan/verdict history · locked
-  features with **"engage this service"** CTAs · recommendations.
-- **Deal Check case:** Overview = status (`deals.status`) + analyst notes + the
-  **delivered report** (deliverable) + negotiation scripts; + primitives.
-- **Deal Rescue case:** Overview = assigned advocate + next actions + the **action
-  plan** (deliverable); + Timeline/Documents/Tasks/Messages.
-- **Credit-to-Keys case (guided OS):** Overview = the **7-stage** progress —
-  Prepare → Qualify → Shop → Negotiate → Purchase → Delivery → **Ownership**
-  (driven by `case.stage`); deliverable = the **purchase plan**; recurring,
-  billed monthly **in arrears**. (Supersedes the 3-stage marketing copy on
-  `/credit-to-keys`.) On reaching Ownership, hands off to the Ownership engine (§11).
-- **Buyer Advocate case (case-management portal):** Overview = case status +
-  advocate + deadlines; deliverable = **case deliverables**; + Documents/Messages/Tasks.
-
----
-
-## 9. Deliverables (invariant: every case produces one)
-
-A first-class record of the tangible output a case produces. **No case may reach
-`delivered` without a deliverable.** This is the honesty mechanism (invariant 2,
-§0): it keeps services as services, not feature subscriptions.
-
+## 12. Deliverables + templates (invariant: every case produces one)
 ```
-deliverables
-  id          uuid pk
-  case_id     uuid -> cases
-  kind        text  -- 'report' | 'action_plan' | 'purchase_plan' | 'case_bundle'
-  title       text
-  document_id uuid -> documents (nullable)   -- the downloadable artifact, if any
-  delivered_at timestamptz
+deliverables(id, case_id, kind, title, document_id->documents [nullable], delivered_at)
 ```
+No case reaches `delivered` without a deliverable. **Templates per service:**
 
 | Service | Deliverable |
 |---|---|
 | Deal Check | Report (fee-by-fee verdict) |
-| Deal Rescue | Action Plan |
-| Buyer Advocate | Case deliverables |
-| Credit-to-Keys | Purchase Plan |
+| Junk Fee Audit | Fee challenge sheet |
+| F&I Product Review | Product / value analysis |
+| Deal Rescue | Action plan |
+| Credit-to-Keys | Staged purchase plan |
+| Buyer Advocate | Case strategy / bundle |
 
-Delivery is also the **only** moment a paid case's payment may be captured (§14).
-
----
-
-## 10. Recommendation engine (the cross-sell)
-
-A signal-driven engine that suggests the **next service** based on case findings /
-verdicts / state. It is the polite, buyer-side cross-sell — recommendations, never
-forced upsells, and never tier prompts.
-
-```
-recommend(customerState) -> Recommendation[]   // each: { reason, service, cta }
-```
+## 13. Recommendation engine (cross-sell)
+`recommend(customerState) -> { reason, service, cta }[]`, signal-driven, never a tier prompt:
 
 | Signal | Recommendation |
 |---|---|
-| Bad Deal / Run Away verdict | Deal Check (full report) |
-| Negative equity detected | Credit-to-Keys |
-| Already purchased | Ownership Tracker (§11) |
+| Bad Deal / Run Away | Deal Check (full report) |
+| Negative equity | Credit-to-Keys |
+| Already purchased | Ownership Tracker |
 | Questionable / padded fees | Junk Fee Audit |
 | Subprime APR / thin credit | Credit-to-Keys |
 
-Recommendations surface in the soft paywall (§3), the Customer Home (§7), and case
-workspaces. Signals come from `findings` / `auto_result` / `fee_categories` and
-case state — no new scoring engine required.
+Signals come from `findings` / `auto_result` / `fee_categories` + case state.
+Surfaces in the soft paywall (§3), the home (§9), and workspaces.
+
+## 14. Long-term Ownership engine (retention)
+Begins at the Credit-to-Keys Ownership stage or when a buyer marks a vehicle
+purchased. An `ownership` engagement + long-lived `active` case:
+Warranty tracking · Service reminders · Recall alerts (NHTSA by VIN) · Equity
+tracking · Trade-in readiness · Refinance opportunities · Next-purchase planning.
+Each opportunity becomes a **recommendation** back into a new engagement.
 
 ---
 
-## 11. Long-term Ownership engine (retention)
+# PART II — THE OPERATING SYSTEM
 
-Ownership is **not** a dead end after purchase — it's its own long-running engine
-that keeps customers for years and feeds future engagements (the next car, a
-refinance, a trade-in). It begins when a Credit-to-Keys case reaches the Ownership
-stage, or when a buyer marks a vehicle purchased.
+## 15. Case ownership, SLA & queue priority
+Cases carry **ownership + urgency** (fields on `cases`, §4.2):
+- `assigned_operator_id` — who owns it internally; unassigned cases surface in the queue.
+- `priority` — computed (see below); orders the operator queue.
+- `due_at` + `sla_status` (`on_track|at_risk|breached`) — SLA timers; breaches set
+  `escalation_reason` and raise an operator alert (§17).
+- **Queue priority logic** weighs: *buyer signing today · dealer deadline ·
+  bad-deal severity · high dollar risk · post-sale rescue · paid human review
+  requested.* No case is silently stuck — unassigned/at-risk/breached cases are
+  always visible in the operator queue (§ Operator dashboard).
 
+## 16. Delivery & payment-trigger definition  ⭐ (the keystone)
+> **A service is DELIVERED when, and only when:** the case's **deliverable**
+> (§12) is **published to the customer's dashboard** AND a **`delivered` timeline
+> event** is recorded on the case (the case transitions to `delivered`).
+
+Consequences (binding):
+- **Payment may be authorized at request** but **captured only at/after the
+  `delivered` event** (case then `payment_pending` → `closed`). Credit-to-Keys is
+  billed **monthly in arrears** for work already delivered.
+- A deliverable that exists but is **not yet published** is **not delivered** — no
+  capture. Internal "ready" work is `ready_for_delivery`, never `delivered`.
+- The publish action (today's `/api/console/deals/[id]/publish`, extended to
+  cases) is the **single delivery event** and the only place a capture may fire.
+- Every delivery writes `review_audit` (who delivered, when) + a customer-visible
+  `timeline_event`.
+
+## 17. Notifications
+Every meaningful status change (§5) fans out to the right channel(s):
+`dashboard` (always) · `email` (transactional, e.g. Resend) · `sms` (later) ·
+`operator alert` (queue/SLA breaches). Buyer-side only — no marketing entanglement
+with sellers. Recorded in `notifications` (§6). Triggers include: review started,
+needs_customer_info, ready_for_delivery, **delivered**, payment captured, case closed.
+
+## 18. Document lifecycle
+Documents are not just uploads; they move through a lifecycle and carry type +
+version + visibility:
 ```
-Ownership
-├── Warranty tracking          (expiry, coverage, claims)
-├── Service reminders          (mileage/time-based)
-├── Recall alerts              (NHTSA by VIN)
-├── Equity tracking            (loan payoff vs market value over time)
-├── Trade-in readiness         (when equity/positioning is favorable)
-├── Refinance opportunities    (rate/credit improvements → re-engage)
-└── Next purchase planning     (re-enters the funnel at Door B)
+uploaded → classified → parsed → needs_review → verified → used_in_report → archived
 ```
-
-Modeled as an `ownership` engagement with a long-lived case; reuses Documents
-(warranty/registration/insurance), Notifications, and Timeline. Each opportunity it
-surfaces is a **Recommendation** (§10) back into a new paid engagement.
-
----
-
-## 12. Operator dashboard separation
-
-The operator dashboard is a **completely separate, internal-only** surface — it is
-**not** a customer workspace and shares no entitlement logic with buyers.
-
-- Lives under `/console/*`; gated by `getConsoleOperator()` (Supabase Auth +
-  `operators` allowlist + `active` + role).
-- Shows: case queue, assignments, SLA timers, customer management, analytics,
-  revenue metrics, and the publish/delivery actions (the `review_audit` event).
-- `getBuyer` and `getConsoleOperator` are distinct; being a buyer never grants
-  operator access and vice-versa.
-
-**Invariant:** customer workspaces and the operator console never merge. Two
-applications, one database.
-
----
-
-## 13. Document management (first-class system)
-
-Documents accumulate fast — Buyer's Orders, Contracts, Finance Agreements,
-Warranty Contracts, trade paperwork, Registration, Insurance, generated Reports.
-Treat documents as a first-class subsystem from the start (not per-feature blobs):
-
 ```
-documents            (id, user_id, case_id?, kind, storage_path, current_version_id, created_at)
+documents            (id, user_id, case_id?, kind, status[lifecycle], visibility: customer|internal,
+                       current_version_id, created_at)
 document_versions    (id, document_id, version, storage_path, uploaded_by, created_at)
-document_tags        (document_id, tag)                 -- e.g. 'buyers_order','contract','warranty'
-document_permissions (document_id, principal, access)   -- customer/operator scoping
+document_tags        (document_id, tag)   -- buyers_order|contract|finance|warranty|trade|registration|insurance|report
+document_permissions (document_id, principal, access: view|download|delete)
 ```
-- Stored in the private `deal-uploads` bucket (extend or add buckets); served via
-  short-lived signed URLs only (the console already does this).
-- Versioned (re-uploads keep history); tagged by type; permissioned per principal.
-- Deliverables (§9) that are downloadable point at a `documents` row.
+- Stored in the private bucket; served via short-lived signed URLs only.
+- Deletion governed by `document_permissions` + status (e.g. a `verified`
+  doc used in a delivered report is **archive-only**, not deletable by the customer).
+- Generated deliverables (§12) point at a `documents` row.
+
+## 19. Cancellation / abandonment / refund rules
+Because there's **no advance fee**, most cancellations are clean:
+- **Cancelled before work starts** (`submitted`/`review_requested`): close, no charge.
+- **Cancelled after review begins** (`in_review`): close as `cancelled`; no capture
+  unless a deliverable was already published (it wasn't → no charge).
+- **Customer never responds** (`needs_customer_info` past SLA): auto-nudge (§17),
+  then auto-`cancelled` after a defined window; no charge.
+- **Duplicate submission:** merge/close the duplicate; link to the original case.
+- **Bad/unreadable documents:** → `needs_customer_info` with a customer action to re-upload.
+- **Refunds** apply only to already-captured (i.e. already-delivered) work and are
+  an audited admin action (§22) with a recorded reason.
+
+## 20. Evidence, retention & audit policy
+- **Evidence preservation** (critical for Deal Rescue / Buyer Advocate disputes):
+  preserve original uploads (immutable first version), timestamps, customer
+  statements, dealer quote details, operator notes, and final recommendations. The
+  customer-visible timeline + `review_audit` + immutable `document_versions` form
+  the evidentiary record.
+- **Retention & deletion:** define per-class retention windows (contracts, IDs,
+  loan docs, messages) honoring legal + CROA/TSR record-keeping; support
+  customer-initiated deletion **except** where a legal hold or active dispute
+  applies. Deletions are audited.
+- **Audit:** operator/admin actions → `review_audit`; customer-facing history →
+  customer-visible `timeline_events`. Nothing material changes without a record.
+
+## 21. Intake completeness scoring
+Before an operator touches a case, the system scores intake completeness
+(`cases.intake_completeness`) against the service's required fields and flags
+what's missing — e.g. *missing VIN · missing buyer's order · missing APR · missing
+trade payoff · missing lender approval.* Incomplete intake auto-creates customer
+actions (§10) and holds the case in `needs_customer_info` rather than burning
+operator time.
+
+## 22. Admin / support overrides (all audited)
+Stuck cases need safe, **logged** admin tools (admin role only): reassign case ·
+mark delivered · reopen case · refund / cancel · attach report · correct customer
+ownership. **Every override writes a `review_audit` row** with actor + reason; no
+silent edits. Overrides respect the delivery/compliance laws (e.g. "mark delivered"
+publishes a real deliverable + delivery event).
+
+## 23. Operator dashboard separation
+Completely separate, internal-only (`/console/*`, `getConsoleOperator()` —
+Supabase Auth + `operators` allowlist + role). Shows the **case queue** (ordered
+by priority/SLA, §15), assignments, SLA timers, customer management, analytics,
+revenue, and the publish/delivery action (§16). Buyer auth and operator auth are
+disjoint. **Customer workspaces and the operator console never merge** — two apps,
+one database.
 
 ---
 
-## 14. Database / schema recommendations
+# PART III — BUILD
 
-Current schema is migrations `0001`–`0007` (leads, deals, findings,
-product_intakes, market_snapshots, operators, review_audit) — all RLS default-deny,
-forced; service-role mediated; owner-scoped SELECT on `deals`.
-
-Additive changes (no destructive edits), introduced phase-by-phase:
-- **`0008_engagements_cases.sql`** — `engagements` (§4.1) + `cases` (§4.2) with
-  owner-scoped SELECT RLS + indexes; backfill: each claimed `deal` → a Deal
-  Check/Quote Review engagement + case; each `product_intakes` row → its case.
+## 24. Database / schema recommendations
+Current: migrations `0001`–`0007` (all RLS default-deny, forced, service-mediated;
+owner-scoped SELECT on `deals`). Additive, phase-by-phase:
+- **`0008_engagements_cases.sql`** — `engagements` (§4.1) + `cases` (§4.2, incl.
+  SLA/ownership/priority/completeness fields, canonical status §5); backfill deals
+  + intakes → engagements + cases.
 - **`0009_case_primitives.sql`** — `messages`, `notifications`, `tasks`,
-  `timeline_events` (§5), owner-scoped to the case.
-- **`0010_documents.sql`** — `documents`, `document_versions`, `document_tags`,
-  `document_permissions` (§13).
-- **`0011_deliverables.sql`** — `deliverables` (§9).
-- **Reuse, don't replace:** `deals.status` feeds case status; `product_intakes`
-  remains the intake payload; `review_audit` remains the delivery/capture seam.
-  Cases *reference* these.
-- **Later (payments):** a `payments` table keyed to a **case**, recording
-  authorize + capture tied to delivery. **No `plan`/`tier` column anywhere.**
+  `timeline_events` (§6, §10, §17).
+- **`0010_documents.sql`** — `documents` (+ lifecycle status, visibility),
+  `document_versions`, `document_tags`, `document_permissions` (§18).
+- **`0011_deliverables.sql`** — `deliverables` (§12).
+- **Later (payments):** `payments` keyed to a **case** (authorize + capture tied to
+  the §16 delivery event). **No `plan`/`tier` column anywhere.**
+- **Reuse:** `deals` (verdict/findings), `product_intakes` (intake payload),
+  `review_audit` (delivery/override audit), `operators` (assignment). Cases
+  reference these.
 
----
-
-## 15. Phased build plan
-
-Each phase is independently shippable, verified with
-`lint && typecheck && test && build`, and never violates §16.
-
+## 25. Phased build plan
+Each phase ships independently; `lint && typecheck && test && build` green; never
+violates §26.
 - **Phase A — Spine + command center (next; separate approval):** `engagements` +
-  `cases` (+ backfill); pure `entitlements` module (unit-tested); rework
-  `/dashboard` into the **command center** composing Free + Deal Check cases.
-  Deliverables for Deal Check. No payments.
-- **Phase B — Front of funnel:** homepage 3-door; move account creation to *after*
-  the scan (claim the deal → open a case); soft paywall = recommendations.
-- **Phase C — Universal primitives + deeper workspaces:** messages/tasks/timeline +
-  the document system; Deal Rescue workspace; then the Credit-to-Keys 7-stage OS;
-  then Buyer Advocate case portal.
-- **Phase D — Recommendations + Ownership engine:** signal-driven recommendations
-  surfaced across home/paywall/workspaces; the long-term ownership engine.
+  `cases` (canonical status, SLA fields) + backfill; pure `entitlements`
+  (unit-tested); rework `/dashboard` into the command center (Next Actions / My
+  Cases / My Services / My Deals / Recommendations stub) for Free + Deal Check;
+  Deal Check **deliverable** + the **delivery definition** enforced. No payments.
+- **Phase B — Front of funnel:** homepage 3-door; account-after-scan (claim deal →
+  open case); soft paywall = recommendations.
+- **Phase C — Operating system:** universal primitives (messages/tasks/timeline) +
+  notifications + the document lifecycle system; intake completeness; SLA/queue +
+  customer actions; cancellation/abandonment rules.
+- **Phase D — Deeper workspaces + engines:** Deal Rescue, Credit-to-Keys 7-stage
+  OS, Buyer Advocate portal; recommendations engine; Ownership engine.
 - **Phase E — Payments (legal review first):** Stripe authorize-on-request /
-  capture-on-delivery, keyed to a case's delivery event. Capture **only** at delivery.
+  **capture-on-delivery** (§16), keyed to a case; admin refund/override (§22).
 
----
+## 26. The Four Laws + guardrails (binding on every phase)
+From `GO-TO-MARKET.md` §6 / `ROADMAP.md` §Guardrails, plus this doc's laws:
+1. **Strictly buyer-side** — no revenue from / steering toward dealers, lenders, F&I, warranty sellers.
+2. **Decision support, not advice** — persistent disclaimer on every verdict/recommendation.
+3. **No advance fee** — authorize-on-request, **capture-on-delivery** (§16); Credit-to-Keys monthly in arrears; the free scan is always free.
+4. **No false precision** — every estimate is a range + confidence.
+5. **No subscription tiers** — entitlements derive from engagements + cases only.
+6. **Every case produces a deliverable** — named, published, then capture (§12, §16).
+7. **Everything material is logged** — customer timeline + operator/admin audit (§20, §22).
 
-## 16. Compliance guardrails & invariants (binding on every phase)
+> PR rejection tests:
+> - Access depends on money captured **before** delivery? → reject.
+> - Access gated by a **tier/plan** rather than engagement/case? → reject.
+> - A case reaches `delivered` **without** a published deliverable + delivery event? → reject.
+> - A material state change with **no** audit/timeline record? → reject.
 
-From `GO-TO-MARKET.md` §6 and `ROADMAP.md` §Guardrails:
-
-1. **Strictly buyer-side.** No revenue from / steering toward dealers, lenders,
-   F&I, or warranty sellers. Ever.
-2. **Decision support, not advice.** Persistent disclaimer on every verdict/recommendation.
-3. **NO ADVANCE FEE — access is never sold as a prepaid unlock.** Paid services are
-   **authorize-on-request, capture-on-delivery** (Credit-to-Keys monthly **in
-   arrears**). A workspace/entitlement is granted when the customer **engages** a
-   service (opens a case); its deliverable unlocks **on delivery**, which is also
-   the only moment payment may be captured. **Never gate a workspace behind a
-   captured prepayment.** The free scan is always free, never behind an account or paywall.
-4. **No false precision / no guarantees.** Every estimate is a range + confidence.
-5. **No subscription tiers.** No `plan`/`tier`/`subscription_level` anywhere —
-   entitlements derive from engagements + cases only.
-6. **Every case produces a tangible deliverable.** If you can't name the
-   deliverable, it isn't a case — it's a feature subscription, which we don't sell.
-
-> Architectural tests for any future PR:
-> - *"Does access depend on money captured before a service was delivered?"* → reject.
-> - *"Is access gated by a tier/plan rather than an engagement/case?"* → reject.
-> - *"Does this case reach `delivered` without a deliverable?"* → reject.
-
----
-
-## 17. Acceptance criteria for Phase A
-
-Phase A is done when ALL hold (implemented in a later, separately approved step):
-
-1. **Schema:** `engagements` + `cases` exist (migration `0008`) with owner-scoped
-   SELECT RLS + indexes; existing claimed deals/intakes are backfilled to an
-   engagement + case. `get_advisors` shows no new RLS gaps.
-2. **Entitlements:** a pure `entitlementsFor(engagements, cases)` function with
-   unit tests covering free (scan only), saved-deals, delivered-report,
-   credit-to-keys access, advocate messaging — and a test asserting **no
-   tier/plan input exists** in the signature.
-3. **Command center:** `/dashboard` renders the home from §7 (Next Actions, My
-   Cases, My Services, My Deals, Recommendations stub) composed from the buyer's
-   engagements + cases; Free experience for a no-paid-case customer; a Deal Check
-   case opens its workspace. Locked features show "engage this service" CTAs, **not**
-   tier upsell.
-4. **Deliverable invariant honored:** a Deal Check case exposes its report as a
-   `deliverable`; a case cannot be marked `delivered` without one (enforced in the
-   service layer).
-5. **No regressions:** existing free scan, verdict, deal-review, console, and
-   operator flows still work; anonymous deals still reachable by capability URL.
-6. **No subscription model introduced:** grep confirms no `plan`/`tier`/`subscription_level`.
-7. **Quality gates:** `npm run lint && npm run typecheck && npm test && npm run build`
-   all green; the buyer command center verified live (sign in → see composed home).
+## 27. Acceptance criteria for Phase A
+1. **Schema:** `engagements` + `cases` (migration `0008`, canonical status §5 + SLA
+   fields) with owner-scoped SELECT RLS + indexes; deals/intakes backfilled;
+   `get_advisors` clean.
+2. **Entitlements:** pure `entitlementsFor(engagements, cases)` unit-tested (free,
+   saved-deals, delivered-report, credit-to-keys, advocate messaging) + a test
+   asserting **no tier/plan input** in the signature.
+3. **Command center:** `/dashboard` renders §9 (Next Actions, My Cases, My
+   Services, My Deals, Recommendations stub) composed from engagements + cases;
+   Free experience for no-paid-case; Deal Check case opens its workspace; locked
+   features show "engage this service", **not** tier upsell.
+4. **Delivery + deliverable enforced:** a Deal Check case exposes its report as a
+   `deliverable`; the service layer forbids `delivered` without a published
+   deliverable + a `delivered` timeline event (§16).
+5. **No regressions:** free scan, verdict, deal-review, console, operator flows
+   still work; anonymous deals still reachable by capability URL.
+6. **No subscription model:** grep confirms no `plan`/`tier`/`subscription_level`.
+7. **Quality gates:** lint + typecheck + test + build green; command center
+   verified live (sign in → composed home).
 </content>
