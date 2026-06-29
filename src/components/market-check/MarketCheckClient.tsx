@@ -67,10 +67,12 @@ export function MarketCheckClient({ initial }: { initial: MarketCheckResponse })
             <input className="field-input" placeholder="Model" value={f.model} onChange={(e) => set("model", e.target.value)} />
             <input className="field-input" placeholder="Miles" inputMode="numeric" value={f.mileage} onChange={(e) => set("mileage", e.target.value.replace(/[^0-9]/g, ""))} />
             <input className="field-input" placeholder="ZIP" inputMode="numeric" value={f.zipCode} onChange={(e) => set("zipCode", e.target.value.replace(/[^0-9]/g, ""))} />
-            <button type="button" onClick={run} disabled={!canSubmit || loading} className="btn-blue text-sm">
-              {loading ? "Checking…" : "Check the Market"}
-            </button>
+            <input className="field-input" placeholder="Asking $" inputMode="numeric" value={f.dealerAskingPrice} onChange={(e) => set("dealerAskingPrice", e.target.value.replace(/[^0-9]/g, ""))} />
           </div>
+          <p className="mt-1.5 text-xs text-slate">Add the dealer&apos;s asking price to see how this deal compares to the local market.</p>
+          <button type="button" onClick={run} disabled={!canSubmit || loading} className="btn-blue mt-2.5 text-sm">
+            {loading ? "Checking…" : "Check the Market"}
+          </button>
           {error && <p className="mt-2 text-sm text-red-dark">{error}</p>}
         </div>
       </div>

@@ -8,9 +8,10 @@ import {
   fetchActiveListings,
   decodeVin,
 } from "@/lib/sources/marketcheck/connector";
-import { decodeVin as decodeVinNhtsa, looksLikeVin } from "@/lib/vin";
-import { normalizeListings, mergeSpecs, vehicleIdentityFromRequest, backfillIdentityFromListings } from "@/lib/sources/marketcheck/normalize";
+import { decodeVinDetailed, looksLikeVin } from "@/lib/vin";
+import { normalizeListings, mergeSpecs, vehicleIdentityFromRequest, backfillIdentityFromListings, applyEquipment } from "@/lib/sources/marketcheck/normalize";
 import { buildMockMarket } from "@/lib/sources/marketcheck/mock";
+import type { VehicleEquipment } from "@/lib/vin";
 import type {
   ComparableListing,
   DealerMarketInsight,
@@ -118,20 +119,22 @@ export async function runMarketCheck(request: MarketCheckRequest): Promise<Marke
   // deterministic mock fallback — so the price and identity vary per VIN even
   // when MarketCheck isn't configured. Best-effort: degrades to null silently.
   let request2: MarketCheckRequest = request;
-  if (
-    request.vin &&
-    looksLikeVin(request.vin) &&
-    !(request.year && request.make && request.model)
-  ) {
-    const decoded = await decodeVinNhtsa(request.vin);
+  let vpicEquipment: VehicleEquipment | null = null;
+  if (request.vin && looksLikeVin(request.vin)) {
+    const decoded = await decodeVinDetailed(request.vin);
     if (decoded) {
-      request2 = {
-        ...request,
-        year: request.year ?? decoded.year,
-        make: request.make ?? decoded.make,
-        model: request.model ?? decoded.model,
-        trim: request.trim ?? decoded.trim,
-      };
+      // Equipment is free from vPIC, so capture it on every VIN search (it backs
+      // the equipment block even when the paid MarketCheck specs decode is off).
+      vpicEquipment = decoded.equipment;
+      if (!(request.year && request.make && request.model)) {
+        request2 = {
+          ...request,
+          year: request.year ?? decoded.year,
+          make: request.make ?? decoded.make,
+          model: request.model ?? decoded.model,
+          trim: request.trim ?? decoded.trim,
+        };
+      }
     }
   }
 
@@ -146,6 +149,9 @@ export async function runMarketCheck(request: MarketCheckRequest): Promise<Marke
     // Resolve the target identity BEFORE scoring comps. A VIN-only request has
     // no year/make/model, so decode the VIN and backfill from the listings —
     // otherwise every comp is scored against an empty target and reads "poor".
+    // vPIC equipment is the baseline; the MarketCheck specs decode (when the key
+    // is set) overrides it via mergeSpecs where it has richer data.
+    identity = applyEquipment(identity, vpicEquipment);
     if (request2.vin) {
       const specs = await decodeVin(request2.vin);
       identity = mergeSpecs(identity, specs);
@@ -160,7 +166,8 @@ export async function runMarketCheck(request: MarketCheckRequest): Promise<Marke
 
   if (comps.length < 3) {
     const m = buildMockMarket(request2);
-    identity = m.identity;
+    // Real vPIC equipment overrides the mock's hardcoded placeholder specs.
+    identity = applyEquipment(m.identity, vpicEquipment);
     comps = m.comps;
     trend = m.trend;
     dealerInsight = m.dealerInsight;

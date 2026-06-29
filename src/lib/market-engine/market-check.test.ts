@@ -1,11 +1,11 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import { scoreComparableListing, selectBestComps } from "@/lib/sources/marketcheck/filters";
 import { getMarketConfidence } from "@/lib/sources/marketcheck/confidence";
-import { backfillIdentityFromListings, mergeSpecs, vehicleIdentityFromRequest } from "@/lib/sources/marketcheck/normalize";
+import { backfillIdentityFromListings, mergeSpecs, vehicleIdentityFromRequest, applyEquipment } from "@/lib/sources/marketcheck/normalize";
 import { fetchActiveListings } from "@/lib/sources/marketcheck/connector";
 import { buildMarketSnapshot } from "./buildMarketSnapshot";
 import { runMarketCheck } from "./runMarketCheck";
-import type { ComparableListing, MarketCheckRequest } from "@/lib/sources/marketcheck/types";
+import type { ComparableListing, MarketCheckRequest, VehicleIdentity } from "@/lib/sources/marketcheck/types";
 
 function req(p: Partial<MarketCheckRequest> = {}): MarketCheckRequest {
   return {
@@ -90,6 +90,38 @@ describe("identity resolution (VIN-only all-poor regression)", () => {
       year: 2019, make: "Toyota", model: "4Runner", trim: "TRD Off-Road Premium",
     });
     expect(merged).toMatchObject({ year: 2019, make: "Toyota", model: "4Runner", trim: "TRD Off-Road Premium" });
+  });
+});
+
+describe("applyEquipment (real vPIC specs over mock placeholders)", () => {
+  const mockId = {
+    year: 2019, make: "Toyota", model: "4Runner", trim: null, vin: null, mileage: null,
+    identityConfidence: "medium",
+    bodyStyle: "SUV", drivetrain: "All-Wheel Drive", engine: "2.5L 4-Cyl. Hybrid",
+    transmission: "eCVT", fuelType: "Hybrid (Gas/Electric)", msrp: 40_000,
+  } as unknown as VehicleIdentity;
+
+  it("overrides the mock's hardcoded specs with real equipment", () => {
+    const out = applyEquipment(mockId, {
+      bodyStyle: "Pickup", drivetrain: "4WD/Four-Wheel Drive", engine: "4.0L 6-Cyl",
+      transmission: "Automatic", fuelType: "Gasoline",
+    });
+    expect(out.engine).toBe("4.0L 6-Cyl");
+    expect(out.fuelType).toBe("Gasoline");
+    expect(out.drivetrain).toBe("4WD/Four-Wheel Drive");
+    expect(out.msrp).toBe(40_000); // non-equipment fields untouched
+  });
+
+  it("keeps existing values where vPIC resolved nothing", () => {
+    const out = applyEquipment(mockId, {
+      bodyStyle: null, drivetrain: "AWD", engine: null, transmission: null, fuelType: null,
+    });
+    expect(out.engine).toBe("2.5L 4-Cyl. Hybrid"); // kept
+    expect(out.drivetrain).toBe("AWD"); // overridden
+  });
+
+  it("returns the identity unchanged when there's no equipment", () => {
+    expect(applyEquipment(mockId, null)).toBe(mockId);
   });
 });
 
