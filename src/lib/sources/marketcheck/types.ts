@@ -80,6 +80,13 @@ export interface MarketTrend {
   bestNearbyDistanceMiles: number | null;
   supplyLevel: "low" | "moderate" | "high";
   demandLevel: "low" | "moderate" | "high";
+  /** Extra market-summary context (set by the mock; optional from live data). */
+  seasonality?: string;
+  bestTimeToBuy?: string;
+  /** Small "+3 vs last 30 days" style deltas for the stat tiles (optional). */
+  avgDomNote?: string;
+  activeListingsNote?: string;
+  priceDropsNote?: string;
 }
 
 export interface DealerMarketInsight {

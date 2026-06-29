@@ -181,7 +181,7 @@ export const FUNNELS: Funnel[] = [
       addOn: { label: "Add: Live Support at the Dealership", amount: PRICES.liveSupport, sub: "Chat or call support when you're at the desk." },
     },
     primaryCta: { label: "Build My Plan", href: "#start" },
-    secondaryCta: { label: "Check the market first", href: "/market-check" },
+    secondaryCta: { label: "Check the market first", href: "/dashboard/market-check" },
     intakeProductId: "build-my-plan",
   },
 

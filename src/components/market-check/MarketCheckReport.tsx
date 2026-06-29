@@ -39,27 +39,34 @@ export function MarketCheckReport({ response }: { response: MarketCheckResponse 
         <div className="space-y-6">
           {/* Vehicle header */}
           <section className="rounded-2xl border border-edge bg-white p-5 shadow-card sm:p-6">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div className="min-w-0">
+            <div className="flex flex-wrap items-start gap-5">
+              <VehicleImage />
+              <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <h1 className="text-2xl font-extrabold tracking-tight text-navy">{name}</h1>
                   {source.isMock && <SampleBadge />}
                 </div>
-                {v.vin && <p className="mt-1 font-mono text-sm text-slate">VIN: {v.vin}</p>}
-                <p className="mt-1 text-sm text-slate">
-                  {v.trim ? `Trim: ${v.trim} · ` : ""}
-                  {v.mileage ? `${v.mileage.toLocaleString()} mi · ` : ""}
-                  {s.searchParams.zipCode ? `ZIP ${s.searchParams.zipCode} · ${s.searchParams.radiusMiles ?? 75} mi radius` : ""}
+                {v.vin && (
+                  <p className="mt-1 inline-flex items-center gap-1.5 rounded-md bg-cream-100 px-2 py-1 font-mono text-xs text-navy/70">
+                    VIN: {v.vin}
+                  </p>
+                )}
+                <p className="mt-2 text-sm text-slate">
+                  {v.trim ? `Trim: ${v.trim}` : ""}
+                  {v.mileage ? `  ·  ${v.mileage.toLocaleString()} mi` : ""}
+                  {s.searchParams.zipCode ? `  ·  ${s.searchParams.zipCode} (${s.searchParams.radiusMiles ?? 75} mi)` : ""}
                 </p>
-                <p className="mt-2 text-xs text-green-dark">
-                  ✓ MarketCheck data pulled · {pulledAt}
+                <p className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-green-dark">
+                  <span className="flex h-4 w-4 items-center justify-center rounded-full bg-green-soft">✓</span>
+                  MarketCheck data pulled · {pulledAt}
                 </p>
               </div>
-              <div className="text-right">
+              <div className="shrink-0">
                 <p className="text-[11px] font-bold uppercase tracking-wide text-slate">Market status</p>
                 <div className="mt-1"><MarketStatusBadge status={s.marketStatus} /></div>
                 <p className="mt-3 text-[11px] font-bold uppercase tracking-wide text-slate">Confidence</p>
                 <p className="text-sm font-bold text-navy">{CONF_LABEL[s.confidence.level]}</p>
+                <ConfidenceBar level={s.confidence.level} />
               </div>
             </div>
           </section>
@@ -156,22 +163,29 @@ export function MarketCheckReport({ response }: { response: MarketCheckResponse 
           </section>
 
           <Section title="Price History & Market Trend">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wide text-slate">Price trend (60 days)</span>
+              <span className="rounded-lg border border-edge bg-white px-2.5 py-1 text-xs font-semibold text-navy">60 Days ▾</span>
+            </div>
             <PriceTrendChart points={trend.points} />
             <div className="mt-4 grid grid-cols-2 gap-2.5">
-              <StatTile label="Avg days on market" value={String(trend.avgDaysOnMarket)} />
-              <StatTile label="Active listings" value={String(trend.activeListings)} />
-              <StatTile label="Price drops (7d)" value={String(trend.priceDrops7d)} />
+              <StatTile label="Avg days on market" value={String(trend.avgDaysOnMarket)} sub={trend.avgDomNote} />
+              <StatTile label="Active listings" value={String(trend.activeListings)} sub={trend.activeListingsNote} />
+              <StatTile label="Price drops (7d)" value={String(trend.priceDrops7d)} sub={trend.priceDropsNote} />
               <StatTile label="Best nearby deal" value={money(trend.bestNearbyDeal)} sub={trend.bestNearbyDistanceMiles != null ? `${trend.bestNearbyDistanceMiles} mi away` : undefined} />
             </div>
           </Section>
 
-          <Section title="Market Summary">
+          <Section title={`Market Summary (${s.searchParams.radiusMiles ?? 75} mi radius)`}>
             <div className="space-y-0">
               <KV k="Market status" v={cap(s.marketStatus.replace(/_/g, " "))} />
               <KV k="Price trend" v={cap(trend.trendDirection)} />
               <KV k="Supply level" v={cap(trend.supplyLevel)} />
               <KV k="Demand level" v={cap(trend.demandLevel)} />
+              {trend.seasonality && <KV k="Seasonality impact" v={trend.seasonality} />}
+              {trend.bestTimeToBuy && <KV k="Best time to buy" v={trend.bestTimeToBuy} />}
             </div>
+            <p className="mt-3 text-sm font-bold text-blue">How MarketCheck works →</p>
           </Section>
         </div>
       </div>
@@ -188,6 +202,29 @@ export function MarketCheckReport({ response }: { response: MarketCheckResponse 
 
 function cap(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function VehicleImage() {
+  return (
+    <div className="flex h-28 w-44 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-cream-100 to-cream-200 ring-1 ring-edge">
+      <svg viewBox="0 0 64 32" className="h-16 w-32 text-navy/30" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden>
+        <path d="M4 22l3-8a4 4 0 0 1 3.7-2.5h28A4 4 0 0 1 46 14l4 6 8 1.5V24H4z" />
+        <circle cx="16" cy="24" r="3.5" fill="currentColor" stroke="none" />
+        <circle cx="46" cy="24" r="3.5" fill="currentColor" stroke="none" />
+      </svg>
+    </div>
+  );
+}
+
+function ConfidenceBar({ level }: { level: "low" | "medium" | "high" }) {
+  const filled = level === "high" ? 3 : level === "medium" ? 2 : 1;
+  return (
+    <div className="mt-1.5 flex w-28 gap-1">
+      {[0, 1, 2].map((i) => (
+        <span key={i} className={`h-1.5 flex-1 rounded-full ${i < filled ? "bg-green" : "bg-edge"}`} />
+      ))}
+    </div>
+  );
 }
 
 function Figure({

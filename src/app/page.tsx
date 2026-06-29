@@ -76,7 +76,7 @@ function Hero() {
           <Reveal delay={180}>
             <p className="mt-4 text-sm text-white/65">
               Just want market pricing?{" "}
-              <Link href="/market-check" className="font-semibold text-blue-soft hover:underline">
+              <Link href="/dashboard/market-check" className="font-semibold text-blue-soft hover:underline">
                 Check the Market →
               </Link>
             </p>

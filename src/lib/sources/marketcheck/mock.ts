@@ -112,6 +112,11 @@ export function buildMockMarket(req: MarketCheckRequest): MockMarket {
     bestNearbyDistanceMiles: 12,
     supplyLevel: "high",
     demandLevel: "moderate",
+    seasonality: "Neutral",
+    bestTimeToBuy: "Now — good leverage",
+    avgDomNote: "+3 vs last 30 days",
+    activeListingsNote: "−6 vs last 30 days",
+    priceDropsNote: "14% of listings",
   };
 
   const dealerInsight: DealerMarketInsight = {

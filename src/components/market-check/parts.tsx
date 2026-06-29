@@ -96,19 +96,34 @@ export function PriceTrendChart({ points }: { points: PriceTrendPoint[] }) {
   const y = (v: number) => pad + (1 - (v - min) / span) * (H - pad * 2);
   const line = points.map((p, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)},${y(p.price).toFixed(1)}`).join(" ");
   const area = `${line} L${x(points.length - 1).toFixed(1)},${H - pad} L${x(0).toFixed(1)},${H - pad} Z`;
+  const fmtDate = (iso: string) => new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const mid = Math.floor((points.length - 1) / 2);
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="h-44 w-full" role="img" aria-label="60-day price trend">
-      <defs>
-        <linearGradient id="mc-trend" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#0E4D8A" stopOpacity="0.18" />
-          <stop offset="1" stopColor="#0E4D8A" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <path d={area} fill="url(#mc-trend)" />
-      <path d={line} fill="none" stroke="#0E4D8A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-      {points.map((p, i) => (
-        <circle key={i} cx={x(i)} cy={y(p.price)} r="3" fill="#0E4D8A" />
-      ))}
-    </svg>
+    <div>
+      <div className="flex gap-2">
+        <div className="flex w-9 shrink-0 flex-col justify-between py-1 text-right text-[10px] font-semibold text-slate">
+          <span>{money(max)}</span>
+          <span>{money(min)}</span>
+        </div>
+        <svg viewBox={`0 0 ${W} ${H}`} className="h-40 w-full" role="img" aria-label="60-day price trend">
+          <defs>
+            <linearGradient id="mc-trend" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stopColor="#0E4D8A" stopOpacity="0.18" />
+              <stop offset="1" stopColor="#0E4D8A" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          <path d={area} fill="url(#mc-trend)" />
+          <path d={line} fill="none" stroke="#0E4D8A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+          {points.map((p, i) => (
+            <circle key={i} cx={x(i)} cy={y(p.price)} r="3" fill="#0E4D8A" />
+          ))}
+        </svg>
+      </div>
+      <div className="ml-9 mt-1 flex justify-between text-[10px] font-medium text-slate">
+        <span>{fmtDate(points[0].date)}</span>
+        <span>{fmtDate(points[mid].date)}</span>
+        <span>{fmtDate(points[points.length - 1].date)}</span>
+      </div>
+    </div>
   );
 }
