@@ -12,6 +12,7 @@ type NavItem = { label: string; href: string; icon: keyof typeof ICONS; soon?: b
 // sets expectations before the click instead of pretending the section is live.
 const NAV: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: "grid" },
+  { label: "Services", href: "/dashboard/services", icon: "layers" },
   { label: "Market Check", href: "/dashboard/market-check", icon: "chart" },
   { label: "Deal Review", href: "/dashboard/deal-review", icon: "doc", soon: true },
   { label: "Game Plan", href: "/dashboard/game-plan", icon: "target", soon: true },
@@ -24,6 +25,7 @@ const NAV: NavItem[] = [
 
 const ICONS = {
   grid: <><rect x="4" y="4" width="7" height="7" rx="1.5" /><rect x="13" y="4" width="7" height="7" rx="1.5" /><rect x="4" y="13" width="7" height="7" rx="1.5" /><rect x="13" y="13" width="7" height="7" rx="1.5" /></>,
+  layers: <><path d="M12 3l9 5-9 5-9-5 9-5Z" /><path d="M3 12l9 5 9-5M3 16l9 5 9-5" /></>,
   chart: <><path d="M4 20V4M4 20h16" /><path d="M8 16v-4M12 16v-7M16 16v-3" /></>,
   doc: <><path d="M7 3h7l4 4v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" /><path d="M14 3v4h4M9 12h6M9 15.5h5" /></>,
   target: <><circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="3.4" /></>,
