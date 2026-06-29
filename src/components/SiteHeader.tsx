@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { NAV_LINKS } from "@/lib/products/product-catalog";
+import { MobileNav } from "./MobileNav";
 
 export function SiteHeader() {
   const links = NAV_LINKS.filter((l) => !l.primary);
@@ -31,11 +32,14 @@ export function SiteHeader() {
           ))}
         </nav>
 
-        {primary && (
-          <Link href={primary.href} className="btn-outline-light">
-            Review my deal
-          </Link>
-        )}
+        <div className="flex items-center gap-2">
+          {primary && (
+            <Link href={primary.href} className="btn-outline-light hidden lg:inline-flex">
+              Review my deal
+            </Link>
+          )}
+          <MobileNav links={links} primary={primary} />
+        </div>
       </div>
     </header>
   );
