@@ -132,6 +132,34 @@ export const quoteReviewSchema = z.object({
   documentUploaded: z.boolean().optional(),
 });
 
+/** Build My Plan intake — forward-looking, so it's lighter than a full quote. */
+export const buildPlanSchema = z.object({
+  vehicle: z
+    .object({
+      year: numLike,
+      make: shortStr,
+      model: shortStr,
+      trim: shortStr,
+      mileage: numLike,
+    })
+    .optional(),
+  condition: z.enum(["new", "used", "cpo"]).optional(),
+  zip: z.string().max(12).optional(),
+  buyerState: z.string().max(8).optional(),
+  creditBand: z.enum(["excellent", "good", "fair", "poor", "unknown"]).optional(),
+  termMonths: numLike,
+  downPayment: numLike,
+  maxMonthly: numLike,
+  maxOutTheDoor: numLike,
+  trade: z
+    .object({
+      estimatedValue: numLike,
+      loanPayoff: numLike,
+    })
+    .optional()
+    .nullable(),
+});
+
 export const reviewRequestSchema = z.object({
   name: z.string().max(200).optional(),
   email: z.string().max(320).optional(),
