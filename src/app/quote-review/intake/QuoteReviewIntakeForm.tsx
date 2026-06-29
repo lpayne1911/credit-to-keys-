@@ -4,9 +4,11 @@
  * Quote Review intake — the deep, line-item entry that feeds the deal engine.
  *
  * Two modes:
- *  - Upload: pick dealer paperwork (quote, buyer's order, F&I menu, …). Parsing
- *    is stubbed for now, so picking a file flips into the manual form with a
- *    "confirm your figures" banner and marks the deal as document-sourced.
+ *  - Upload: pick dealer paperwork (quote, buyer's order, F&I menu, …). The file
+ *    is POSTed to /api/parse, which runs the Claude document extractor (when
+ *    ANTHROPIC_API_KEY is configured) and returns structured fields. We pre-fill
+ *    the manual form with whatever it read and ask the buyer to confirm; if the
+ *    extractor is unconfigured or fails, the form is simply blank to fill in.
  *  - Manual: type every line of the deal.
  *
  * On submit it POSTs to /api/quote-review. When the DB isn't configured the
@@ -16,6 +18,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { VehicleSelector, type VehicleValue } from "@/components/vehicle/VehicleSelector";
+import type { ExtractedFields } from "@/lib/parse/extract";
 
 type Mode = "choose" | "upload" | "manual";
 
@@ -114,6 +117,8 @@ export function QuoteReviewIntakeForm() {
   const [mode, setMode] = useState<Mode>("choose");
   const [documentUploaded, setDocumentUploaded] = useState(false);
   const [uploadName, setUploadName] = useState<string | null>(null);
+  const [parsing, setParsing] = useState(false);
+  const [parseNote, setParseNote] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(EMPTY);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -145,14 +150,80 @@ export function QuoteReviewIntakeForm() {
     setForm((f) => ({ ...f, [key]: f[key].filter((_, idx) => idx !== i) }));
   }
 
-  function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
+  /** Merge fields read from an uploaded quote into the form (never clobber with
+   *  blanks — only set what the parser actually returned). */
+  function applyExtracted(ex: ExtractedFields) {
+    setForm((f) => {
+      const next: FormState = {
+        ...f,
+        vehicle: {
+          ...f.vehicle,
+          year: ex.year ? Number(ex.year) || f.vehicle.year : f.vehicle.year,
+          make: ex.make ?? f.vehicle.make,
+          model: ex.model ?? f.vehicle.model,
+          trim: ex.trim ?? f.vehicle.trim,
+        },
+        mileage: ex.mileage ?? f.mileage,
+        vin: ex.vin ?? f.vin,
+        dealerZip: ex.dealerZip ?? f.dealerZip,
+        vehiclePrice: ex.vehiclePrice ?? f.vehiclePrice,
+        apr: ex.apr ?? f.apr,
+        termMonths: ex.termMonths ?? f.termMonths,
+        monthlyPayment: ex.monthlyPayment ?? f.monthlyPayment,
+      };
+      if (ex.fees && ex.fees.length > 0) {
+        next.fees = ex.fees.map((fee) => ({
+          label: fee.label,
+          amount: fee.amount ? String(fee.amount) : "",
+        }));
+      }
+      if (ex.warrantyPrice) {
+        const warranty: LineItem = {
+          label: "Extended warranty / service contract",
+          amount: String(ex.warrantyPrice),
+          financed: true,
+        };
+        const onlyEmpty =
+          f.addOns.length === 1 && !f.addOns[0].label && !f.addOns[0].amount;
+        next.addOns = onlyEmpty ? [warranty] : [warranty, ...f.addOns];
+      }
+      return next;
+    });
+  }
+
+  async function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    // Parsing is stubbed — capture the name, mark the deal document-sourced, and
-    // route into manual confirmation so the buyer verifies the figures.
+    // Send the document to /api/parse (Claude document extractor when configured),
+    // pre-fill whatever it reads, then drop into the manual form to confirm.
     setUploadName(file.name);
     setDocumentUploaded(true);
     setMode("manual");
+    setParsing(true);
+    setParseNote(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/parse", { method: "POST", body: fd });
+      const data = (await res.json().catch(() => null)) as
+        | { extracted?: ExtractedFields; note?: string }
+        | null;
+      if (res.ok && data?.extracted) {
+        applyExtracted(data.extracted);
+        setParseNote(typeof data.note === "string" ? data.note : null);
+      } else {
+        setParseNote(
+          "We couldn't read that file automatically — please enter the figures below.",
+        );
+      }
+    } catch {
+      setParseNote(
+        "We couldn't read that file automatically — please enter the figures below.",
+      );
+    } finally {
+      setParsing(false);
+      e.target.value = ""; // allow re-picking the same file
+    }
   }
 
   async function submit() {
@@ -259,8 +330,8 @@ export function QuoteReviewIntakeForm() {
             />
           </label>
           <p className="mt-2 text-xs text-navy/45">
-            Automatic reading is coming soon — for now you&apos;ll confirm the
-            figures on the next screen.
+            We&apos;ll read your paperwork and pre-fill what we can — you confirm the
+            figures on the next screen before we score.
           </p>
         </div>
 
@@ -280,10 +351,22 @@ export function QuoteReviewIntakeForm() {
   /* ---- Manual form ------------------------------------------------------- */
   return (
     <div className="space-y-5">
-      {documentUploaded ? (
+      {parsing ? (
+        <div className="flex items-center gap-3 rounded-xl border border-green/30 bg-green-soft px-4 py-3 text-sm text-green-dark">
+          <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-green/30 border-t-green-dark" aria-hidden />
+          <span>
+            Reading <span className="font-semibold">{uploadName}</span> — pre-filling
+            what we can…
+          </span>
+        </div>
+      ) : documentUploaded ? (
         <div className="rounded-xl border border-green/30 bg-green-soft px-4 py-3 text-sm text-green-dark">
-          Using <span className="font-semibold">{uploadName}</span> as a starting
-          point. Confirm or fill in the figures below.
+          {parseNote ?? (
+            <>
+              Using <span className="font-semibold">{uploadName}</span> as a starting
+              point. Confirm or fill in the figures below.
+            </>
+          )}
         </div>
       ) : null}
 
@@ -414,8 +497,8 @@ export function QuoteReviewIntakeForm() {
         <p className="rounded-lg bg-verdict-red/10 px-3 py-2 text-sm text-verdict-red">{error}</p>
       ) : null}
 
-      <button type="button" className="btn-primary w-full" disabled={submitting} onClick={submit}>
-        {submitting ? "Reviewing your deal…" : "Review my quote"}
+      <button type="button" className="btn-primary w-full" disabled={submitting || parsing} onClick={submit}>
+        {submitting ? "Reviewing your deal…" : parsing ? "Reading your document…" : "Review my quote"}
       </button>
       <p className="text-center text-xs text-navy/45">
         Decision support, not legal or financial advice. You make the final decision.
