@@ -1,8 +1,8 @@
 /**
  * /plan/[planId] — the Target Deal Sheet result for the Build My Plan flow.
  *
- * v1 has no account/DB, so the result is rendered client-side from the
- * sessionStorage stash the intake form wrote. The blue lane teaches the
+ * v1 has no account/DB, so the result is rendered client-side from the on-device
+ * workspace the intake form saved it to. The blue lane teaches the
  * still-shopping path.
  */
 import Link from "next/link";

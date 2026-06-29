@@ -3,12 +3,13 @@
 /**
  * Build My Plan intake — forward-looking, so it's lighter than the Quote Review
  * line-item form. We collect the car the buyer wants + their financing profile,
- * POST to /api/build-my-plan, stash the Target Deal Sheet in sessionStorage, and
+ * POST to /api/build-my-plan, save the Target Deal Sheet to the workspace, and
  * navigate to /plan/[planId] to render it.
  */
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { VehicleSelector, type VehicleValue } from "@/components/vehicle/VehicleSelector";
+import { saveReport } from "@/lib/workspace/store";
 
 interface FormState {
   vehicle: VehicleValue;
@@ -152,11 +153,12 @@ export function BuildMyPlanIntakeForm() {
         setSubmitting(false);
         return;
       }
-      try {
-        sessionStorage.setItem(`target-plan:${data.planId}`, JSON.stringify(data.result));
-      } catch {
-        // storage blocked — the page will show a friendly "not found here" state
-      }
+      const price = data.result?.pricing?.targetPrice;
+      saveReport("target-plan", data.planId, data.result, {
+        title: data.result?.vehicleLabel ?? "Target Deal Sheet",
+        subtitle: typeof price === "number" ? `Target ${price.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 })}` : undefined,
+        href: `/plan/${data.planId}`,
+      });
       router.push(`/plan/${data.planId}`);
     } catch {
       setError("Couldn't reach the server. Please try again.");

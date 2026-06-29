@@ -2,11 +2,12 @@
 
 /**
  * Post-Sale Triage intake — already signed. We collect the products the buyer
- * was sold + the financing basics, POST to /api/post-sale-triage, stash the
- * result in sessionStorage, and route to /triage/[triageId].
+ * was sold + the financing basics, POST to /api/post-sale-triage, save the
+ * result to the workspace, and route to /triage/[triageId].
  */
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { saveReport } from "@/lib/workspace/store";
 
 interface AddOnRow {
   rawLabel: string;
@@ -110,11 +111,12 @@ export function PostSaleIntakeForm() {
         setSubmitting(false);
         return;
       }
-      try {
-        sessionStorage.setItem(`post-sale:${data.triageId}`, JSON.stringify(data.result));
-      } catch {
-        // storage blocked — page shows a friendly "not found here" state
-      }
+      const count = data.result?.cancellableCount ?? 0;
+      saveReport("post-sale", data.triageId, data.result, {
+        title: data.result?.signedContext?.state ? `Signed deal — ${String(data.result.signedContext.state).toUpperCase()}` : "Post-sale options",
+        subtitle: `${count} cancellable product${count === 1 ? "" : "s"} flagged`,
+        href: `/triage/${data.triageId}`,
+      });
       router.push(`/triage/${data.triageId}`);
     } catch {
       setError("Couldn't reach the server. Please try again.");

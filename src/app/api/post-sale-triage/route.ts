@@ -4,7 +4,7 @@
  * Pure-engine flow: normalize the intake and call buildPostSaleTriage (no market
  * lookup needed — this is about what was already signed). v1 persistence is
  * client-side, mirroring the other forward flows: we return the triage + a
- * generated id and the intake form stashes it in sessionStorage for the
+ * generated id and the intake form saves it to the on-device workspace for the
  * /triage/[triageId] page to render.
  */
 import { randomUUID } from "node:crypto";

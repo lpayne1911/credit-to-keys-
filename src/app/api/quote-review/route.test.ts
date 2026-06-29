@@ -5,7 +5,7 @@ import { POST } from "./route";
  * Route-level tests for the Quote Review endpoint. No Supabase env is configured
  * in tests, so the route returns the DealReviewResult inline (persisted: false)
  * with a generated id — the graceful-degradation path the result page falls back
- * to via sessionStorage.
+ * to via the on-device workspace.
  */
 function jsonRequest(body: unknown): Request {
   return new Request("http://localhost/api/quote-review", {

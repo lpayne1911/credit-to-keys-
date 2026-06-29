@@ -1,9 +1,8 @@
 /**
  * /triage/[triageId] — the Post-Sale Triage result for the Already Signed flow.
  *
- * v1 has no account/DB, so the result is rendered client-side from the
- * sessionStorage stash the intake form wrote. The red lane teaches the
- * post-sale path.
+ * v1 has no account/DB, so the result is rendered client-side from the on-device
+ * workspace the intake form saved it to. The red lane teaches the post-sale path.
  */
 import Link from "next/link";
 import { PostSaleClientFallback } from "./PostSaleClientFallback";

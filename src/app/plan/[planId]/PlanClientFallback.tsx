@@ -1,15 +1,15 @@
 "use client";
 
 /**
- * Build My Plan results live client-side in v1: the intake form stashes the
- * Target Deal Sheet in sessionStorage under `target-plan:<planId>` and this
- * reads it back. (No account/DB yet, so it only lives on the device that
- * generated it.)
+ * Build My Plan results live client-side in v1: the intake form saved the
+ * Target Deal Sheet to the on-device workspace and this reads it back. (No
+ * account/DB yet, so it only lives on the device that generated it.)
  */
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { PlanView } from "@/components/plan/PlanView";
 import { Disclaimer } from "@/components/Disclaimer";
+import { getReportPayload } from "@/lib/workspace/store";
 import type { TargetDealSheet } from "@/lib/plan-engine/types";
 
 export function PlanClientFallback({ planId }: { planId: string }) {
@@ -17,18 +17,11 @@ export function PlanClientFallback({ planId }: { planId: string }) {
   const [result, setResult] = useState<TargetDealSheet | null>(null);
 
   useEffect(() => {
-    try {
-      const raw = sessionStorage.getItem(`target-plan:${planId}`);
-      if (raw) {
-        const parsed = JSON.parse(raw) as TargetDealSheet;
-        if (parsed?.schemaVersion === "target-plan-1") {
-          setResult(parsed);
-          setState("found");
-          return;
-        }
-      }
-    } catch {
-      // corrupt/blocked storage — fall through to missing
+    const parsed = getReportPayload<TargetDealSheet>("target-plan", planId);
+    if (parsed?.schemaVersion === "target-plan-1") {
+      setResult(parsed);
+      setState("found");
+      return;
     }
     setState("missing");
   }, [planId]);

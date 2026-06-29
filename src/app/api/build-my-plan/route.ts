@@ -8,7 +8,7 @@
  * flag it (`isEstimate`) so the sheet never implies a live lookup it didn't run.
  *
  * v1 persistence is client-side: we return the sheet + a generated id and the
- * intake form stashes it in sessionStorage for the /plan/[planId] page to render.
+ * intake form saves it to the on-device workspace for the /plan/[planId] page.
  */
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";

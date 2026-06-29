@@ -1,13 +1,14 @@
 "use client";
 
 /**
- * Post-Sale Triage results live client-side in v1: the intake form stashes the
- * result in sessionStorage under `post-sale:<triageId>` and this reads it back.
+ * Post-Sale Triage results live client-side in v1: the intake form saved the
+ * result to the on-device workspace and this reads it back.
  */
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { PostSaleTriageView } from "@/components/post-sale/PostSaleTriageView";
 import { Disclaimer } from "@/components/Disclaimer";
+import { getReportPayload } from "@/lib/workspace/store";
 import type { PostSaleTriageResult } from "@/lib/post-sale-engine/types";
 
 export function PostSaleClientFallback({ triageId }: { triageId: string }) {
@@ -15,18 +16,11 @@ export function PostSaleClientFallback({ triageId }: { triageId: string }) {
   const [result, setResult] = useState<PostSaleTriageResult | null>(null);
 
   useEffect(() => {
-    try {
-      const raw = sessionStorage.getItem(`post-sale:${triageId}`);
-      if (raw) {
-        const parsed = JSON.parse(raw) as PostSaleTriageResult;
-        if (parsed?.schemaVersion === "post-sale-1") {
-          setResult(parsed);
-          setState("found");
-          return;
-        }
-      }
-    } catch {
-      // corrupt/blocked storage — fall through to missing
+    const parsed = getReportPayload<PostSaleTriageResult>("post-sale", triageId);
+    if (parsed?.schemaVersion === "post-sale-1") {
+      setResult(parsed);
+      setState("found");
+      return;
     }
     setState("missing");
   }, [triageId]);

@@ -6,7 +6,7 @@
  * `schemaVersion: "deal-review-1"` — guarding against the shared column also
  * used by the fairness-engine /verdict flow. When the DB isn't configured (or
  * the row isn't found), we hand off to a client fallback that reads the result
- * the intake form stashed in sessionStorage.
+ * the intake form saved to the on-device workspace.
  */
 import Link from "next/link";
 import { Disclaimer } from "@/components/Disclaimer";
