@@ -24,6 +24,7 @@ import { runMarketCheck } from "@/lib/market-engine/runMarketCheck";
 import { isConfigured as isMarketCheckConfigured } from "@/lib/sources/marketcheck/connector";
 import type { PriceRange } from "@/lib/fairness-engine";
 import { getServiceClient } from "@/lib/supabase/server";
+import { rateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -34,6 +35,15 @@ function verdictFromScore(score: number): "green" | "amber" | "red" {
 }
 
 export async function POST(req: Request) {
+  // Persists rows and may trigger a paid MarketCheck call — throttle per IP.
+  const limit = rateLimit(req, { key: "quote-review", limit: 20, windowMs: 5 * 60_000 });
+  if (!limit.ok) {
+    return NextResponse.json(
+      { error: "Too many requests. Please slow down." },
+      { status: 429, headers: rateLimitHeaders(limit) },
+    );
+  }
+
   let raw: unknown;
   try {
     raw = await req.json();

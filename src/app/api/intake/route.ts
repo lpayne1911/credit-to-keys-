@@ -10,10 +10,20 @@
 import { NextResponse } from "next/server";
 import { getServiceClient } from "@/lib/supabase/server";
 import { getProduct } from "@/lib/products/product-catalog";
+import { rateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
+  // Unauthenticated write path — throttle per IP to prevent lead/row spam.
+  const limit = rateLimit(req, { key: "intake", limit: 20, windowMs: 10 * 60_000 });
+  if (!limit.ok) {
+    return NextResponse.json(
+      { error: "Too many requests. Please wait and try again." },
+      { status: 429, headers: rateLimitHeaders(limit) },
+    );
+  }
+
   let body: unknown;
   try {
     body = await req.json();

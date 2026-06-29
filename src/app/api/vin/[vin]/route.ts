@@ -7,11 +7,22 @@
  */
 import { NextResponse } from "next/server";
 import { decodeVin } from "@/lib/vin";
+import { rateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: { vin: string } },
 ) {
+  // Proxies an outbound decode per call — throttle per IP. NHTSA is free, so the
+  // limit is generous; it just stops the endpoint being used as a flood relay.
+  const limit = rateLimit(req, { key: "vin-decode", limit: 60, windowMs: 5 * 60_000 });
+  if (!limit.ok) {
+    return NextResponse.json(
+      { vehicle: null },
+      { status: 429, headers: rateLimitHeaders(limit) },
+    );
+  }
+
   const vehicle = await decodeVin(params.vin ?? "");
   return NextResponse.json({ vehicle });
 }

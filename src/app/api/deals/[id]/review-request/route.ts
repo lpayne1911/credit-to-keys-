@@ -13,11 +13,22 @@
 import { NextResponse } from "next/server";
 import { getServiceClient } from "@/lib/supabase/server";
 import { reviewRequestSchema } from "@/lib/schemas";
+import { rateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 
 export async function POST(
   req: Request,
   { params }: { params: { id: string } },
 ) {
+  // Unauthenticated state change (status flip + lead insert) keyed on a
+  // capability UUID — throttle per IP to prevent lead-spam / status churn.
+  const limit = rateLimit(req, { key: "review-request", limit: 20, windowMs: 10 * 60_000 });
+  if (!limit.ok) {
+    return NextResponse.json(
+      { ok: false, error: "Too many requests. Please wait and try again." },
+      { status: 429, headers: rateLimitHeaders(limit) },
+    );
+  }
+
   const supabase = getServiceClient();
   if (!supabase) {
     return NextResponse.json(

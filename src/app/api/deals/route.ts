@@ -14,10 +14,20 @@ import { dealSubmissionSchema } from "@/lib/schemas";
 import { getServiceClient } from "@/lib/supabase/server";
 import { runMarketCheck } from "@/lib/market-engine/runMarketCheck";
 import { isConfigured as isMarketCheckConfigured } from "@/lib/sources/marketcheck/connector";
+import { rateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
+  // Persists rows and may trigger a paid MarketCheck call — throttle per IP.
+  const limit = rateLimit(req, { key: "deals", limit: 30, windowMs: 5 * 60_000 });
+  if (!limit.ok) {
+    return NextResponse.json(
+      { error: "Too many requests. Please slow down." },
+      { status: 429, headers: rateLimitHeaders(limit) },
+    );
+  }
+
   let raw: unknown;
   try {
     raw = await req.json();
