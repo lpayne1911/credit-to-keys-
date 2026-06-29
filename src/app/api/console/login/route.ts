@@ -8,8 +8,7 @@
  */
 import { NextResponse } from "next/server";
 import { getConsoleClient } from "@/lib/supabase/ssr";
-import { getServiceClient } from "@/lib/supabase/server";
-import { isConsoleConfigured } from "@/lib/console-auth";
+import { isConsoleConfigured, getConsoleOperator } from "@/lib/console-auth";
 import { loginSchema } from "@/lib/schemas";
 import { rateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 
@@ -38,8 +37,7 @@ export async function POST(req: Request) {
   }
 
   const supabase = getConsoleClient();
-  const service = getServiceClient();
-  if (!supabase || !service) {
+  if (!supabase) {
     return NextResponse.json({ ok: false, error: "Server error." }, { status: 500 });
   }
 
@@ -52,13 +50,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "Incorrect email or password." }, { status: 401 });
   }
 
-  // Authorization: must be an active operator. Otherwise drop the session.
-  const { data: op } = await service
-    .from("operators")
-    .select("user_id, active")
-    .eq("user_id", data.user.id)
-    .maybeSingle();
-  if (!op || op.active !== true) {
+  // Authorization: must resolve to an active operator (email allowlist). The
+  // session cookie is now set, so getConsoleOperator() sees this user.
+  const operator = await getConsoleOperator();
+  if (!operator) {
     await supabase.auth.signOut();
     return NextResponse.json(
       { ok: false, error: "This account isn't authorized for the review console." },

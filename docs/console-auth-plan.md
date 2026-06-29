@@ -2,15 +2,22 @@
 
 > **STATUS: IMPLEMENTED.** The shared-password gate is gone. The console now uses
 > Supabase Auth (email+password **and** social/OAuth — Google, Apple) gated by an
-> `operators` allowlist, with a `review_audit` trail. See
-> `supabase/migrations/0005_operators.sql`, `src/lib/console-auth.ts`,
-> `src/lib/supabase/ssr.ts`, and the routes under `src/app/api/console/`. The
-> design below is retained as the rationale + operator-onboarding runbook.
+> **email-keyed** `operators` allowlist, with roles, a `review_audit` trail, and
+> an **admin operator-management view** (`/console/operators`) to invite by email
+> and deactivate/reactivate/role-change. See `supabase/migrations/0005_operators.sql`,
+> `src/lib/console-auth.ts`, `src/lib/operators.ts`, `src/lib/supabase/ssr.ts`,
+> and the routes under `src/app/api/console/`.
+>
+> **Email-keyed allowlist:** the allowlist is keyed by email, so an admin can
+> invite someone *before* they've ever signed in; on that person's first
+> authenticated login (with a **verified** email) the row links to their auth
+> user id. Authorization = authenticated + verified email + active operator row.
 >
 > **To go live:** (1) apply migration `0005`, (2) enable the Email + Google +
 > Apple providers in the Supabase dashboard (+ set each provider's OAuth client),
-> (3) seed the first admin operator (SQL at the bottom of the migration),
-> (4) optionally set `NEXT_PUBLIC_SITE_URL` for stable OAuth redirects.
+> (3) seed the first admin operator by email (SQL at the bottom of the migration)
+> — after that, manage everyone from `/console/operators`, (4) optionally set
+> `NEXT_PUBLIC_SITE_URL` for stable OAuth redirects.
 
 _Companion to [`docs/SECURITY-REVIEW.md`](./SECURITY-REVIEW.md) finding #3._
 

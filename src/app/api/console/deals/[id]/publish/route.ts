@@ -84,7 +84,7 @@ export async function POST(
   // Audit: attribute the publish to the operator (who delivered what, when).
   await supabase.from("review_audit").insert({
     deal_id: params.id,
-    operator: operator.userId,
+    operator_id: operator.id,
     operator_email: operator.email,
     action: "publish_review",
     verdict: body.verdict,

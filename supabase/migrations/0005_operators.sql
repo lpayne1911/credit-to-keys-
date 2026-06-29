@@ -7,8 +7,13 @@
 --  ---------------------------------------------------------------------------
 --  Operators authenticate with Supabase Auth (email+password or an OAuth/social
 --  provider). Being an authenticated Supabase user is NOT sufficient to reach
---  the review console — the user's id must also appear in `operators` with
---  `active = true`. Authorization = authentication (Supabase) + allowlist (here).
+--  the review console — the user's (verified) EMAIL must also appear in
+--  `public.operators` with `active = true`. Authorization = authentication
+--  (Supabase, verified email) + allowlist (here).
+--
+--  The allowlist is keyed by EMAIL so an admin can invite someone before they
+--  have ever signed in. On that person's first authenticated login, the matching
+--  row is linked to their auth user id (`user_id` / `linked_at`).
 --
 --  Both tables are RLS default-deny: only the server (service role) reads/writes
 --  them, exactly like the rest of the schema. No anon/authenticated policies.
@@ -16,17 +21,23 @@
 
 -- ---------------------------------------------------------------------------
 --  operators — who may enter the review console, and at what role.
+--  `email` is the allowlist key (store lower-cased). `user_id` is filled in on
+--  first login; null means "invited, not yet signed in".
 -- ---------------------------------------------------------------------------
 create table if not exists public.operators (
-  user_id     uuid primary key references auth.users (id) on delete cascade,
-  email       text not null,
+  id          uuid primary key default gen_random_uuid(),
+  email       text not null unique,
+  user_id     uuid references auth.users (id) on delete set null,
   role        text not null default 'reviewer'
                 check (role in ('reviewer', 'admin')),
   active      boolean not null default true,
-  created_at  timestamptz not null default now()
+  invited_by  text,                       -- operator email who added this row
+  created_at  timestamptz not null default now(),
+  linked_at   timestamptz                 -- when user_id was first linked
 );
 
-create index if not exists operators_active_idx on public.operators (active);
+create index if not exists operators_user_id_idx on public.operators (user_id);
+create index if not exists operators_active_idx   on public.operators (active);
 
 -- ---------------------------------------------------------------------------
 --  review_audit — attributable log of console actions (who published what).
@@ -35,17 +46,17 @@ create index if not exists operators_active_idx on public.operators (active);
 --  publish row here is when delivery happened.
 -- ---------------------------------------------------------------------------
 create table if not exists public.review_audit (
-  id          uuid primary key default gen_random_uuid(),
-  deal_id     uuid not null references public.deals (id) on delete cascade,
-  operator    uuid references public.operators (user_id) on delete set null,
-  operator_email text,
-  action      text not null,            -- e.g. 'publish_review'
-  verdict     text,
-  created_at  timestamptz not null default now()
+  id              uuid primary key default gen_random_uuid(),
+  deal_id         uuid not null references public.deals (id) on delete cascade,
+  operator_id     uuid references public.operators (id) on delete set null,
+  operator_email  text,
+  action          text not null,          -- e.g. 'publish_review'
+  verdict         text,
+  created_at      timestamptz not null default now()
 );
 
-create index if not exists review_audit_deal_id_idx on public.review_audit (deal_id);
-create index if not exists review_audit_operator_idx on public.review_audit (operator);
+create index if not exists review_audit_deal_id_idx  on public.review_audit (deal_id);
+create index if not exists review_audit_operator_idx on public.review_audit (operator_id);
 
 -- ---------------------------------------------------------------------------
 --  RLS: enable + force, default-deny. Server (service role) only.
@@ -59,10 +70,11 @@ alter table public.review_audit force  row level security;
 -- The service role bypasses RLS and is used only on the server.
 
 -- ---------------------------------------------------------------------------
---  Seeding the first operator (run once, out of band, after the user exists in
---  auth.users — i.e. after they sign up / are invited via Supabase Auth):
+--  Seed the first admin operator (run once). Because the allowlist is keyed by
+--  email, this works BEFORE the person has ever signed in — they just need to
+--  log in later with this email (password or Google/Apple) to be linked:
 --
---    insert into public.operators (user_id, email, role)
---    select id, email, 'admin' from auth.users where email = 'you@example.com'
---    on conflict (user_id) do update set role = 'admin', active = true;
+--    insert into public.operators (email, role)
+--    values (lower('you@example.com'), 'admin')
+--    on conflict (email) do update set role = 'admin', active = true;
 -- ---------------------------------------------------------------------------

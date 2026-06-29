@@ -29,9 +29,13 @@ import { getConsoleClient } from "./supabase/ssr";
 import { getServiceClient } from "./supabase/server";
 
 export interface ConsoleOperator {
-  userId: string;
+  /** operators.id (stable allowlist row id). */
+  id: string;
+  /** Allowlist email (lower-cased). */
   email: string;
   role: "reviewer" | "admin";
+  /** The linked auth user id for this session. */
+  userId: string;
 }
 
 /** Whether console auth can run at all (Supabase configured on the server). */
@@ -58,20 +62,36 @@ export async function getConsoleOperator(): Promise<ConsoleOperator | null> {
     data: { user },
     error: userErr,
   } = await auth.auth.getUser();
-  if (userErr || !user) return null;
+  if (userErr || !user || !user.email) return null;
 
-  // Authorization: the authenticated user must be an active operator.
+  // Require a verified email: the allowlist is keyed by email, so we must not
+  // match on an unverified address. OAuth providers (Google/Apple) verify the
+  // email; email+password is verified once confirmed in Supabase.
+  if (!user.email_confirmed_at) return null;
+
+  const email = user.email.toLowerCase();
+
+  // Authorization: the verified email must be an active operator.
   const { data: op, error: opErr } = await service
     .from("operators")
-    .select("user_id, email, role, active")
-    .eq("user_id", user.id)
+    .select("id, email, user_id, role, active")
+    .eq("email", email)
     .maybeSingle();
   if (opErr || !op || op.active !== true) return null;
 
+  // Link the auth user id on first login so audit/admin views can show it.
+  if (!op.user_id) {
+    await service
+      .from("operators")
+      .update({ user_id: user.id, linked_at: new Date().toISOString() })
+      .eq("id", op.id);
+  }
+
   return {
-    userId: op.user_id as string,
-    email: (op.email as string) ?? user.email ?? "",
+    id: op.id as string,
+    email: (op.email as string) ?? email,
     role: (op.role as "reviewer" | "admin") ?? "reviewer",
+    userId: user.id,
   };
 }
 

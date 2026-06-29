@@ -113,11 +113,17 @@ validated against the auth server via `getUser()`, not just trusting the cookie)
 there are roles (`reviewer`/`admin`), and every publish writes an attributable
 `review_audit` row (also the CROA/TSR delivery-timestamp proof).
 
+The allowlist is **email-keyed** (admins can invite before first login; the row
+links to the auth user on first verified sign-in) and managed from an admin-only
+view at `/console/operators` (invite by email, deactivate/reactivate, role
+change — with a guard preventing an admin from locking themselves out).
+
 Implementation: `0005_operators.sql`, `src/lib/console-auth.ts` (authorization
-gate, unit-tested in `console-auth.test.ts`), `src/lib/supabase/ssr.ts` (cookie
-session), routes under `src/app/api/console/` (login, oauth, callback, logout,
-publish). To activate: apply migration 0005, enable providers in Supabase, seed
-the first operator. See [`docs/console-auth-plan.md`](./console-auth-plan.md).
+gate, unit-tested in `console-auth.test.ts`), `src/lib/operators.ts`,
+`src/lib/supabase/ssr.ts` (cookie session), routes under `src/app/api/console/`
+(login, oauth, callback, logout, publish, operators — admin gate unit-tested).
+To activate: apply migration 0005, enable providers in Supabase, seed the first
+admin operator by email. See [`docs/console-auth-plan.md`](./console-auth-plan.md).
 
 ### 4. In-memory limiter is per-instance on serverless — **Low** — Fixed
 

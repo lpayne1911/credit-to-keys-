@@ -7,7 +7,7 @@
  * access are built so it can grow into a richer console without a rewrite.
  */
 import Link from "next/link";
-import { isConsoleAuthed, isConsoleConfigured } from "@/lib/console-auth";
+import { getConsoleOperator, isConsoleConfigured } from "@/lib/console-auth";
 import { listDeals } from "@/lib/deals";
 import { ConsoleLogin } from "@/components/ConsoleLogin";
 import { VerdictBadge } from "@/components/VerdictView";
@@ -26,7 +26,8 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export default async function ConsolePage() {
-  if (!(await isConsoleAuthed())) {
+  const me = await getConsoleOperator();
+  if (!me) {
     return (
       <main className="min-h-screen bg-navy/5 px-4 py-16">
         <ConsoleLogin configured={isConsoleConfigured()} />
@@ -43,10 +44,21 @@ export default async function ConsolePage() {
           <div>
             <h1 className="font-serif text-xl font-semibold">Review console</h1>
             <p className="text-xs text-cream/60">
-              Operator area — v1 stopgap auth. Replace before launch.
+              Signed in as {me.email}
+              {me.role === "admin" ? " · admin" : ""}
             </p>
           </div>
-          <LogoutButton />
+          <div className="flex items-center gap-4">
+            {me.role === "admin" && (
+              <Link
+                href="/console/operators"
+                className="text-sm text-cream/80 underline-offset-2 hover:underline"
+              >
+                Operators
+              </Link>
+            )}
+            <LogoutButton />
+          </div>
         </div>
       </header>
 
