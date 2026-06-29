@@ -160,6 +160,25 @@ export const buildPlanSchema = z.object({
     .nullable(),
 });
 
+/** Post-Sale Triage intake — already signed; what was bought + the basics. */
+export const postSaleSchema = z.object({
+  buyerState: z.string().max(8).optional(),
+  daysSinceSigned: numLike,
+  financed: z.boolean().optional(),
+  lienholder: z.string().max(120).optional(),
+  dealerName: z.string().max(200).optional(),
+  addOns: z
+    .array(
+      z.object({
+        rawLabel: z.string().max(120).optional(),
+        amount: numLike,
+        financed: z.boolean().optional(),
+      }),
+    )
+    .max(40)
+    .optional(),
+});
+
 export const reviewRequestSchema = z.object({
   name: z.string().max(200).optional(),
   email: z.string().max(320).optional(),

@@ -44,11 +44,11 @@ const DELIVERY: Record<string, Delivery> = {
     cta: "Apply",
   },
   "post-sale-triage": {
-    badge: "By request",
-    live: false,
+    badge: "Live",
+    live: true,
     blurb:
-      "Already signed? We review your contract, flag cancellable add-ons, and map your next steps. Outcomes after signing can't be guaranteed.",
-    href: "/post-sale-triage",
+      "Already signed? We flag which add-ons are commonly cancellable, who to contact, the documents to gather, and your next steps. Outcomes after signing can't be guaranteed.",
+    href: "/post-sale-triage/intake",
     cta: "Start triage",
   },
 };

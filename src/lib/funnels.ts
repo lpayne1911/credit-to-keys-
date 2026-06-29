@@ -274,8 +274,8 @@ export const FUNNELS: Funnel[] = [
       sub: "A document and options review — not a Deal Score. Final price depends on scope.",
       bullets: ["Cancellation options report", "Who-to-contact map", "Documentation checklist & escalation plan"],
     },
-    primaryCta: { label: "Upload Signed Paperwork", href: "#start" },
-    secondaryCta: { label: "Review My Post-Sale Options", href: "#start" },
+    primaryCta: { label: "Review My Post-Sale Options", href: "/post-sale-triage/intake" },
+    secondaryCta: { label: "Talk to a human", href: "#start" },
     intakeProductId: "deal-rescue",
   },
 ];
