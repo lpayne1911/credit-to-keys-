@@ -20,9 +20,17 @@ function jsonReq(url: string, body: unknown, ip: string): Request {
   });
 }
 
+/** Copy into a fresh ArrayBuffer so the File constructor gets a valid BlobPart. */
+function toArrayBuffer(u8: Uint8Array): ArrayBuffer {
+  const ab = new ArrayBuffer(u8.byteLength);
+  new Uint8Array(ab).set(u8);
+  return ab;
+}
+
 function fileReq(url: string, bytes: Uint8Array, type: string, ip: string): Request {
   const form = new FormData();
-  form.append("file", new File([bytes], "quote." + (type.split("/")[1] || "bin"), { type }));
+  const name = "quote." + (type.split("/")[1] || "bin");
+  form.append("file", new File([toArrayBuffer(bytes)], name, { type }));
   return new Request(url, {
     method: "POST",
     headers: { "x-forwarded-for": ip },
