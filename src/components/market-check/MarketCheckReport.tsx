@@ -42,6 +42,12 @@ export function MarketCheckReport({
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
+      {source.liveUnavailable && (
+        <div className="mb-4 rounded-xl border border-orange/30 bg-orange-soft px-4 py-3 text-sm text-ink">
+          <span className="font-bold text-orange">Live market data is temporarily unavailable</span>{" "}
+          — the data provider is rate-limited right now, so the figures below are an illustrative sample. Try again shortly for live comps.
+        </div>
+      )}
       <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
         {/* MAIN COLUMN */}
         <div className="space-y-6">

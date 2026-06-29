@@ -120,6 +120,7 @@ export function QuoteReviewIntakeForm() {
   const [uploadName, setUploadName] = useState<string | null>(null);
   const [parsing, setParsing] = useState(false);
   const [parseNote, setParseNote] = useState<string | null>(null);
+  const [uploadedFilePath, setUploadedFilePath] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(EMPTY);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -207,8 +208,9 @@ export function QuoteReviewIntakeForm() {
       fd.append("file", file);
       const res = await fetch("/api/parse", { method: "POST", body: fd });
       const data = (await res.json().catch(() => null)) as
-        | { extracted?: ExtractedFields; note?: string }
+        | { extracted?: ExtractedFields; note?: string; uploadedFilePath?: string | null }
         | null;
+      if (data?.uploadedFilePath) setUploadedFilePath(data.uploadedFilePath);
       if (res.ok && data?.extracted) {
         applyExtracted(data.extracted);
         setParseNote(typeof data.note === "string" ? data.note : null);
@@ -276,6 +278,7 @@ export function QuoteReviewIntakeForm() {
         alreadySigned: form.alreadySigned,
         source: documentUploaded ? "upload" : "manual",
         documentUploaded,
+        uploadedFilePath: uploadedFilePath ?? undefined,
       };
 
       const res = await fetch("/api/quote-review", {

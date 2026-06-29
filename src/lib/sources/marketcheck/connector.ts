@@ -41,26 +41,43 @@ function apiKey(): string | null {
   return process.env.MARKETCHECK_API_KEY ?? null;
 }
 
-async function getJson<T>(url: string, revalidate: number): Promise<T | null> {
+/** Fetch + parse JSON, also reporting the HTTP status (0 on network/timeout) so
+ *  callers can distinguish a rate-limit (429) from other failures. */
+async function getJsonWithStatus<T>(
+  url: string,
+  revalidate: number,
+): Promise<{ data: T | null; status: number }> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
     const res = await fetch(url, { signal: controller.signal, next: { revalidate } });
-    if (!res.ok) return null;
-    return (await res.json()) as T;
+    if (!res.ok) return { data: null, status: res.status };
+    return { data: (await res.json()) as T, status: res.status };
   } catch {
-    return null;
+    return { data: null, status: 0 };
   } finally {
     clearTimeout(timer);
   }
 }
 
-/** Fetch active comparable listings + price stats. Null when unconfigured/thin. */
+async function getJson<T>(url: string, revalidate: number): Promise<T | null> {
+  return (await getJsonWithStatus<T>(url, revalidate)).data;
+}
+
+/** Result of the active-listings call. `rateLimited` is true on a 429 (the Free
+ *  plan's monthly cap or throughput limit) so the caller can say so honestly
+ *  rather than silently presenting the sample as live data. */
+export interface ActiveListingsResult {
+  data: RawActiveResponse | null;
+  rateLimited: boolean;
+}
+
+/** Fetch active comparable listings + price stats. */
 export async function fetchActiveListings(
   request: MarketCheckRequest,
-): Promise<RawActiveResponse | null> {
+): Promise<ActiveListingsResult> {
   const key = apiKey();
-  if (!key) return null;
+  if (!key) return { data: null, rateLimited: false };
   const { vin, year, make, model, trim, zipCode, radiusMiles, condition } = request;
   const params = new URLSearchParams({ api_key: key, rows: "50", stats: "price" });
   // Prefer a year/make/model query so we get true COMPARABLES. A `vins=` query
@@ -72,14 +89,18 @@ export async function fetchActiveListings(
   } else if (vin) {
     params.set("vins", vin);
   } else {
-    return null; // too thin to query
+    return { data: null, rateLimited: false }; // too thin to query
   }
   params.set("car_type", condition === "new" ? "new" : "used");
   if (zipCode && /^\d{5}/.test(zipCode)) {
     params.set("zip", zipCode.slice(0, 5));
     params.set("radius", String(radiusMiles ?? 100));
   }
-  return getJson<RawActiveResponse>(`${BASE}/search/car/active?${params.toString()}`, ACTIVE_TTL);
+  const { data, status } = await getJsonWithStatus<RawActiveResponse>(
+    `${BASE}/search/car/active?${params.toString()}`,
+    ACTIVE_TTL,
+  );
+  return { data, rateLimited: status === 429 };
 }
 
 /** Fetch the single active listing that exactly matches a VIN — gives the real

@@ -264,3 +264,23 @@ describe("runMarketCheck premium-endpoint gating (Free-plan call budget)", () =>
     expect(urls.some((u) => u.includes("/search/car/recents"))).toBe(true);
   });
 });
+
+describe("runMarketCheck surfaces a MarketCheck rate-limit (429) honestly", () => {
+  const KEY = "MARKETCHECK_API_KEY";
+  const orig = process.env[KEY];
+  beforeEach(() => {
+    process.env[KEY] = "test-key";
+    vi.stubGlobal("fetch", async () => ({ ok: false, status: 429, json: async () => ({}) }) as unknown as Response);
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    if (orig === undefined) delete process.env[KEY];
+    else process.env[KEY] = orig;
+  });
+
+  it("flags liveUnavailable + isMock when the active-listings call is rate-limited", async () => {
+    const r = await runMarketCheck(req({ year: 2021, make: "Toyota", model: "Camry", zipCode: "80202" }));
+    expect(r.source.isMock).toBe(true);
+    expect(r.source.liveUnavailable).toBe(true);
+  });
+});

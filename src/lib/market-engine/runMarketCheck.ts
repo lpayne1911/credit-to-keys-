@@ -171,7 +171,8 @@ export async function runMarketCheck(request: MarketCheckRequest): Promise<Marke
   let dealerInsight: DealerMarketInsight | null = null;
   let isMock = false;
 
-  const raw = await fetchActiveListings(request2);
+  const active = await fetchActiveListings(request2);
+  const raw = active.data;
   if (raw && (raw.listings?.length ?? 0) > 0) {
     // Resolve the target identity BEFORE scoring comps. A VIN-only request has
     // no year/make/model, so decode the VIN and backfill from the listings —
@@ -241,7 +242,7 @@ export async function runMarketCheck(request: MarketCheckRequest): Promise<Marke
     trend,
     dealerInsight,
     takeaways,
-    source: { provider: "marketcheck", fetchedAt, snapshotId: id, isMock },
+    source: { provider: "marketcheck", fetchedAt, snapshotId: id, isMock, liveUnavailable: active.rateLimited },
   };
 }
 

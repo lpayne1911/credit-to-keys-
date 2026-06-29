@@ -402,13 +402,12 @@ export function DealReviewView({ result }: { result: DealReviewResult }) {
           >
             Build my plan
           </Link>
-          <button
-            type="button"
-            disabled
-            className="cursor-not-allowed rounded-xl border border-navy/10 bg-white/40 px-3 py-2.5 text-center text-sm font-semibold text-navy/40"
+          <Link
+            href="/dashboard/reports"
+            className="rounded-xl border border-navy/15 bg-white/70 px-3 py-2.5 text-center text-sm font-semibold text-navy transition hover:-translate-y-0.5 hover:border-gold/40 hover:shadow-card"
           >
-            Save report — coming soon
-          </button>
+            Saved · View in My Reports
+          </Link>
         </div>
       </section>
 
