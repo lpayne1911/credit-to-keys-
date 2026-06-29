@@ -28,12 +28,12 @@ const DELIVERY: Record<string, Delivery> = {
     cta: "Start a review",
   },
   "build-my-plan": {
-    badge: "By request",
-    live: false,
+    badge: "Live",
+    live: true,
     blurb:
-      "Tell us the car you're after. We build your Target Deal Sheet™ and negotiation game plan, then follow up — no automated score yet.",
-    href: "/build-my-plan",
-    cta: "Request my plan",
+      "Tell us the car you're after and your financing profile. We build a Target Deal Sheet™ — target price, fee checklist, financing benchmark, and a negotiation game plan.",
+    href: "/build-my-plan/intake",
+    cta: "Build my plan",
   },
   concierge: {
     badge: "By application",

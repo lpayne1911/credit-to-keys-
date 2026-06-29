@@ -180,7 +180,7 @@ export const FUNNELS: Funnel[] = [
       bullets: ["Custom Target Deal Sheet™", "Negotiation game plan + scripts", "Fee, trade, and financing benchmarks"],
       addOn: { label: "Add: Live Support at the Dealership", amount: PRICES.liveSupport, sub: "Chat or call support when you're at the desk." },
     },
-    primaryCta: { label: "Build My Plan", href: "#start" },
+    primaryCta: { label: "Build My Plan", href: "/build-my-plan/intake" },
     secondaryCta: { label: "Check the market first", href: "/dashboard/market-check" },
     intakeProductId: "build-my-plan",
   },
