@@ -71,6 +71,67 @@ export const dealSubmissionSchema = z.object({
   uploadedFilePath: z.string().max(400).optional(),
 });
 
+/**
+ * Quote Review intake (deep, line-item entry). Loose like the Deal Check wire
+ * format — numeric fields may arrive as strings; `normalizeDealInput` does the
+ * coercion. Validates structure and bounds array sizes to prevent abuse.
+ */
+const addOnSchema = z.object({
+  label: z.string().max(120).optional(),
+  amount: numLike,
+  financed: z.boolean().optional(),
+});
+
+export const quoteReviewSchema = z.object({
+  vehicle: z
+    .object({
+      year: numLike,
+      make: shortStr,
+      model: shortStr,
+      trim: shortStr,
+      mileage: numLike,
+      vin: z.string().max(32).optional(),
+    })
+    .optional(),
+  pricing: z
+    .object({
+      vehiclePrice: numLike,
+      msrp: numLike,
+      dealerDiscount: numLike,
+      rebates: numLike,
+      outTheDoor: numLike,
+      downPayment: numLike,
+    })
+    .optional(),
+  fees: z.array(feeSchema).max(40).optional(),
+  addOns: z.array(addOnSchema).max(40).optional(),
+  finance: z
+    .object({
+      apr: numLike,
+      termMonths: numLike,
+      monthlyPayment: numLike,
+      amountFinanced: numLike,
+      creditBand: z.string().max(40).optional(),
+    })
+    .optional(),
+  trade: z
+    .object({
+      offer: numLike,
+      estimatedValue: numLike,
+      loanPayoff: numLike,
+    })
+    .optional()
+    .nullable(),
+  dealerName: z.string().max(200).optional(),
+  buyerState: z.string().max(8).optional(),
+  dealerZip: z.string().max(12).optional(),
+  registrationZip: z.string().max(12).optional(),
+  alreadySigned: z.boolean().optional(),
+  source: z.enum(["manual", "upload", "mixed"]).optional(),
+  uploadedFilePath: z.string().max(400).optional(),
+  documentUploaded: z.boolean().optional(),
+});
+
 export const reviewRequestSchema = z.object({
   name: z.string().max(200).optional(),
   email: z.string().max(320).optional(),
