@@ -5,14 +5,17 @@
 import type { ComparableListing, MarketConfidence } from "./types";
 
 export function getMarketConfidence(comps: ComparableListing[]): MarketConfidence {
-  const strong = comps.filter((c) => c.matchScore >= 80).length;
-  if (strong >= 15) {
-    return { level: "high", reasons: [`${strong} strong comparable listings found nearby.`] };
+  const strong = comps.filter((c) => c.matchScore >= 80).length; // excellent / very good
+  const good = comps.filter((c) => c.matchScore >= 70).length; // good+
+  if (strong >= 15 || good >= 25) {
+    return { level: "high", reasons: [`${good} strong comparable listings found nearby.`] };
   }
-  if (strong >= 5) {
+  // Medium when we have a solid block of strong comps OR plenty of good-enough
+  // ones — a deep same-model set shouldn't read "low" just for trim spread.
+  if (strong >= 5 || good >= 10) {
     return {
       level: "medium",
-      reasons: [`${strong} strong comparable listings found. Use this as a negotiation benchmark, not an exact appraisal.`],
+      reasons: [`${good} comparable listings found. Use this as a negotiation benchmark, not an exact appraisal.`],
     };
   }
   return {

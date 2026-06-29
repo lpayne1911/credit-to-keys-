@@ -8,7 +8,7 @@ import {
   fetchActiveListings,
   decodeVin,
 } from "@/lib/sources/marketcheck/connector";
-import { normalizeListings, mergeSpecs, vehicleIdentityFromRequest } from "@/lib/sources/marketcheck/normalize";
+import { normalizeListings, mergeSpecs, vehicleIdentityFromRequest, backfillIdentityFromListings } from "@/lib/sources/marketcheck/normalize";
 import { buildMockMarket } from "@/lib/sources/marketcheck/mock";
 import type {
   ComparableListing,
@@ -25,19 +25,51 @@ function money(n: number): string {
 }
 
 function deriveTrendFromComps(comps: ComparableListing[], numFound: number): MarketTrend {
-  const doms = comps.map((c) => c.daysOnMarket ?? 0).filter((d) => d > 0);
+  // Clamp DOM outliers (a 600-day stale listing shouldn't drag the average).
+  const doms = comps.map((c) => c.daysOnMarket ?? 0).filter((d) => d > 0 && d <= 365);
   const avgDom = doms.length ? Math.round(doms.reduce((a, b) => a + b, 0) / doms.length) : 0;
-  const prices = comps.map((c) => c.listPrice);
+  const prices = comps.map((c) => c.listPrice).filter((p) => p > 0);
+  const cheapest = comps
+    .filter((c) => c.listPrice > 0)
+    .reduce<ComparableListing | null>((b, c) => (b == null || c.listPrice < b.listPrice ? c : b), null);
+  const supply = numFound || comps.length;
   return {
-    points: [], // live history endpoint not wired this pass
+    // No time-series history endpoint this pass — leave points empty; the report
+    // hides the chart rather than fabricating a trend line.
+    points: [],
     trendDirection: "flat",
     avgDaysOnMarket: avgDom,
-    activeListings: numFound || comps.length,
+    activeListings: supply,
     priceDrops7d: 0,
     bestNearbyDeal: prices.length ? Math.min(...prices) : null,
-    bestNearbyDistanceMiles: comps.length ? comps.reduce((b, c) => (c.listPrice < b.listPrice ? c : b)).distanceMiles ?? null : null,
-    supplyLevel: (numFound || comps.length) >= 30 ? "high" : (numFound || comps.length) >= 12 ? "moderate" : "low",
+    bestNearbyDistanceMiles: cheapest?.distanceMiles ?? null,
+    supplyLevel: supply >= 30 ? "high" : supply >= 12 ? "moderate" : "low",
     demandLevel: "moderate",
+  };
+}
+
+/** Market-level dealer/inventory context derived from the comp set. Dealer-
+ *  specific fields (similar-at-dealer, price rank) need a known dealer, so they
+ *  stay null and the report hides those rows — we never fabricate them. */
+function deriveDealerInsight(
+  comps: ComparableListing[],
+  trend: MarketTrend,
+): DealerMarketInsight | null {
+  if (comps.length === 0) return null;
+  const competition = trend.supplyLevel; // low | moderate | high
+  const insight =
+    competition === "high"
+      ? `${trend.activeListings} comparable listings are active nearby — strong supply tends to favor buyers.`
+      : competition === "low"
+        ? "Comparable inventory is thin nearby, which can reduce your negotiating leverage."
+        : `${trend.activeListings} comparable listings are active nearby — a balanced local market.`;
+  return {
+    similarAtDealer: null,
+    avgPriceAtDealer: null,
+    thisListingDaysOnMarket: null,
+    priceRankAtDealer: null,
+    localCompetition: competition,
+    insight,
   };
 }
 
@@ -86,12 +118,17 @@ export async function runMarketCheck(request: MarketCheckRequest): Promise<Marke
 
   const raw = await fetchActiveListings(request);
   if (raw && (raw.listings?.length ?? 0) > 0) {
-    comps = normalizeListings(raw, identity);
+    // Resolve the target identity BEFORE scoring comps. A VIN-only request has
+    // no year/make/model, so decode the VIN and backfill from the listings —
+    // otherwise every comp is scored against an empty target and reads "poor".
     if (request.vin) {
       const specs = await decodeVin(request.vin);
       identity = mergeSpecs(identity, specs);
     }
+    identity = backfillIdentityFromListings(identity, raw.listings ?? []);
+    comps = normalizeListings(raw, identity);
     trend = deriveTrendFromComps(comps, raw.num_found ?? comps.length);
+    dealerInsight = deriveDealerInsight(comps, trend);
   } else {
     trend = deriveTrendFromComps([], 0); // placeholder; replaced below by mock
   }

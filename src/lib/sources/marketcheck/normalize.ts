@@ -25,12 +25,17 @@ function n(v: unknown): number | null {
   return typeof v === "number" && Number.isFinite(v) ? v : null;
 }
 
-/** Best-effort merge of MarketCheck VIN-decode specs onto the identity. */
+/** Best-effort merge of MarketCheck VIN-decode specs onto the identity. Pulls
+ *  year/make/model too (a VIN-only request has none), so comps can be scored
+ *  against a real target instead of an empty one. */
 export function mergeSpecs(identity: VehicleIdentity, specs: RawSpecs | null): VehicleIdentity {
   if (!specs) return identity;
   const s = specs as Record<string, unknown>;
   return {
     ...identity,
+    year: n(s.year) || identity.year,
+    make: str(s.make) ?? (identity.make || ""),
+    model: str(s.model) ?? (identity.model || ""),
     trim: str(s.trim) ?? identity.trim,
     bodyStyle: str(s.body_type) ?? str(s.body_subtype) ?? identity.bodyStyle,
     drivetrain: str(s.drivetrain) ?? identity.drivetrain,
@@ -39,6 +44,43 @@ export function mergeSpecs(identity: VehicleIdentity, specs: RawSpecs | null): V
     fuelType: str(s.fuel_type) ?? identity.fuelType,
     msrp: n(s.msrp) ?? identity.msrp,
     identityConfidence: "high",
+  };
+}
+
+/** Backfill the target's year/make/model/trim from the returned listings when
+ *  the request + decode left them blank. A VIN search returns that exact
+ *  vehicle, so the listings' own build is the most reliable identity — without
+ *  this, comps would be scored against an empty target and all read "poor". */
+export function backfillIdentityFromListings(
+  identity: VehicleIdentity,
+  listings: RawListing[],
+): VehicleIdentity {
+  const builds = listings.map((l) => l.build).filter(Boolean) as NonNullable<RawListing["build"]>[];
+  if (builds.length === 0) return identity;
+
+  const mode = <T,>(vals: (T | null | undefined)[]): T | null => {
+    const counts = new Map<T, number>();
+    for (const v of vals) {
+      if (v == null || v === "") continue;
+      counts.set(v, (counts.get(v) ?? 0) + 1);
+    }
+    let best: T | null = null;
+    let bestN = 0;
+    for (const [v, c] of counts) {
+      if (c > bestN) {
+        best = v;
+        bestN = c;
+      }
+    }
+    return best;
+  };
+
+  return {
+    ...identity,
+    year: identity.year || mode(builds.map((b) => b.year)) || identity.year,
+    make: identity.make || str(mode(builds.map((b) => b.make))) || identity.make,
+    model: identity.model || str(mode(builds.map((b) => b.model))) || identity.model,
+    trim: identity.trim ?? str(mode(builds.map((b) => b.trim))),
   };
 }
 

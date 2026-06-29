@@ -47,34 +47,41 @@ export function MarketCheckReport({
         <div className="space-y-6">
           {/* Vehicle header */}
           <section className="rounded-2xl border border-edge bg-white p-5 shadow-card sm:p-6">
-            <div className="flex flex-wrap items-start gap-5">
-              <VehicleImage />
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <h1 className="text-2xl font-extrabold tracking-tight text-navy">{name}</h1>
-                  {source.isMock && <SampleBadge />}
-                </div>
-                {v.vin && (
-                  <p className="mt-1 inline-flex items-center gap-1.5 rounded-md bg-cream-100 px-2 py-1 font-mono text-xs text-navy/70">
-                    VIN: {v.vin}
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-5">
+              <div className="flex min-w-0 flex-1 gap-4">
+                <VehicleImage />
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h1 className="text-xl font-extrabold leading-tight tracking-tight text-navy sm:text-2xl">{name}</h1>
+                    {source.isMock && <SampleBadge />}
+                  </div>
+                  {v.vin && (
+                    <p className="mt-1 inline-flex items-center gap-1.5 rounded-md bg-cream-100 px-2 py-1 font-mono text-xs text-navy/70">
+                      VIN: {v.vin}
+                    </p>
+                  )}
+                  <p className="mt-2 text-sm text-slate">
+                    {v.trim ? `Trim: ${v.trim}` : ""}
+                    {v.mileage ? `  ·  ${v.mileage.toLocaleString()} mi` : ""}
+                    {s.searchParams.zipCode ? `  ·  ${s.searchParams.zipCode} (${s.searchParams.radiusMiles ?? 75} mi)` : ""}
                   </p>
-                )}
-                <p className="mt-2 text-sm text-slate">
-                  {v.trim ? `Trim: ${v.trim}` : ""}
-                  {v.mileage ? `  ·  ${v.mileage.toLocaleString()} mi` : ""}
-                  {s.searchParams.zipCode ? `  ·  ${s.searchParams.zipCode} (${s.searchParams.radiusMiles ?? 75} mi)` : ""}
-                </p>
-                <p className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-green-dark">
-                  <span className="flex h-4 w-4 items-center justify-center rounded-full bg-green-soft">✓</span>
-                  MarketCheck data pulled · {pulledAt}
-                </p>
+                  <p className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-green-dark">
+                    <span className="flex h-4 w-4 items-center justify-center rounded-full bg-green-soft">✓</span>
+                    MarketCheck data pulled · {pulledAt}
+                  </p>
+                </div>
               </div>
-              <div className="shrink-0">
-                <p className="text-[11px] font-bold uppercase tracking-wide text-slate">Market status</p>
-                <div className="mt-1"><MarketStatusBadge status={s.marketStatus} /></div>
-                <p className="mt-3 text-[11px] font-bold uppercase tracking-wide text-slate">Confidence</p>
-                <p className="text-sm font-bold text-navy">{CONF_LABEL[s.confidence.level]}</p>
-                <ConfidenceBar level={s.confidence.level} />
+              {/* Status + confidence: a row of chips on mobile, a right column on sm+ */}
+              <div className="flex shrink-0 flex-wrap items-end gap-x-8 gap-y-2 border-t border-edge pt-4 sm:flex-col sm:items-end sm:border-0 sm:pt-0 sm:text-right">
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-slate">Market status</p>
+                  <div className="mt-1"><MarketStatusBadge status={s.marketStatus} /></div>
+                </div>
+                <div className="sm:flex sm:flex-col sm:items-end">
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-slate">Confidence</p>
+                  <p className="text-sm font-bold text-navy">{CONF_LABEL[s.confidence.level]}</p>
+                  <ConfidenceBar level={s.confidence.level} />
+                </div>
               </div>
             </div>
           </section>
@@ -129,11 +136,21 @@ export function MarketCheckReport({
 
             <Section title="Dealer / Inventory Intelligence">
               <div className="space-y-0">
-                <KV k="Similar at this dealer" v={dealerInsight?.similarAtDealer != null ? `${dealerInsight.similarAtDealer} vehicles` : "—"} />
-                <KV k="Avg price at this dealer" v={money(dealerInsight?.avgPriceAtDealer)} />
-                <KV k="This listing — days on market" v={dealerInsight?.thisListingDaysOnMarket != null ? `${dealerInsight.thisListingDaysOnMarket} days` : "—"} />
-                <KV k="Price rank at dealer" v={dealerInsight?.priceRankAtDealer ? `${dealerInsight.priceRankAtDealer.rank} of ${dealerInsight.priceRankAtDealer.of}` : "—"} />
-                <KV k="Local competition" v={dealerInsight?.localCompetition ? dealerInsight.localCompetition[0].toUpperCase() + dealerInsight.localCompetition.slice(1) : "—"} />
+                {dealerInsight?.similarAtDealer != null && (
+                  <KV k="Similar at this dealer" v={`${dealerInsight.similarAtDealer} vehicles`} />
+                )}
+                {dealerInsight?.avgPriceAtDealer != null && (
+                  <KV k="Avg price at this dealer" v={money(dealerInsight.avgPriceAtDealer)} />
+                )}
+                {dealerInsight?.thisListingDaysOnMarket != null && (
+                  <KV k="This listing — days on market" v={`${dealerInsight.thisListingDaysOnMarket} days`} />
+                )}
+                {dealerInsight?.priceRankAtDealer && (
+                  <KV k="Price rank at dealer" v={`${dealerInsight.priceRankAtDealer.rank} of ${dealerInsight.priceRankAtDealer.of}`} />
+                )}
+                {dealerInsight?.localCompetition && (
+                  <KV k="Local competition" v={cap(dealerInsight.localCompetition)} />
+                )}
               </div>
               {dealerInsight?.insight && (
                 <p className="mt-3 rounded-lg bg-orange-soft px-3 py-2 text-xs leading-relaxed text-ink">
@@ -172,11 +189,19 @@ export function MarketCheckReport({
           </section>
 
           <Section title="Price History & Market Trend">
-            <div className="mb-2 flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wide text-slate">Price trend (60 days)</span>
-              <span className="rounded-lg border border-edge bg-white px-2.5 py-1 text-xs font-semibold text-navy">60 Days ▾</span>
-            </div>
-            <PriceTrendChart points={trend.points} />
+            {trend.points.length > 0 ? (
+              <>
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-xs font-bold uppercase tracking-wide text-slate">Price trend (60 days)</span>
+                  <span className="rounded-lg border border-edge bg-white px-2.5 py-1 text-xs font-semibold text-navy">60 Days ▾</span>
+                </div>
+                <PriceTrendChart points={trend.points} />
+              </>
+            ) : (
+              <p className="rounded-lg bg-cream-100 px-3 py-2 text-xs leading-relaxed text-slate">
+                The figures below summarize current comparable listings nearby.
+              </p>
+            )}
             <div className="mt-4 grid grid-cols-2 gap-2.5">
               <StatTile label="Avg days on market" value={String(trend.avgDaysOnMarket)} sub={trend.avgDomNote} />
               <StatTile label="Active listings" value={String(trend.activeListings)} sub={trend.activeListingsNote} />

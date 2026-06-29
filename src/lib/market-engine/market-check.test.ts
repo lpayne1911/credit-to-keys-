@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { scoreComparableListing, selectBestComps } from "@/lib/sources/marketcheck/filters";
 import { getMarketConfidence } from "@/lib/sources/marketcheck/confidence";
+import { backfillIdentityFromListings, mergeSpecs, vehicleIdentityFromRequest } from "@/lib/sources/marketcheck/normalize";
 import { buildMarketSnapshot } from "./buildMarketSnapshot";
 import { runMarketCheck } from "./runMarketCheck";
 import type { ComparableListing } from "@/lib/sources/marketcheck/types";
@@ -42,6 +43,45 @@ describe("getMarketConfidence", () => {
     expect(getMarketConfidence(Array(16).fill(comp(30_000, 85))).level).toBe("high");
     expect(getMarketConfidence(Array(6).fill(comp(30_000, 85))).level).toBe("medium");
     expect(getMarketConfidence(Array(2).fill(comp(30_000, 85))).level).toBe("low");
+  });
+  it("treats a deep good-comp set as at least medium (not low)", () => {
+    // 0 strong (>=80) but plenty good (>=70) — a same-model set with trim spread.
+    expect(getMarketConfidence(Array(12).fill(comp(30_000, 75))).level).toBe("medium");
+    expect(getMarketConfidence(Array(25).fill(comp(30_000, 75))).level).toBe("high");
+  });
+});
+
+describe("identity resolution (VIN-only all-poor regression)", () => {
+  it("scores comps as poor against an empty target, but good once resolved", () => {
+    const empty = vehicleIdentityFromRequest({ vin: "JTEBU5JRXK5656862" });
+    const sameModel = { year: 2019, make: "Toyota", model: "4Runner", trim: "Limited" };
+    // Before: empty target (year 0 / make "" / model "") → every real comp is "poor".
+    expect(scoreComparableListing(empty, sameModel).quality).toBe("poor");
+    // After: backfill identity from the listings the VIN search returned.
+    const listings = [
+      { build: { year: 2019, make: "Toyota", model: "4Runner", trim: "Limited" } },
+      { build: { year: 2019, make: "Toyota", model: "4Runner", trim: "SR5" } },
+      { build: { year: 2019, make: "Toyota", model: "4Runner", trim: "Limited" } },
+    ];
+    const resolved = backfillIdentityFromListings(empty, listings);
+    expect(resolved.year).toBe(2019);
+    expect(resolved.make).toBe("Toyota");
+    expect(resolved.model).toBe("4Runner");
+    expect(resolved.trim).toBe("Limited"); // modal of the listings
+    expect(scoreComparableListing(resolved, sameModel).score).toBeGreaterThanOrEqual(80);
+  });
+  it("does not override an identity that already has year/make/model", () => {
+    const known = vehicleIdentityFromRequest({ year: 2024, make: "Honda", model: "Civic" });
+    const resolved = backfillIdentityFromListings(known, [
+      { build: { year: 2019, make: "Toyota", model: "4Runner" } },
+    ]);
+    expect(resolved).toMatchObject({ year: 2024, make: "Honda", model: "Civic" });
+  });
+  it("mergeSpecs pulls year/make/model/trim from the VIN decode", () => {
+    const merged = mergeSpecs(vehicleIdentityFromRequest({ vin: "X" }), {
+      year: 2019, make: "Toyota", model: "4Runner", trim: "TRD Off-Road Premium",
+    });
+    expect(merged).toMatchObject({ year: 2019, make: "Toyota", model: "4Runner", trim: "TRD Off-Road Premium" });
   });
 });
 
