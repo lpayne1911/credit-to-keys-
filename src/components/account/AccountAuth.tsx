@@ -4,10 +4,28 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 /**
- * Buyer sign-in / sign-up. Email+password or Google. On success we refresh the
- * server component so the dashboard re-renders with the buyer's real deals.
+ * Buyer sign-in / sign-up. Email+password or Google.
+ *
+ * Default (dashboard) behavior: on success we refresh the server component so the
+ * dashboard re-renders with the buyer's real deals.
+ *
+ * Post-scan "save this deal" behavior: when `claimDealId` is set, after a
+ * successful email/password auth we claim that deal (POST /api/deals/[id]/claim)
+ * and navigate to `redirectTo` (default /dashboard). For Google we pass
+ * `oauthNext` so the OAuth callback returns to the scan page, which finishes the
+ * claim there.
  */
-export function AccountAuth({ configured }: { configured: boolean }) {
+export function AccountAuth({
+  configured,
+  claimDealId,
+  redirectTo = "/dashboard",
+  oauthNext,
+}: {
+  configured: boolean;
+  claimDealId?: string;
+  redirectTo?: string;
+  oauthNext?: string;
+}) {
   const router = useRouter();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
@@ -38,6 +56,13 @@ export function AccountAuth({ configured }: { configured: boolean }) {
         setMode("signin");
         return;
       }
+      // Post-scan flow: claim the just-scanned deal into the new account, then go.
+      if (claimDealId) {
+        await fetch(`/api/deals/${claimDealId}/claim`, { method: "POST" }).catch(() => {});
+        router.push(redirectTo);
+        router.refresh();
+        return;
+      }
       router.refresh();
     } catch {
       setError("Network error.");
@@ -53,7 +78,7 @@ export function AccountAuth({ configured }: { configured: boolean }) {
       const res = await fetch("/api/account/oauth", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ provider: "google" }),
+        body: JSON.stringify({ provider: "google", ...(oauthNext ? { next: oauthNext } : {}) }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.url) {

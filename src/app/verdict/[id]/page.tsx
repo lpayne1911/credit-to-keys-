@@ -1,9 +1,13 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Disclaimer } from "@/components/Disclaimer";
 import { VerdictView } from "@/components/VerdictView";
 import { RequestReviewButton } from "@/components/RequestReviewButton";
+import { SaveDealPrompt } from "@/components/account/SaveDealPrompt";
+import { VerdictRecommendations } from "@/components/verdict/VerdictRecommendations";
 import { getDealById } from "@/lib/deals";
+import { isBuyerAuthConfigured } from "@/lib/buyer-auth";
 import { isDealReviewResult } from "@/lib/deal-engine/is-deal-review";
 import { reviewFees } from "@/lib/fee-classifier";
 import type { FairnessResult } from "@/lib/fairness-engine";
@@ -90,6 +94,23 @@ export default async function VerdictPage({
                 }
               />
 
+              {/* Post-scan, value-first signup — only for an unowned (anonymous)
+                  deal. Non-blocking: the report above is already free. */}
+              {!deal.user_id && (
+                <Suspense fallback={null}>
+                  <SaveDealPrompt
+                    dealId={deal.id}
+                    configured={isBuyerAuthConfigured()}
+                    returnPath={`/verdict/${deal.id}`}
+                  />
+                </Suspense>
+              )}
+
+              {/* Soft-paywall: recommend an advocate / go-deeper service. */}
+              <VerdictRecommendations
+                result={(deal.reviewed_verdict ? buildReviewedResult(deal) : (deal.auto_result as FairnessResult | null)) ?? null}
+              />
+
               <VerdictNextSteps
                 result={(deal.reviewed_verdict ? buildReviewedResult(deal) : (deal.auto_result as FairnessResult | null)) ?? null}
               />
@@ -111,12 +132,14 @@ export default async function VerdictPage({
   );
 }
 
-/** Route the buyer by need, driven by which flags actually fired (req 8/20). */
+/**
+ * Free focused-check grid, driven by which flags actually fired (req 8/20).
+ * Human review + advocate services live in VerdictRecommendations now, so this
+ * stays purely the free focused tools (no CTA appears in both places).
+ */
 function VerdictNextSteps({ result }: { result: FairnessResult | null }) {
   const types = new Set((result?.flags ?? []).map((f) => f.type));
-  const items: { href: string; label: string }[] = [
-    { href: "/human-review", label: "Get human review" }, // always available
-  ];
+  const items: { href: string; label: string }[] = [];
   if (types.has("overpriced_warranty") || result?.warranty)
     items.push({ href: "/warranty-check", label: "Review warranty details" });
   if (types.has("apr_markup") || types.has("payment_packing"))
@@ -124,10 +147,11 @@ function VerdictNextSteps({ result }: { result: FairnessResult | null }) {
   if (types.has("junk_fee") || types.has("overpriced_addon") || types.has("government_fee"))
     items.push({ href: "/add-on-check", label: "Review add-ons & fees" });
   items.push({ href: "/post-sale-triage", label: "I already signed" });
+  if (items.length === 0) return null;
   return (
     <div className="glass p-4">
       <p className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-slate">
-        What next?
+        Run another free check
       </p>
       <div className="grid grid-cols-2 gap-2">
         {items.map((i) => (

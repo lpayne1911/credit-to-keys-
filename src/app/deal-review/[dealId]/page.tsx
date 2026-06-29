@@ -8,11 +8,14 @@
  * the row isn't found), we hand off to a client fallback that reads the result
  * the intake form saved to the on-device workspace.
  */
+import { Suspense } from "react";
 import Link from "next/link";
 import { Disclaimer } from "@/components/Disclaimer";
 import { DealReviewView } from "@/components/deal-review/DealReviewView";
 import { RequestReviewButton } from "@/components/RequestReviewButton";
+import { SaveDealPrompt } from "@/components/account/SaveDealPrompt";
 import { getDealById } from "@/lib/deals";
+import { isBuyerAuthConfigured } from "@/lib/buyer-auth";
 import { isDealReviewResult } from "@/lib/deal-engine/is-deal-review";
 import type { DealReviewResult } from "@/lib/deal-engine/types";
 import { DealReviewClientFallback } from "./DealReviewClientFallback";
@@ -49,6 +52,17 @@ export default async function DealReviewPage({
             <div className="space-y-6">
               <DealReviewView result={persisted} />
               <RequestReviewButton dealId={params.dealId} alreadyRequested={alreadyRequested} />
+              {/* Post-scan, value-first signup — only for an unowned (anonymous)
+                  deal. Non-blocking: the review above is already free. */}
+              {deal && !deal.user_id && (
+                <Suspense fallback={null}>
+                  <SaveDealPrompt
+                    dealId={params.dealId}
+                    configured={isBuyerAuthConfigured()}
+                    returnPath={`/deal-review/${params.dealId}`}
+                  />
+                </Suspense>
+              )}
               <Disclaimer />
               <Link
                 href="/quote-review/intake"

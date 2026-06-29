@@ -5,17 +5,17 @@ import { Reveal } from "@/components/ui/Reveal";
 import { SeverityScale } from "@/components/ui/SeverityScale";
 import { MatrixCard } from "@/components/ui/MatrixCard";
 import { MatrixIcon, type IconName } from "@/components/ui/icons";
-import { FUNNELS, ACCENT_CLASSES } from "@/lib/funnels";
-import { PathCard } from "@/components/funnels/PathCard";
+import { FUNNELS, ACCENT_CLASSES, type Accent } from "@/lib/funnels";
 import { ProcessTimeline } from "@/components/funnels/ProcessTimeline";
-import { FunnelIcon } from "@/components/funnels/icons";
+import { FunnelIcon, type FunnelIconName } from "@/components/funnels/icons";
 import { TrustBar, CTASection, SectionHeading } from "@/components/funnels/primitives";
 
 /**
- * Homepage — the car-deal command center. Self-segments buyers into four lanes
- * (green quote review, blue still-shopping, gold concierge, red post-sale), then
- * shows what each path does, delivers, and where it leads. Navy/white SaaS, one
- * action color per lane, no fake social proof.
+ * Homepage — the car-deal command center. Opens with ONE question and three
+ * intent doors that match where the buyer actually is: a deal in front of them
+ * (the free scan is the hook), still shopping, or already signed. Each door
+ * groups the right services; everything downstream still reinforces. Navy/white
+ * SaaS, one action color per lane, no fake social proof.
  */
 export default function LandingPage() {
   return (
@@ -42,8 +42,92 @@ export default function LandingPage() {
 }
 
 /* ========================================================================== */
-/*  HERO + 4 PATHS                                                             */
+/*  HERO + 3 INTENT DOORS                                                      */
 /* ========================================================================== */
+
+interface DoorCta {
+  label: string;
+  href: string;
+  primary?: boolean;
+}
+interface Door {
+  accent: Accent;
+  icon: FunnelIconName;
+  question: string;
+  title: string;
+  copy: string;
+  ctas: DoorCta[];
+}
+
+/**
+ * The three doors re-group the existing service lanes by where the buyer is.
+ * Every funnel route stays reachable — the homepage just asks the right
+ * question first. The free Scan is the lead CTA of door A (the hook).
+ */
+const DOORS: Door[] = [
+  {
+    accent: "green",
+    icon: "doc",
+    question: "I have a deal in front of me",
+    title: "Check this deal",
+    copy: "Get an instant, plain-English read on the price, fees, and financing — free.",
+    ctas: [
+      { label: "Scan My Deal — free", href: "/check", primary: true },
+      { label: "Review my full quote", href: "/quote-review" },
+    ],
+  },
+  {
+    accent: "blue",
+    icon: "target",
+    question: "I'm shopping for a vehicle",
+    title: "Walk in prepared",
+    copy: "Build your target numbers and a negotiation plan — or have us handle the whole search.",
+    ctas: [
+      { label: "Build My Plan", href: "/build-my-plan", primary: true },
+      { label: "Start Credit-to-Keys", href: "/credit-to-keys" },
+      { label: "Have us handle it (Concierge)", href: "/concierge" },
+    ],
+  },
+  {
+    accent: "red",
+    icon: "shieldAlert",
+    question: "I already bought — something's wrong",
+    title: "Know your options",
+    copy: "We triage your signed paperwork, flag what may be cancellable, and map your next steps.",
+    ctas: [{ label: "Post-Sale Triage", href: "/post-sale-triage", primary: true }],
+  },
+];
+
+function DoorCard({ door }: { door: Door }) {
+  const a = ACCENT_CLASSES[door.accent];
+  return (
+    <div className="flex h-full flex-col rounded-2xl border border-edge bg-white p-6 text-ink shadow-card">
+      <span className={`flex h-12 w-12 items-center justify-center rounded-xl ${a.soft} ${a.softText}`}>
+        <FunnelIcon name={door.icon} className="h-6 w-6" />
+      </span>
+      <p className={`mt-4 text-xs font-bold uppercase tracking-wide ${a.text}`}>{door.question}</p>
+      <h3 className="mt-1 text-lg font-bold text-navy">{door.title}</h3>
+      <p className="mt-1.5 text-sm leading-relaxed text-slate">{door.copy}</p>
+      <div className="mt-5 flex flex-1 flex-col justify-end gap-2">
+        {door.ctas.map((c) =>
+          c.primary ? (
+            <Link key={c.href} href={c.href} className={`${a.btn} w-full text-sm`}>
+              {c.label}
+            </Link>
+          ) : (
+            <Link
+              key={c.href}
+              href={c.href}
+              className={`inline-flex items-center gap-1.5 text-sm font-semibold ${a.text} hover:underline`}
+            >
+              {c.label} →
+            </Link>
+          ),
+        )}
+      </div>
+    </div>
+  );
+}
 
 function Hero() {
   return (
@@ -65,12 +149,12 @@ function Hero() {
           </Reveal>
           <Reveal delay={60}>
             <h1 className="mt-5 text-5xl font-extrabold leading-[1.04] tracking-tight sm:text-6xl">
-              Get the right deal. Every time.
+              Where are you in your car deal?
             </h1>
           </Reveal>
           <Reveal delay={120}>
             <p className="mx-auto mt-5 max-w-xl text-lg leading-relaxed text-white/75">
-              Choose your path and we&apos;ll guide you to the best next step.
+              Pick the one that fits — we&apos;ll take it from there. Always on your side, never the dealer&apos;s.
             </p>
           </Reveal>
           <Reveal delay={180}>
@@ -83,10 +167,10 @@ function Hero() {
           </Reveal>
         </div>
 
-        <div className="mt-12 grid gap-5 pb-14 sm:grid-cols-2 lg:grid-cols-4">
-          {FUNNELS.map((f, i) => (
-            <Reveal key={f.id} delay={i * 70}>
-              <PathCard funnel={f} />
+        <div className="mt-12 grid gap-5 pb-14 md:grid-cols-3">
+          {DOORS.map((d, i) => (
+            <Reveal key={d.question} delay={i * 80}>
+              <DoorCard door={d} />
             </Reveal>
           ))}
         </div>

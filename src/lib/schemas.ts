@@ -232,6 +232,14 @@ export const accountSignupSchema = z.object({
 /** Start an OAuth/social sign-in for the console. */
 export const oauthStartSchema = z.object({
   provider: z.enum(["google", "apple"]),
+  /** Optional in-app path to return to after the OAuth round-trip. Must be a
+   * relative path (leading "/"); absolute URLs are rejected to prevent an
+   * open-redirect. Used by the post-scan "save this deal" flow. */
+  next: z
+    .string()
+    .max(512)
+    .refine((s) => s.startsWith("/") && !s.startsWith("//"), "next must be a relative path")
+    .optional(),
 });
 
 /** Admin: invite/allowlist an operator by email. */

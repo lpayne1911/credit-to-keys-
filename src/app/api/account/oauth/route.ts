@@ -36,9 +36,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "Server error." }, { status: 500 });
   }
 
+  // Carry an optional in-app return path through the callback (post-scan "save
+  // this deal" returns to the verdict page with ?claim=1). The schema already
+  // guarantees `next` is a relative path, so this can't become an open-redirect.
+  const callback = new URL(`${siteOrigin(req)}/api/account/auth/callback`);
+  if (parsed.data.next) callback.searchParams.set("next", parsed.data.next);
+
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: parsed.data.provider,
-    options: { redirectTo: `${siteOrigin(req)}/api/account/auth/callback` },
+    options: { redirectTo: callback.toString() },
   });
   if (error || !data.url) {
     return NextResponse.json({ ok: false, error: "Could not start sign-in." }, { status: 502 });
