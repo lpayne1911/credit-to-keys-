@@ -260,11 +260,11 @@ function SituationRouter() {
                   <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-cream/45">
                     What a Full Deal Check returns
                   </p>
-                  <ScoreRow label="Price" status="Verify" tone="warning" pct={62} />
-                  <ScoreRow label="Fees" status="Push back" tone="danger" pct={30} />
-                  <ScoreRow label="APR" status="Verify" tone="warning" pct={55} />
-                  <ScoreRow label="Warranty" status="Push back" tone="danger" pct={32} />
-                  <ScoreRow label="Trade" status="Check equity" tone="warning" pct={58} />
+                  <ScoreRow label="Price" status="Verify first" tone="verify" pct={62} />
+                  <ScoreRow label="Fees" status="Push back" tone="warning" pct={30} />
+                  <ScoreRow label="APR" status="Verify first" tone="verify" pct={55} />
+                  <ScoreRow label="Warranty" status="Push back" tone="warning" pct={32} />
+                  <ScoreRow label="Trade" status="Check equity" tone="verify" pct={58} />
                 </div>
               </div>
             </div>
@@ -360,21 +360,27 @@ function ScoreRow({
 }: {
   label: string;
   status: string;
-  tone: "safe" | "warning" | "danger";
+  tone: "safe" | "verify" | "warning" | "danger";
   pct: number;
 }) {
+  // Diagnostic palette: green = fair, blue = verify, amber = push back,
+  // red = do not sign. Gold is never used here (brand action only).
   const bar =
     tone === "safe"
-      ? "bg-flag-green"
-      : tone === "warning"
-        ? "bg-verdict-amber"
-        : "bg-flag-red";
+      ? "bg-verdict-green"
+      : tone === "verify"
+        ? "bg-verdict-blue"
+        : tone === "warning"
+          ? "bg-verdict-amber"
+          : "bg-verdict-red";
   const text =
     tone === "safe"
-      ? "text-flag-green"
-      : tone === "warning"
-        ? "text-verdict-amber"
-        : "text-flag-red";
+      ? "text-verdict-green"
+      : tone === "verify"
+        ? "text-verdict-blue"
+        : tone === "warning"
+          ? "text-verdict-amber"
+          : "text-verdict-red";
   return (
     <div>
       <div className="flex items-center justify-between text-xs font-semibold">
@@ -732,11 +738,11 @@ function FullDealCheckSection() {
                   <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-cream/45">
                     What a Full Deal Check returns
                   </p>
-                  <ScoreRow label="Price" status="Verify" tone="warning" pct={62} />
-                  <ScoreRow label="Fees" status="Push back" tone="danger" pct={30} />
-                  <ScoreRow label="APR" status="Verify" tone="warning" pct={55} />
-                  <ScoreRow label="Warranty" status="Push back" tone="danger" pct={32} />
-                  <ScoreRow label="Trade" status="Check equity" tone="warning" pct={58} />
+                  <ScoreRow label="Price" status="Verify first" tone="verify" pct={62} />
+                  <ScoreRow label="Fees" status="Push back" tone="warning" pct={30} />
+                  <ScoreRow label="APR" status="Verify first" tone="verify" pct={55} />
+                  <ScoreRow label="Warranty" status="Push back" tone="warning" pct={32} />
+                  <ScoreRow label="Trade" status="Check equity" tone="verify" pct={58} />
                 </div>
               </div>
             </div>

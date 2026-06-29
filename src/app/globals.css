@@ -31,8 +31,8 @@
   .btn-primary {
     @apply relative inline-flex items-center justify-center gap-2 overflow-hidden rounded-xl
       bg-gradient-to-b from-gold to-gold-dark px-6 py-3 text-base font-semibold text-white
-      shadow-[0_8px_24px_-8px_rgba(168,120,31,0.7)] transition-all duration-200
-      hover:-translate-y-0.5 hover:shadow-[0_14px_34px_-8px_rgba(168,120,31,0.85)]
+      shadow-[0_8px_24px_-8px_rgba(159,115,36,0.7)] transition-all duration-200
+      hover:-translate-y-0.5 hover:shadow-[0_14px_34px_-8px_rgba(159,115,36,0.85)]
       focus:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2
       focus-visible:ring-offset-cream active:translate-y-0
       disabled:cursor-not-allowed disabled:opacity-60;
@@ -89,7 +89,7 @@
   .ring-gradient {
     background:
       linear-gradient(var(--card-bg, #ffffff), var(--card-bg, #ffffff)) padding-box,
-      linear-gradient(135deg, rgba(200, 146, 58, 0.7), rgba(20, 37, 61, 0.12) 45%, rgba(234, 243, 255, 0.6)) border-box;
+      linear-gradient(135deg, rgba(184, 135, 46, 0.7), rgba(11, 22, 40, 0.12) 45%, rgba(234, 243, 255, 0.6)) border-box;
     border: 1.5px solid transparent;
   }
 
@@ -118,8 +118,8 @@
   /* Soft document grid texture (subtle). */
   .bg-grid {
     background-image:
-      linear-gradient(rgba(20, 37, 61, 0.045) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(20, 37, 61, 0.045) 1px, transparent 1px);
+      linear-gradient(rgba(11, 22, 40, 0.045) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(11, 22, 40, 0.045) 1px, transparent 1px);
     background-size: 44px 44px;
   }
   .bg-grid-dark {
@@ -158,7 +158,7 @@
   /* Tactile gold range slider — minimal typing, lots of dragging. */
   .range-gold {
     @apply h-2 w-full cursor-pointer appearance-none rounded-full bg-cream-200;
-    accent-color: #c8923a;
+    accent-color: #B8872E;
   }
   .range-gold::-webkit-slider-thumb {
     -webkit-appearance: none;
@@ -166,9 +166,9 @@
     width: 28px;
     height: 28px;
     border-radius: 9999px;
-    background: #c8923a;
+    background: #B8872E;
     border: 3px solid #fff;
-    box-shadow: 0 2px 6px rgba(20, 37, 61, 0.25);
+    box-shadow: 0 2px 6px rgba(11, 22, 40, 0.25);
     cursor: pointer;
   }
   .range-gold::-moz-range-thumb {
@@ -176,8 +176,8 @@
     height: 28px;
     border: 3px solid #fff;
     border-radius: 9999px;
-    background: #c8923a;
-    box-shadow: 0 2px 6px rgba(20, 37, 61, 0.25);
+    background: #B8872E;
+    box-shadow: 0 2px 6px rgba(11, 22, 40, 0.25);
     cursor: pointer;
   }
 

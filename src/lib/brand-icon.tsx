@@ -15,7 +15,7 @@ export function brandIcon(size: number): React.ReactElement {
         height: "100%",
         alignItems: "center",
         justifyContent: "center",
-        background: "#14253D",
+        background: "#0B1628",
       }}
     >
       <svg
@@ -26,11 +26,11 @@ export function brandIcon(size: number): React.ReactElement {
       >
         <path
           d="M12 2l7 3v6c0 4.5-3 8.2-7 9-4-0.8-7-4.5-7-9V5l7-3z"
-          fill="#C8923A"
+          fill="#B8872E"
         />
         <path
           d="M8.6 12.4l2.2 2.2 4.6-5"
-          stroke="#14253D"
+          stroke="#0B1628"
           strokeWidth={2.4}
           strokeLinecap="round"
           strokeLinejoin="round"

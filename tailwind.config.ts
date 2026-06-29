@@ -1,18 +1,19 @@
 import type { Config } from "tailwindcss";
 
 /**
- * Driveway Advocate brand tokens.
+ * Driveway Advocate brand system — "Trust Navy + Signal Gold + Verdict palette."
  *
- * Premium, high-trust buyer-protection product — modern fintech/SaaS, NOT a
- * generic green fintech template or a flat brochure.
- *
- *  - navy  #14253D  primary / ink        (deepest: ink #0E1A2B)
- *  - gold  #C8923A  accent / primary CTA (reassuring, never alarming)
- *  - cream #FCFBF8  warm background
- *
- * Semantic flag colors (orange / red / green) are RESERVED for verdict +
- * severity cues — never for buttons or chrome. A "get help" / primary CTA
- * always reads gold/amber.
+ * Strict color rules (this is a decision-support tool; color teaches meaning):
+ *   - GOLD   #B8872E  = primary BRAND ACTION only (main CTAs, shield accents,
+ *                       recommended/selected states). Never a risk color.
+ *   - NAVY   #0B1628  = authority/trust (headers, dark sections, footer, wordmark).
+ *   - CREAM  #F8F5EF  = warm page background; WHITE = cards.
+ *   - VERDICT green/blue/amber/red/black = DIAGNOSIS only, never brand chrome:
+ *       green  #2E9E55  Looks fair (low concern)
+ *       blue   #2563EB  Verify first (needs confirmation)
+ *       amber  #D98A1E  Push back first (negotiate)
+ *       red    #D14343  Do not sign yet (serious risk)
+ *       black  #050816  Walk-away signal (severe)
  */
 const config: Config = {
   content: [
@@ -24,42 +25,47 @@ const config: Config = {
     extend: {
       colors: {
         navy: {
-          DEFAULT: "#14253D",
+          DEFAULT: "#0B1628",
           50: "#F1F3F6",
           100: "#D7DDE6",
           700: "#1C3252",
-          800: "#102033",
-          900: "#0E1A2C",
-          950: "#0A1422",
+          800: "#10213A",
+          900: "#0B1628",
+          950: "#07111F",
         },
-        ink: "#0E1A2B",
+        ink: "#111827",
         gold: {
-          DEFAULT: "#C8923A",
-          dark: "#A9781F",
+          DEFAULT: "#B8872E",
+          dark: "#9F7324",
           light: "#E3BC78",
           glow: "#F0C977",
+          // Soft brand accents (pills, badges, light callouts).
+          100: "#F3E6C8",
+          50: "#FBF5E8",
         },
         cream: {
-          DEFAULT: "#FCFBF8",
-          50: "#FFFDF8",
+          DEFAULT: "#F8F5EF",
+          50: "#FCFAF4",
           100: "#F5F2EA",
           200: "#EBE6D8",
         },
         slate: {
-          DEFAULT: "#5D6675",
-          muted: "#5D6675",
+          DEFAULT: "#4B5563",
+          muted: "#6B7280",
         },
         paleblue: "#EAF3FF",
-        // Verdict / severity semantic colors. Do not use for buttons/chrome.
+        // Verdict / diagnostic colors. DIAGNOSIS ONLY — never buttons/chrome.
         verdict: {
-          red: "#DC2626",
-          amber: "#D98E2B",
-          green: "#16A34A",
+          green: "#2E9E55", // Looks fair (low concern)
+          blue: "#2563EB", // Verify first (needs confirmation)
+          amber: "#D98A1E", // Push back first (negotiate)
+          red: "#D14343", // Do not sign yet (serious risk)
+          black: "#050816", // Walk-away signal (severe)
         },
         flag: {
-          orange: "#F97316",
-          red: "#DC2626",
-          green: "#16A34A",
+          orange: "#F97316", // time-sensitive / urgency accent
+          red: "#D14343",
+          green: "#2E9E55",
         },
       },
       fontFamily: {
@@ -71,17 +77,17 @@ const config: Config = {
         prose: "44rem",
       },
       boxShadow: {
-        card: "0 1px 2px rgba(20,37,61,0.06), 0 8px 24px rgba(20,37,61,0.08)",
-        lift: "0 2px 6px rgba(20,37,61,0.08), 0 24px 48px -12px rgba(20,37,61,0.22)",
+        card: "0 1px 2px rgba(11,22,40,0.06), 0 8px 24px rgba(11,22,40,0.08)",
+        lift: "0 2px 6px rgba(11,22,40,0.08), 0 24px 48px -12px rgba(11,22,40,0.22)",
         glass:
-          "0 1px 0 rgba(255,255,255,0.6) inset, 0 1px 3px rgba(20,37,61,0.08), 0 18px 50px -18px rgba(20,37,61,0.30)",
+          "0 1px 0 rgba(255,255,255,0.6) inset, 0 1px 3px rgba(11,22,40,0.08), 0 18px 50px -18px rgba(11,22,40,0.30)",
         "glass-dark":
           "0 1px 0 rgba(255,255,255,0.08) inset, 0 24px 60px -20px rgba(0,0,0,0.55)",
-        glow: "0 0 0 1px rgba(200,146,58,0.35), 0 12px 40px -8px rgba(200,146,58,0.45)",
+        glow: "0 0 0 1px rgba(184,135,46,0.35), 0 12px 40px -8px rgba(184,135,46,0.45)",
       },
       backgroundImage: {
         "grid-navy":
-          "linear-gradient(rgba(20,37,61,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(20,37,61,0.05) 1px, transparent 1px)",
+          "linear-gradient(rgba(11,22,40,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(11,22,40,0.05) 1px, transparent 1px)",
         "grid-light":
           "linear-gradient(rgba(255,255,255,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.06) 1px, transparent 1px)",
       },
@@ -103,9 +109,9 @@ const config: Config = {
           "100%": { transform: "translateX(220%) skewX(-12deg)" },
         },
         "pulse-ring": {
-          "0%": { boxShadow: "0 0 0 0 rgba(217,142,43,0.45)" },
-          "70%": { boxShadow: "0 0 0 12px rgba(217,142,43,0)" },
-          "100%": { boxShadow: "0 0 0 0 rgba(217,142,43,0)" },
+          "0%": { boxShadow: "0 0 0 0 rgba(184,135,46,0.45)" },
+          "70%": { boxShadow: "0 0 0 12px rgba(184,135,46,0)" },
+          "100%": { boxShadow: "0 0 0 0 rgba(184,135,46,0)" },
         },
         shimmer: {
           "0%": { backgroundPosition: "-200% 0" },

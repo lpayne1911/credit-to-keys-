@@ -53,7 +53,7 @@ export function Logo({ className = "h-9 w-9" }: { className?: string }) {
         <defs>
           <linearGradient id="shield-g" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" stopColor="#E3BC78" />
-            <stop offset="1" stopColor="#C8923A" />
+            <stop offset="1" stopColor="#B8872E" />
           </linearGradient>
         </defs>
         <path
@@ -63,7 +63,7 @@ export function Logo({ className = "h-9 w-9" }: { className?: string }) {
         <path
           d="M9 12.5l2 2 4-4.5"
           fill="none"
-          stroke="#0E1A2B"
+          stroke="#0B1628"
           strokeWidth="1.8"
           strokeLinecap="round"
           strokeLinejoin="round"
