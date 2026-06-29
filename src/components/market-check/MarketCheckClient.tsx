@@ -16,7 +16,7 @@ export function MarketCheckClient({ initial }: { initial: MarketCheckResponse })
   const [response, setResponse] = useState<MarketCheckResponse>(initial);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [f, setF] = useState({ vin: "", year: "", make: "", model: "", trim: "", zipCode: "", dealerAskingPrice: "" });
+  const [f, setF] = useState({ vin: "", year: "", make: "", model: "", trim: "", mileage: "", zipCode: "", dealerAskingPrice: "" });
 
   const set = (k: keyof typeof f, v: string) => setF((p) => ({ ...p, [k]: v }));
   const canSubmit = f.vin.trim().length > 0 || (f.make.trim() && f.model.trim());
@@ -34,6 +34,7 @@ export function MarketCheckClient({ initial }: { initial: MarketCheckResponse })
           make: f.make || undefined,
           model: f.model || undefined,
           trim: f.trim || undefined,
+          mileage: f.mileage ? Number(f.mileage) : undefined,
           zipCode: f.zipCode || undefined,
           dealerAskingPrice: f.dealerAskingPrice ? Number(f.dealerAskingPrice) : undefined,
           radiusMiles: 75,
@@ -59,16 +60,19 @@ export function MarketCheckClient({ initial }: { initial: MarketCheckResponse })
         <div className="rounded-2xl border border-edge bg-white p-4 shadow-card sm:p-5">
           <p className="text-sm font-bold text-navy">Check another vehicle</p>
           <p className="mt-0.5 text-xs text-slate">Enter a VIN, or year / make / model + ZIP. No VIN? No problem.</p>
-          <div className="mt-3 grid gap-2.5 sm:grid-cols-3 lg:grid-cols-7">
+          <div className="mt-3 grid gap-2.5 sm:grid-cols-3 lg:grid-cols-8">
             <input className="field-input lg:col-span-2" placeholder="VIN (optional)" value={f.vin} onChange={(e) => set("vin", e.target.value.toUpperCase())} />
             <input className="field-input" placeholder="Year" inputMode="numeric" value={f.year} onChange={(e) => set("year", e.target.value.replace(/[^0-9]/g, ""))} />
             <input className="field-input" placeholder="Make" value={f.make} onChange={(e) => set("make", e.target.value)} />
             <input className="field-input" placeholder="Model" value={f.model} onChange={(e) => set("model", e.target.value)} />
+            <input className="field-input" placeholder="Miles" inputMode="numeric" value={f.mileage} onChange={(e) => set("mileage", e.target.value.replace(/[^0-9]/g, ""))} />
             <input className="field-input" placeholder="ZIP" inputMode="numeric" value={f.zipCode} onChange={(e) => set("zipCode", e.target.value.replace(/[^0-9]/g, ""))} />
-            <button type="button" onClick={run} disabled={!canSubmit || loading} className="btn-blue text-sm">
-              {loading ? "Checking…" : "Check the Market"}
-            </button>
+            <input className="field-input" placeholder="Asking $" inputMode="numeric" value={f.dealerAskingPrice} onChange={(e) => set("dealerAskingPrice", e.target.value.replace(/[^0-9]/g, ""))} />
           </div>
+          <p className="mt-1.5 text-xs text-slate">Add the dealer&apos;s asking price to see how this deal compares to the local market.</p>
+          <button type="button" onClick={run} disabled={!canSubmit || loading} className="btn-blue mt-2.5 text-sm">
+            {loading ? "Checking…" : "Check the Market"}
+          </button>
           {error && <p className="mt-2 text-sm text-red-dark">{error}</p>}
         </div>
       </div>

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { MarketCheckResponse } from "@/lib/sources/marketcheck/types";
 import { SampleBadge } from "@/components/funnels/primitives";
-import { money, MarketStatusBadge, MarketGauge, PriceTrendChart, StatTile } from "./parts";
+import { money, MarketStatusBadge, MarketGauge, PriceTrendChart, PriceDistributionChart, StatTile } from "./parts";
 import { ComparableListingsTable } from "./ComparableListingsTable";
 import { SaveReportButton } from "./SaveReportButton";
 
@@ -65,10 +65,17 @@ export function MarketCheckReport({
                     {v.mileage ? `  ·  ${v.mileage.toLocaleString()} mi` : ""}
                     {s.searchParams.zipCode ? `  ·  ${s.searchParams.zipCode} (${s.searchParams.radiusMiles ?? 75} mi)` : ""}
                   </p>
-                  <p className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-green-dark">
-                    <span className="flex h-4 w-4 items-center justify-center rounded-full bg-green-soft">✓</span>
-                    MarketCheck data pulled · {pulledAt}
-                  </p>
+                  {source.isMock ? (
+                    <p className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-slate">
+                      <span className="flex h-4 w-4 items-center justify-center rounded-full bg-navy/10 text-navy/70">i</span>
+                      Sample data — not a live lookup
+                    </p>
+                  ) : (
+                    <p className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-green-dark">
+                      <span className="flex h-4 w-4 items-center justify-center rounded-full bg-green-soft">✓</span>
+                      MarketCheck data pulled · {pulledAt}
+                    </p>
+                  )}
                 </div>
               </div>
               {/* Status + confidence: a row of chips on mobile, a right column on sm+ */}
@@ -146,7 +153,7 @@ export function MarketCheckReport({
                   <KV k="This listing — days on market" v={`${dealerInsight.thisListingDaysOnMarket} days`} />
                 )}
                 {dealerInsight?.priceRankAtDealer && (
-                  <KV k="Price rank at dealer" v={`${dealerInsight.priceRankAtDealer.rank} of ${dealerInsight.priceRankAtDealer.of}`} />
+                  <KV k="Price rank vs nearby listings" v={`${dealerInsight.priceRankAtDealer.rank} of ${dealerInsight.priceRankAtDealer.of}`} />
                 )}
                 {dealerInsight?.localCompetition && (
                   <KV k="Local competition" v={cap(dealerInsight.localCompetition)} />
@@ -196,6 +203,19 @@ export function MarketCheckReport({
                   <span className="rounded-lg border border-edge bg-white px-2.5 py-1 text-xs font-semibold text-navy">60 Days ▾</span>
                 </div>
                 <PriceTrendChart points={trend.points} />
+              </>
+            ) : comparableListings.length >= 2 ? (
+              <>
+                <div className="mb-2">
+                  <span className="text-xs font-bold uppercase tracking-wide text-slate">
+                    Price distribution · {comparableListings.length} nearby listings
+                  </span>
+                </div>
+                <PriceDistributionChart
+                  prices={comparableListings.map((c) => c.listPrice)}
+                  median={s.marketMedian}
+                  price={s.dealerAskingPrice ?? null}
+                />
               </>
             ) : (
               <p className="rounded-lg bg-cream-100 px-3 py-2 text-xs leading-relaxed text-slate">

@@ -4,7 +4,28 @@
  */
 import type { RawActiveResponse, RawListing, RawSpecs } from "./connector";
 import type { ComparableListing, VehicleIdentity, MarketCheckRequest } from "./types";
+import type { VehicleEquipment } from "@/lib/vin";
 import { scoreComparableListing } from "./filters";
+
+/** Overlay free vPIC equipment onto an identity. Each field the decode resolved
+ *  wins over what's already there (it overrides mock placeholders); fields vPIC
+ *  couldn't resolve leave the existing value untouched. Used as a baseline in
+ *  the live path (the MarketCheck specs decode still overrides via mergeSpecs)
+ *  and over the mock fallback's hardcoded specs. */
+export function applyEquipment(
+  identity: VehicleIdentity,
+  equip: VehicleEquipment | null,
+): VehicleIdentity {
+  if (!equip) return identity;
+  return {
+    ...identity,
+    bodyStyle: equip.bodyStyle ?? identity.bodyStyle,
+    drivetrain: equip.drivetrain ?? identity.drivetrain,
+    engine: equip.engine ?? identity.engine,
+    transmission: equip.transmission ?? identity.transmission,
+    fuelType: equip.fuelType ?? identity.fuelType,
+  };
+}
 
 export function vehicleIdentityFromRequest(req: MarketCheckRequest): VehicleIdentity {
   return {
