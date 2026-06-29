@@ -5,16 +5,16 @@ export function SiteHeader() {
   const links = NAV_LINKS.filter((l) => !l.primary);
   const primary = NAV_LINKS.find((l) => l.primary);
   return (
-    <header className="sticky top-0 z-40 border-b border-navy/10 bg-cream/70 backdrop-blur-xl supports-[backdrop-filter]:bg-cream/55">
+    <header className="sticky top-0 z-40 border-b border-white/10 bg-navy/95 text-white backdrop-blur-xl supports-[backdrop-filter]:bg-navy/85">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
         <Link href="/" className="group flex items-center gap-2.5">
           <Logo />
           <span className="flex flex-col leading-none">
-            <span className="font-serif text-lg font-bold text-navy">
+            <span className="text-lg font-bold tracking-tight text-white">
               Driveway Advocate
             </span>
-            <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-gold-dark">
-              Buyer-side deal protection
+            <span className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-gold">
+              Your advocate. Your terms.
             </span>
           </span>
         </Link>
@@ -24,7 +24,7 @@ export function SiteHeader() {
             <Link
               key={l.href}
               href={l.href}
-              className="rounded-lg px-3 py-2 text-sm font-semibold text-navy/70 transition hover:bg-navy/5 hover:text-navy"
+              className="rounded-lg px-3 py-2 text-sm font-semibold text-white/75 transition hover:bg-white/10 hover:text-white"
             >
               {l.label}
             </Link>
@@ -32,11 +32,8 @@ export function SiteHeader() {
         </nav>
 
         {primary && (
-          <Link
-            href={primary.href}
-            className="btn-primary px-4 py-2.5 text-sm"
-          >
-            Check my deal
+          <Link href={primary.href} className="btn-outline-light">
+            Review my deal
           </Link>
         )}
       </div>
@@ -53,7 +50,7 @@ export function Logo({ className = "h-9 w-9" }: { className?: string }) {
         <defs>
           <linearGradient id="shield-g" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" stopColor="#E3BC78" />
-            <stop offset="1" stopColor="#B8872E" />
+            <stop offset="1" stopColor="#C98A12" />
           </linearGradient>
         </defs>
         <path
@@ -63,7 +60,7 @@ export function Logo({ className = "h-9 w-9" }: { className?: string }) {
         <path
           d="M9 12.5l2 2 4-4.5"
           fill="none"
-          stroke="#0B1628"
+          stroke="#0B1F3A"
           strokeWidth="1.8"
           strokeLinecap="round"
           strokeLinejoin="round"

@@ -2,47 +2,37 @@ import Link from "next/link";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Reveal } from "@/components/ui/Reveal";
-import { DealScoreMockup } from "@/components/ui/DealScoreMockup";
-import { FloatingArtifact } from "@/components/ui/FloatingArtifact";
-import { RiskBadge } from "@/components/ui/RiskBadge";
-import { TrustPill } from "@/components/ui/TrustPill";
 import { SeverityScale } from "@/components/ui/SeverityScale";
 import { MatrixCard } from "@/components/ui/MatrixCard";
+import { MatrixIcon, type IconName } from "@/components/ui/icons";
 import { StickyCTA } from "@/components/ui/StickyCTA";
-import { MatrixIcon } from "@/components/ui/icons";
 
 /**
- * Homepage as a buyer-TRIAGE system, not a product catalog.
+ * Homepage — modern buyer-advocacy SaaS / deal-defense dashboard.
  *
- * Order (single hierarchy, mobile === desktop):
- *   1 Hero  2 "Where are you in the deal?" router  3 Sample report
- *   4 Trust  5 At-the-dealership  6 Full Deal Check (recommended first step)
- *   7 Focused checks (secondary)  8 Human review  9 Already signed
- *   10 Not-at-the-desk-yet (Help me buy + Credit-to-Keys)  11 Red Flag Matrix
- *   12 How it works  13 Final CTA + disclaimer
+ * Funnel colors teach the path: GREEN quote review, BLUE shopping support,
+ * GOLD concierge. Navy = trust/authority. Red/orange = risk only. Clean white
+ * cards on a light-gray background; sans-first, bold, app-like.
  *
- * Gold means primary conversion only. Free Full Deal Check is the dominant path;
- * focused checks and paid pathways read as secondary.
+ * Order: hero + 3 route cards → trust bar → what we help you avoid →
+ * Target Deal Sheet sample → 3 Paths → customer journey funnels →
+ * service examples → Red Flag Matrix → final CTA + disclaimer.
  */
 export default function LandingPage() {
   return (
     <>
       <SiteHeader />
-      <main className="flex flex-col overflow-x-clip">
+      <main className="flex flex-col">
         <Hero />
-        <SituationRouter />
-        <SampleReport />
-        <TrustBand />
-        <AtTheDealership />
-        <FullDealCheckSection />
-        <FocusedChecks />
-        <HumanReviewSection />
-        <AlreadySignedSection />
-        <EarlierJourney />
+        <TrustBar />
+        <WhatWeAvoid />
+        <TargetDealSheet />
+        <ThreePaths />
+        <CustomerJourney />
+        <ServiceExamples />
         <RedFlagMatrix />
-        <HowItWorks />
         <FinalCta />
-        {/* Reserve room so the mobile sticky CTA never covers the final content. */}
+        {/* Reserve space so the mobile sticky CTA never covers final content. */}
         <div className="h-20 sm:hidden" aria-hidden />
       </main>
       <SiteFooter />
@@ -52,157 +42,181 @@ export default function LandingPage() {
 }
 
 /* ========================================================================== */
-/*  HERO                                                                       */
+/*  HERO + 3 ROUTE CARDS                                                       */
 /* ========================================================================== */
 
 function Hero() {
   return (
-    <section className="relative isolate overflow-hidden noise">
+    <section className="relative isolate overflow-hidden bg-navy text-white">
       <div aria-hidden className="absolute inset-0 -z-10">
-        <div className="absolute inset-0 bg-gradient-to-b from-cream-50 via-cream to-cream" />
-        <div className="absolute inset-0 bg-grid mask-fade-b opacity-70" />
-        <div className="orb -left-24 -top-24 h-[28rem] w-[28rem] bg-gold/20" />
-        <div className="orb right-[-10rem] top-10 h-[30rem] w-[30rem] bg-paleblue/70" />
+        <div className="absolute inset-0 bg-gradient-to-b from-navy-950 via-navy to-navy" />
+        <div className="absolute inset-0 bg-grid-dark opacity-40" />
+        <div className="orb right-[-8rem] -top-20 h-[26rem] w-[26rem] bg-blue/25" />
+        <div className="orb left-[-6rem] bottom-0 h-72 w-72 bg-gold/10" />
       </div>
 
-      <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 pb-14 pt-12 sm:pt-18 lg:grid-cols-[1.05fr_1fr] lg:pb-20">
-        {/* Copy column */}
-        <div className="min-w-0">
-          <Reveal>
-            <span className="inline-flex items-center gap-2 rounded-full border border-gold/30 bg-white/70 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gold-dark shadow-sm backdrop-blur">
-              <span className="h-1.5 w-1.5 animate-pulse-ring rounded-full bg-gold" />
-              Buyer-side car-deal protection
-            </span>
-          </Reveal>
-
-          <Reveal delay={60}>
-            <h1 className="mt-5 font-serif text-[2.6rem] font-semibold leading-[1.05] text-navy sm:text-6xl">
-              Don&apos;t sign a car deal until someone{" "}
-              <span className="relative whitespace-normal text-gold-dark sm:whitespace-nowrap">
-                checks the math
-                <svg
-                  className="absolute -bottom-2 left-0 hidden h-3 w-full text-gold/50 sm:block"
-                  viewBox="0 0 300 12"
-                  fill="none"
-                  preserveAspectRatio="none"
-                  aria-hidden
-                >
-                  <path
-                    d="M2 9C75 3 150 3 298 6"
-                    stroke="currentColor"
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                  />
-                </svg>
+      <div className="mx-auto max-w-6xl px-4 pt-14 sm:pt-20">
+        <div className="grid items-center gap-10 lg:grid-cols-[1.1fr_1fr]">
+          <div className="min-w-0">
+            <Reveal>
+              <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gold">
+                <span className="h-1.5 w-1.5 animate-pulse-ring rounded-full bg-gold" />
+                Buyer-side car-deal protection
               </span>
-              .
-            </h1>
-          </Reveal>
+            </Reveal>
+            <Reveal delay={60}>
+              <h1 className="mt-5 text-5xl font-extrabold leading-[1.04] tracking-tight sm:text-6xl">
+                Don&apos;t sign a bad car deal.
+              </h1>
+            </Reveal>
+            <Reveal delay={120}>
+              <p className="mt-5 max-w-xl text-lg leading-relaxed text-white/75">
+                We review car deals, expose junk fees, benchmark the price, and
+                help you push back before you drive off the lot.
+              </p>
+            </Reveal>
+            <Reveal delay={180}>
+              <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center">
+                <Link href="/check" className="btn-green">
+                  Review my quote
+                </Link>
+                <Link href="/deal-rescue" className="btn-outline-light px-5 py-3 text-base">
+                  I already signed — what now?
+                </Link>
+              </div>
+            </Reveal>
+          </div>
 
-          <Reveal delay={120}>
-            <p className="mt-6 max-w-xl text-lg leading-relaxed text-slate">
-              Upload your dealer quote, buyer&apos;s order, payment worksheet, or
-              warranty menu. We flag hidden fees, inflated payments, junk add-ons,
-              and finance-office traps before you sign.
-            </p>
-          </Reveal>
-
-          <Reveal delay={180}>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
-              <Link href="/check" className="btn-primary text-base">
-                Check my deal before I sign
-              </Link>
-              <Link href="/deal-rescue" className="btn-secondary text-base">
-                I already signed — what now?
-              </Link>
-            </div>
-          </Reveal>
-
-          <Reveal delay={240}>
-            <p className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate">
-              <span className="inline-flex items-center gap-1.5">
-                <Check /> Free first scan
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <Check /> No account needed
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <Check /> About a minute
-              </span>
-            </p>
+          {/* Deal review summary mockup */}
+          <Reveal delay={140}>
+            <DealSummaryCard />
           </Reveal>
         </div>
 
-        {/* Mockup column */}
-        <Reveal delay={160} className="relative min-w-0">
-          <div className="relative mx-auto flex max-w-md justify-center lg:max-w-none">
-            <DealScoreMockup />
-
-            <FloatingArtifact
-              className="-left-12 -top-5 hidden lg:block"
-              tilt={8}
-              float="slow"
-              delay={0.9}
-            >
-              <span className="inline-flex items-center gap-1.5 text-xs font-bold text-navy">
-                <span className="text-gold-dark">＄</span> Savings: $1,400–$2,900
-              </span>
-            </FloatingArtifact>
-
-            <FloatingArtifact
-              className="-right-12 -top-3 hidden lg:block"
-              tilt={-12}
-              float="slow"
-              delay={1.2}
-            >
-              <RiskBadge tone="warning">APR markup risk</RiskBadge>
-            </FloatingArtifact>
-
-            <FloatingArtifact
-              className="-right-20 bottom-16 hidden lg:block"
-              tilt={-9}
-              float="slower"
-              delay={1.8}
-            >
-              <div className="w-40">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate">
-                  Dealer fee breakdown
-                </p>
-                <div className="mt-1.5 space-y-1 text-[11px] text-navy/70">
-                  <Line label="Doc fee" value="$699" flag />
-                  <Line label="Nitrogen" value="$199" flag />
-                  <Line label="VIN etch" value="$299" flag />
-                </div>
-              </div>
-            </FloatingArtifact>
-          </div>
-          <p className="mt-5 text-center">
-            <Link
-              href="/sample"
-              className="text-sm font-semibold text-gold-dark hover:underline"
-            >
-              See a full sample report →
-            </Link>
-          </p>
-        </Reveal>
+        {/* 3 route cards */}
+        <div className="mt-12 grid gap-5 pb-14 md:grid-cols-3">
+          <Reveal delay={60}>
+            <RouteCard
+              accent="green"
+              title="I have a quote from a dealer"
+              body="Send it to us. We'll review the numbers before you sign."
+              cta="Review my quote"
+              href="/check"
+              note="Free first scan"
+            />
+          </Reveal>
+          <Reveal delay={120}>
+            <RouteCard
+              accent="blue"
+              title="I know what I want, but want to be prepared"
+              body="Get your target price, fee checklist, and negotiation game plan."
+              cta="Help me shop"
+              href="/services"
+              note="Flat-fee pricing"
+            />
+          </Reveal>
+          <Reveal delay={180}>
+            <RouteCard
+              accent="gold"
+              title="I want someone to handle this for me"
+              body="We source, negotiate, and handle the heavy lifting for you."
+              cta="Handle it for me"
+              href="/services"
+              note="Concierge service"
+            />
+          </Reveal>
+        </div>
       </div>
     </section>
   );
 }
 
-function Line({
+const ACCENTS = {
+  green: {
+    chip: "text-green-dark",
+    icon: "bg-green-soft text-green-dark",
+    btn: "btn-green",
+    bar: "bg-green",
+  },
+  blue: {
+    chip: "text-blue-dark",
+    icon: "bg-blue-soft text-blue-dark",
+    btn: "btn-blue",
+    bar: "bg-blue",
+  },
+  gold: {
+    chip: "text-gold-dark",
+    icon: "bg-gold-soft text-gold-dark",
+    btn: "btn-gold",
+    bar: "bg-gold",
+  },
+} as const;
+
+type Accent = keyof typeof ACCENTS;
+
+function RouteCard({
+  accent,
+  title,
+  body,
+  cta,
+  href,
+  note,
+}: {
+  accent: Accent;
+  title: string;
+  body: string;
+  cta: string;
+  href: string;
+  note: string;
+}) {
+  const a = ACCENTS[accent];
+  return (
+    <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-edge bg-white p-6 text-ink shadow-card">
+      <span aria-hidden className={`h-1 w-12 rounded-full ${a.bar}`} />
+      <h3 className={`mt-4 text-lg font-bold ${a.chip}`}>{title}</h3>
+      <p className="mt-2 flex-1 text-sm leading-relaxed text-slate">{body}</p>
+      <Link href={href} className={`${a.btn} mt-5 w-full text-sm`}>
+        {cta}
+      </Link>
+      <p className="mt-2 text-center text-xs font-medium text-slate">{note}</p>
+    </div>
+  );
+}
+
+function DealSummaryCard() {
+  return (
+    <div className="mx-auto w-full max-w-sm rounded-2xl border border-white/15 bg-white p-5 text-ink shadow-glass">
+      <p className="text-center text-[11px] font-bold uppercase tracking-[0.16em] text-slate">
+        Your deal review summary
+      </p>
+      <div className="mt-4 space-y-3">
+        <SummaryRow label="Junk fees found" value="$1,241" tone="red" />
+        <SummaryRow label="Overpaying" value="$2,350" tone="red" />
+        <SummaryRow label="Better price range" value="$31,200–$31,800" tone="green" />
+      </div>
+      <div className="mt-4 rounded-xl bg-cream-100 px-4 py-3 text-xs leading-relaxed text-slate">
+        Review of your buyer&apos;s order, junk-fee + overcharge flags, market
+        price benchmark, and clear next steps.
+      </div>
+    </div>
+  );
+}
+
+function SummaryRow({
   label,
   value,
-  flag = false,
+  tone,
 }: {
   label: string;
   value: string;
-  flag?: boolean;
+  tone: "red" | "green";
 }) {
   return (
-    <div className="flex items-center justify-between gap-3">
-      <span>{label}</span>
-      <span className={flag ? "font-semibold text-flag-red" : "font-semibold"}>
+    <div className="flex items-center justify-between border-b border-edge pb-2.5 last:border-0 last:pb-0">
+      <span className="text-sm text-slate">{label}</span>
+      <span
+        className={`text-sm font-bold ${tone === "red" ? "text-flag-red" : "text-green"}`}
+      >
         {value}
       </span>
     </div>
@@ -210,610 +224,71 @@ function Line({
 }
 
 /* ========================================================================== */
-/*  SITUATION ROUTER — "Where are you in the deal?"                            */
+/*  TRUST BAR                                                                  */
 /* ========================================================================== */
 
-function SituationRouter() {
-  return (
-    <section id="where-are-you" className="relative scroll-mt-20 bg-cream-50">
-      <div aria-hidden className="absolute inset-0 bg-grid opacity-30" />
-      <div className="relative mx-auto max-w-6xl px-4 py-16 sm:py-20">
-        <Reveal>
-          <div className="mx-auto max-w-2xl text-center">
-            <h2 className="font-serif text-3xl font-semibold text-navy sm:text-4xl">
-              Where are you in the deal?
-            </h2>
-            <p className="mt-3 text-slate">
-              Tell us where you are and we&apos;ll point you the right way. Most
-              buyers start with a free Full Deal Check.
-            </p>
-          </div>
-        </Reveal>
-
-        {/* Card 1 — dominant, free. */}
-        <Reveal delay={80}>
-          <div className="ring-gradient mt-10 overflow-hidden rounded-3xl bg-white shadow-glass">
-            <div className="grid gap-0 lg:grid-cols-[1.4fr_1fr]">
-              <div className="p-7 sm:p-9">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-gold px-3 py-1 text-xs font-bold uppercase tracking-wide text-white shadow-sm">
-                  ★ Most buyers start here
-                </span>
-                <h3 className="mt-4 font-serif text-2xl font-semibold text-navy sm:text-3xl">
-                  I have paperwork from a dealer
-                </h3>
-                <p className="mt-2 max-w-md text-slate">
-                  Check the quote, payment, fees, trade, warranty, and add-ons
-                  before signing.
-                </p>
-                <div className="mt-6 flex flex-wrap items-center gap-3">
-                  <Link href="/check" className="btn-primary">
-                    Check my deal
-                  </Link>
-                  <span className="text-sm font-medium text-slate">
-                    Free first scan · about a minute
-                  </span>
-                </div>
-              </div>
-              <div className="relative hidden items-center justify-center overflow-hidden bg-gradient-to-br from-navy-900 to-navy-950 p-8 lg:flex">
-                <div className="orb right-0 top-0 h-48 w-48 bg-gold/25" aria-hidden />
-                <div className="relative w-full max-w-xs space-y-3">
-                  <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-cream/45">
-                    What a Full Deal Check returns
-                  </p>
-                  <ScoreRow label="Price" status="Verify first" tone="verify" pct={62} />
-                  <ScoreRow label="Fees" status="Push back" tone="warning" pct={30} />
-                  <ScoreRow label="APR" status="Verify first" tone="verify" pct={55} />
-                  <ScoreRow label="Warranty" status="Push back" tone="warning" pct={32} />
-                  <ScoreRow label="Trade" status="Check equity" tone="verify" pct={58} />
-                </div>
-              </div>
-            </div>
-          </div>
-        </Reveal>
-
-        {/* Cards 2–4 — secondary. */}
-        <div className="mt-6 grid gap-5 md:grid-cols-3">
-          <Reveal delay={120}>
-            <SituationCard
-              n={2}
-              accent="orange"
-              title="I already signed"
-              body="Understand what may still be cancellable, what changed, and what to document."
-              cta="Review my options"
-              href="/deal-rescue"
-            />
-          </Reveal>
-          <Reveal delay={180}>
-            <SituationCard
-              n={3}
-              accent="blue"
-              title="I'm still shopping"
-              body="Get a target price, negotiation plan, and paperwork review before you start talking numbers."
-              cta="Help me buy"
-              href="/services"
-            />
-          </Reveal>
-          <Reveal delay={240}>
-            <SituationCard
-              n={4}
-              accent="navy"
-              title="My credit may cost me"
-              body="3–9 months out? Prepare your credit before the finance office prices the deal around it."
-              cta="Explore Credit-to-Keys"
-              href="/credit-to-keys"
-            />
-          </Reveal>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function SituationCard({
-  n,
-  accent,
-  title,
-  body,
-  cta,
-  href,
-}: {
-  n: number;
-  accent: "orange" | "blue" | "navy";
-  title: string;
-  body: string;
-  cta: string;
-  href: string;
-}) {
-  const ring =
-    accent === "orange"
-      ? "text-flag-orange ring-flag-orange/25 bg-flag-orange/10"
-      : accent === "blue"
-        ? "text-navy ring-navy/15 bg-paleblue"
-        : "text-navy ring-navy/15 bg-navy/5";
-  return (
-    <div className="group flex h-full flex-col rounded-2xl border border-navy/10 bg-white/80 p-6 shadow-card backdrop-blur transition-all duration-300 hover:-translate-y-1 hover:border-gold/30 hover:shadow-lift">
-      <span
-        className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold ring-1 ${ring}`}
-      >
-        {n}
-      </span>
-      <h3 className="mt-4 font-serif text-lg font-semibold text-navy">{title}</h3>
-      <p className="mt-1.5 flex-1 text-sm leading-relaxed text-slate">{body}</p>
-      <Link
-        href={href}
-        className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-gold-dark transition group-hover:gap-2.5"
-      >
-        {cta}
-        <span aria-hidden className="transition-transform group-hover:translate-x-0.5">
-          →
-        </span>
-      </Link>
-    </div>
-  );
-}
-
-function ScoreRow({
-  label,
-  status,
-  tone,
-  pct,
-}: {
-  label: string;
-  status: string;
-  tone: "safe" | "verify" | "warning" | "danger";
-  pct: number;
-}) {
-  // Diagnostic palette: green = fair, blue = verify, amber = push back,
-  // red = do not sign. Gold is never used here (brand action only).
-  const bar =
-    tone === "safe"
-      ? "bg-verdict-green"
-      : tone === "verify"
-        ? "bg-verdict-blue"
-        : tone === "warning"
-          ? "bg-verdict-amber"
-          : "bg-verdict-red";
-  const text =
-    tone === "safe"
-      ? "text-verdict-green"
-      : tone === "verify"
-        ? "text-verdict-blue"
-        : tone === "warning"
-          ? "text-verdict-amber"
-          : "text-verdict-red";
-  return (
-    <div>
-      <div className="flex items-center justify-between text-xs font-semibold">
-        <span className="text-cream/85">{label}</span>
-        <span className={text}>{status}</span>
-      </div>
-      <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-white/10">
-        <div className={`h-full rounded-full ${bar}`} style={{ width: `${pct}%` }} />
-      </div>
-    </div>
-  );
-}
-
-/* ========================================================================== */
-/*  SAMPLE REPORT — proof, not a confusing action point                       */
-/* ========================================================================== */
-
-const SAMPLE_FLAGS = [
-  "Dealer fee padding",
-  "APR / payment mismatch",
-  "Warranty markup risk",
-  "Trade equity concern",
+const TRUST = [
+  { title: "We work for you.", sub: "Not the dealer." },
+  { title: "No commissions.", sub: "No kickbacks. Ever." },
+  { title: "Flat fees.", sub: "Transparent pricing." },
+  { title: "Advice you can trust.", sub: "Decisions you make." },
 ];
 
-function SampleReport() {
+function TrustBar() {
   return (
-    <section className="relative overflow-hidden bg-white">
-      <div aria-hidden className="absolute inset-0 bg-grid opacity-40" />
-      <div className="relative mx-auto grid max-w-6xl items-center gap-10 px-4 py-16 sm:py-20 lg:grid-cols-[1fr_1.05fr]">
-        <Reveal>
-          <div>
-            <span className="inline-flex items-center gap-2 rounded-full border border-navy/10 bg-cream-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gold-dark">
-              Sample report
+    <section className="relative overflow-hidden bg-navy-950 text-white">
+      <div aria-hidden className="absolute inset-0 bg-grid-dark opacity-30" />
+      <div className="relative mx-auto grid max-w-6xl gap-6 px-4 py-10 sm:grid-cols-2 lg:grid-cols-4">
+        {TRUST.map((t) => (
+          <div key={t.title} className="flex items-start gap-3">
+            <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gold/15 text-gold">
+              <ShieldCheck />
             </span>
-            <h2 className="mt-4 font-serif text-3xl font-semibold text-navy sm:text-4xl">
-              See what a real Deal Score looks like.
-            </h2>
-            <p className="mt-3 max-w-md text-slate">
-              Every check ends on a plain-English verdict, the dollars at stake,
-              and the exact lines to use at the desk. Here&apos;s a sample before
-              you run your own.
-            </p>
-            <div className="mt-6 flex flex-wrap items-center gap-3">
-              <Link href="/sample" className="btn-secondary">
-                See a sample pushback script
-              </Link>
-            </div>
-            <p className="mt-4">
-              <Link
-                href="/sample"
-                className="text-sm font-semibold text-gold-dark hover:underline"
-              >
-                See a full sample report →
-              </Link>
-            </p>
-          </div>
-        </Reveal>
-
-        {/* Sample card */}
-        <Reveal delay={120}>
-          <div className="mx-auto w-full max-w-md rounded-3xl border border-navy/10 bg-white p-6 shadow-glass">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate">
-                  2021 Toyota Camry · sample
-                </p>
-                <div className="mt-1 flex items-baseline gap-1">
-                  <span className="font-serif text-5xl font-bold text-verdict-amber">
-                    64
-                  </span>
-                  <span className="text-sm font-semibold text-navy/40">/100</span>
-                </div>
-              </div>
-              <RiskBadge tone="warning">Push back first</RiskBadge>
-            </div>
-
-            <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-gradient-to-r from-flag-red via-verdict-amber to-flag-green" />
-
-            <div className="mt-5 rounded-xl bg-gradient-to-br from-gold/10 to-paleblue/50 px-4 py-3">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate">
-                Potential savings spotted
-              </p>
-              <p className="font-serif text-2xl font-bold text-gold-dark">
-                $1,400–$2,900
-              </p>
-            </div>
-
-            <div className="mt-5">
-              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate">
-                Risk flags
-              </p>
-              <ul className="space-y-2">
-                {SAMPLE_FLAGS.map((f) => (
-                  <li
-                    key={f}
-                    className="flex items-center gap-2.5 rounded-lg border border-navy/10 bg-cream-50 px-3 py-2 text-sm font-semibold text-navy"
-                  >
-                    <span className="h-2 w-2 shrink-0 rounded-full bg-flag-orange" />
-                    {f}
-                  </li>
-                ))}
-              </ul>
+            <div>
+              <p className="text-sm font-bold text-white">{t.title}</p>
+              <p className="text-sm text-white/65">{t.sub}</p>
             </div>
           </div>
-        </Reveal>
+        ))}
       </div>
     </section>
   );
 }
 
 /* ========================================================================== */
-/*  TRUST BAND                                                                 */
+/*  WHAT WE HELP YOU AVOID                                                     */
 /* ========================================================================== */
 
-function TrustBand() {
-  return (
-    <section className="relative overflow-hidden bg-gradient-to-b from-navy-900 via-navy-950 to-navy-950 text-cream">
-      <div aria-hidden className="absolute inset-0">
-        <div className="absolute inset-0 bg-grid-dark opacity-50" />
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-gold/50 to-transparent" />
-        <div className="orb left-1/2 -top-28 h-56 w-[42rem] -translate-x-1/2 bg-gold/15" />
-        <div className="orb left-1/4 top-10 h-72 w-72 bg-gold/15" />
-        <div className="orb right-1/4 bottom-[-6rem] h-72 w-72 bg-paleblue/10" />
-      </div>
-      <div className="relative mx-auto max-w-4xl px-4 py-16 text-center sm:py-20">
-        <Reveal>
-          <h2 className="font-serif text-3xl font-semibold text-white sm:text-4xl">
-            The dealer has a team. Now you do too.
-          </h2>
-        </Reveal>
-        <Reveal delay={80}>
-          <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-cream/75 sm:text-lg">
-            Dealers have finance managers, lenders, warranty reps, and trained
-            closers. You get a buyer-side advocate that checks the math, flags
-            the traps, and tells you what to push back on.
-          </p>
-        </Reveal>
-        <Reveal delay={140}>
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-            <TrustPill>No dealer kickbacks</TrustPill>
-            <TrustPill>No lender commissions</TrustPill>
-            <TrustPill>No warranty company payouts</TrustPill>
-          </div>
-        </Reveal>
-        <Reveal delay={200}>
-          <div className="mt-8">
-            <Link href="/check" className="btn-primary">
-              Check my deal before I sign
-            </Link>
-          </div>
-        </Reveal>
-      </div>
-    </section>
-  );
-}
-
-/* ========================================================================== */
-/*  AT THE DEALERSHIP RIGHT NOW                                                */
-/* ========================================================================== */
-
-function AtTheDealership() {
-  const steps = [
-    "Snap the paperwork",
-    "Upload or answer a few questions",
-    "Get your deal score",
-    "Use the pushback script",
-  ];
-  return (
-    <section className="relative overflow-hidden bg-navy-950 text-cream">
-      <div aria-hidden className="absolute inset-0">
-        <div className="absolute inset-0 bg-grid-dark opacity-40" />
-        <div className="orb left-[-6rem] top-1/3 h-80 w-80 bg-flag-orange/15" />
-        <div className="orb right-[-4rem] bottom-0 h-72 w-72 bg-gold/15" />
-      </div>
-
-      <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-4 py-16 sm:py-20 lg:grid-cols-[1.1fr_1fr]">
-        <div>
-          <Reveal>
-            <span className="inline-flex items-center gap-2 rounded-full border border-flag-orange/30 bg-flag-orange/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-flag-orange">
-              <span className="h-1.5 w-1.5 animate-pulse-ring rounded-full bg-flag-orange" />
-              Time-sensitive
-            </span>
-          </Reveal>
-          <Reveal delay={60}>
-            <h2 className="mt-4 font-serif text-3xl font-semibold text-white sm:text-4xl">
-              At the dealership right now? Slow the deal down.
-            </h2>
-          </Reveal>
-          <Reveal delay={120}>
-            <p className="mt-4 max-w-xl text-base leading-relaxed text-cream/75">
-              Take a photo of the buyer&apos;s order, payment worksheet, warranty
-              menu, or finance quote. We&apos;ll help you spot what to question
-              before the paperwork becomes permanent.
-            </p>
-          </Reveal>
-          <Reveal delay={180}>
-            <ol className="mt-7 grid gap-3 sm:grid-cols-2">
-              {steps.map((s, i) => (
-                <li
-                  key={s}
-                  className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur"
-                >
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gold/20 text-sm font-bold text-gold-light">
-                    {i + 1}
-                  </span>
-                  <span className="text-sm font-semibold text-cream/90">{s}</span>
-                </li>
-              ))}
-            </ol>
-          </Reveal>
-          <Reveal delay={240}>
-            <Link href="/check" className="btn-primary mt-7">
-              Upload my paperwork now
-            </Link>
-          </Reveal>
-        </div>
-
-        <Reveal delay={140} className="relative">
-          <PhoneMockup />
-        </Reveal>
-      </div>
-    </section>
-  );
-}
-
-function PhoneMockup() {
-  return (
-    <div className="relative mx-auto w-full max-w-[18rem]">
-      <div className="absolute -inset-8 -z-10 rounded-[3rem] bg-gradient-to-br from-gold/30 via-flag-orange/15 to-transparent blur-2xl" />
-
-      <FloatingArtifact className="-left-10 top-10 hidden sm:block" tilt={14} float="slow">
-        <div className="h-16 w-12 rounded-md bg-gradient-to-b from-white to-cream-100 p-1.5">
-          <div className="h-1 w-8 rounded bg-navy/20" />
-          <div className="mt-1 h-1 w-6 rounded bg-navy/15" />
-          <div className="mt-1 h-1 w-7 rounded bg-navy/15" />
-        </div>
-      </FloatingArtifact>
-      <FloatingArtifact
-        className="-right-8 bottom-16 hidden sm:block"
-        tilt={-14}
-        float="slower"
-        delay={1}
-      >
-        <div className="h-16 w-12 rounded-md bg-gradient-to-b from-white to-cream-100 p-1.5">
-          <div className="h-1 w-7 rounded bg-navy/20" />
-          <div className="mt-1 h-1 w-8 rounded bg-navy/15" />
-          <div className="mt-1 h-1 w-5 rounded bg-flag-red/40" />
-        </div>
-      </FloatingArtifact>
-
-      <div className="relative rounded-[2.4rem] border border-white/15 bg-navy-900 p-3 shadow-glass-dark">
-        <div className="rounded-[1.9rem] bg-cream p-4">
-          <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-navy/15" />
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate">
-            2021 Toyota Camry · scan
-          </p>
-          <div className="mt-2 flex items-baseline gap-1">
-            <span className="font-serif text-4xl font-bold text-verdict-amber">64</span>
-            <span className="text-sm font-semibold text-navy/40">/100</span>
-          </div>
-          <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-gradient-to-r from-flag-red via-verdict-amber to-flag-green" />
-          <div className="mt-3 space-y-1.5">
-            <RiskBadge tone="danger" className="w-full justify-start">
-              Junk fee detected
-            </RiskBadge>
-            <RiskBadge tone="warning" className="w-full justify-start">
-              Push back first
-            </RiskBadge>
-          </div>
-          <div className="mt-3 rounded-lg bg-gradient-to-br from-gold/10 to-paleblue/50 px-3 py-2">
-            <p className="text-[9px] font-semibold uppercase tracking-wide text-slate">
-              Potential savings
-            </p>
-            <p className="font-serif text-base font-bold text-gold-dark">
-              $1,400–$2,900
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ========================================================================== */
-/*  FULL DEAL CHECK — recommended first step                                   */
-/* ========================================================================== */
-
-function FullDealCheckSection() {
-  const includes = [
-    "Price check",
-    "Fee check",
-    "APR / payment check",
-    "Trade-in review",
-    "Warranty / add-on scan",
-    "Plain-English verdict",
-  ];
-  return (
-    <section id="full-deal-check" className="relative scroll-mt-20">
-      <div className="mx-auto max-w-6xl px-4 py-16 sm:py-20">
-        <Reveal>
-          <h2 className="font-serif text-3xl font-semibold text-navy sm:text-4xl">
-            Start with the Full Deal Check
-          </h2>
-          <p className="mt-2 max-w-2xl text-slate">
-            The Full Deal Check reviews the whole deal first. If you only need one
-            narrow issue checked, use a focused check below.
-          </p>
-        </Reveal>
-
-        <Reveal delay={80}>
-          <div className="ring-gradient mt-8 overflow-hidden rounded-3xl bg-white shadow-glass">
-            <div className="grid gap-0 lg:grid-cols-[1.3fr_1fr]">
-              <div className="relative p-7 sm:p-9">
-                <div className="flex flex-wrap items-center gap-3">
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-gold px-3 py-1 text-xs font-bold uppercase tracking-wide text-white shadow-sm">
-                    ★ Recommended first step
-                  </span>
-                  <span className="text-2xl" aria-hidden>
-                    🔎
-                  </span>
-                </div>
-                <h3 className="mt-4 font-serif text-2xl font-semibold text-navy sm:text-3xl">
-                  Full Deal Check
-                </h3>
-                <p className="mt-2 max-w-md text-slate">
-                  Best for buyers who are about to sign or already have a quote. We
-                  score the whole deal and give you the numbers to use at the desk.
-                </p>
-                <ul className="mt-5 grid gap-2 sm:grid-cols-2">
-                  {includes.map((i) => (
-                    <li key={i} className="flex items-center gap-2 text-sm text-navy/80">
-                      <Check /> {i}
-                    </li>
-                  ))}
-                </ul>
-                <div className="mt-7 flex flex-wrap items-center gap-3">
-                  <Link href="/check" className="btn-primary">
-                    Start free deal check
-                  </Link>
-                  <Link
-                    href="/sample"
-                    className="text-sm font-semibold text-gold-dark hover:underline"
-                  >
-                    See a sample report →
-                  </Link>
-                </div>
-                <p className="mt-2 text-sm text-slate">
-                  Free first scan · about a minute
-                </p>
-              </div>
-
-              <div className="relative hidden items-center justify-center overflow-hidden bg-gradient-to-br from-navy-900 to-navy-950 p-8 lg:flex">
-                <div className="orb right-0 top-0 h-48 w-48 bg-gold/25" aria-hidden />
-                <div className="relative w-full max-w-xs space-y-3">
-                  <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-cream/45">
-                    What a Full Deal Check returns
-                  </p>
-                  <ScoreRow label="Price" status="Verify first" tone="verify" pct={62} />
-                  <ScoreRow label="Fees" status="Push back" tone="warning" pct={30} />
-                  <ScoreRow label="APR" status="Verify first" tone="verify" pct={55} />
-                  <ScoreRow label="Warranty" status="Push back" tone="warning" pct={32} />
-                  <ScoreRow label="Trade" status="Check equity" tone="verify" pct={58} />
-                </div>
-              </div>
-            </div>
-          </div>
-        </Reveal>
-      </div>
-    </section>
-  );
-}
-
-/* ========================================================================== */
-/*  FOCUSED CHECKS — secondary shortcuts                                       */
-/* ========================================================================== */
-
-const FOCUSED = [
-  {
-    emoji: "🛡️",
-    title: "Warranty / service contract check",
-    body: "Is the extended warranty / VSC / protection plan overpriced?",
-    href: "/warranty-check",
-  },
-  {
-    emoji: "📈",
-    title: "APR / payment check",
-    body: "Is the interest rate or monthly payment marked up?",
-    href: "/apr-check",
-  },
-  {
-    emoji: "🧾",
-    title: "Add-ons / fees check",
-    body: "Review GAP, tire/wheel, paint, doc fees, and add-ons.",
-    href: "/add-on-check",
-  },
+const AVOID: { label: string; icon: IconName }[] = [
+  { label: "Inflated dealer fees", icon: "receipt" },
+  { label: "Add-ons you don't need", icon: "shield" },
+  { label: "Bad financing structure", icon: "percent" },
+  { label: "Payment tricks", icon: "bolt" },
+  { label: "Weak trade-in offers", icon: "swap" },
+  { label: "Fake “mandatory” products", icon: "doc" },
+  { label: "Confusing OTD numbers", icon: "tag" },
 ];
 
-function FocusedChecks() {
+function WhatWeAvoid() {
   return (
-    <section className="relative bg-cream-100">
-      <div aria-hidden className="absolute inset-0 bg-grid opacity-40" />
-      <div className="relative mx-auto max-w-6xl px-4 py-12 sm:py-14">
+    <section className="bg-cream">
+      <div className="mx-auto max-w-6xl px-4 py-14 sm:py-16">
         <Reveal>
-          <h3 className="text-lg font-semibold text-navy">
-            Only need one thing checked?
-          </h3>
-          <p className="mt-1 text-sm text-slate">
-            Focused shortcuts for a single issue. The Full Deal Check above is the
-            better starting point for most buyers.
-          </p>
+          <h2 className="text-center text-2xl font-bold text-navy sm:text-3xl">
+            What we help you avoid
+          </h2>
         </Reveal>
-
-        <div className="mt-6 grid gap-4 sm:grid-cols-3">
-          {FOCUSED.map((f, i) => (
-            <Reveal key={f.href} delay={i * 60}>
-              <Link
-                href={f.href}
-                className="group flex h-full flex-col rounded-xl border border-navy/10 bg-white/70 p-5 shadow-sm backdrop-blur transition-all duration-300 hover:-translate-y-1 hover:border-gold/30 hover:shadow-card"
-              >
-                <span className="text-xl" aria-hidden>
-                  {f.emoji}
+        <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-7">
+          {AVOID.map((a, i) => (
+            <Reveal key={a.label} delay={(i % 7) * 40}>
+              <div className="flex h-full flex-col items-center gap-2.5 rounded-xl border border-edge bg-white px-3 py-5 text-center shadow-sm">
+                <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-cream-100 text-navy">
+                  <MatrixIcon name={a.icon} />
                 </span>
-                <p className="mt-2 text-sm font-bold text-navy">{f.title}</p>
-                <p className="mt-1 flex-1 text-sm leading-relaxed text-slate">
-                  {f.body}
-                </p>
-                <p className="mt-3 text-[11px] font-medium text-slate/80">
-                  ~30 sec · instant scan
-                </p>
-                <p className="text-[11px] text-slate/70">
-                  Human review available after scan
-                </p>
-              </Link>
+                <span className="text-xs font-semibold leading-tight text-ink">
+                  {a.label}
+                </span>
+              </div>
             </Reveal>
           ))}
         </div>
@@ -823,35 +298,89 @@ function FocusedChecks() {
 }
 
 /* ========================================================================== */
-/*  HUMAN REVIEW                                                               */
+/*  TARGET DEAL SHEET SAMPLE                                                   */
 /* ========================================================================== */
 
-function HumanReviewSection() {
+function TargetDealSheet() {
+  const points = [
+    "Realistic out-the-door target",
+    "Legit vs. junk fee checklist",
+    "Trade-in target range",
+    "Financing benchmark",
+    "Pressure-proof scripts",
+  ];
   return (
-    <section className="relative bg-white">
-      <div className="mx-auto max-w-6xl px-4 py-12 sm:py-14">
+    <section className="border-y border-edge bg-cream-100">
+      <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-16 sm:py-20 lg:grid-cols-[1fr_1fr]">
+        {/* Sample card */}
         <Reveal>
-          <div className="flex flex-col gap-5 rounded-2xl border border-navy/10 bg-cream-50 p-6 shadow-card sm:flex-row sm:items-center sm:justify-between sm:p-8">
-            <div className="max-w-xl">
-              <div className="flex items-center gap-2.5">
-                <span className="text-2xl" aria-hidden>
-                  🧑‍⚖️
-                </span>
-                <h3 className="font-serif text-xl font-semibold text-navy">
-                  Human review
-                </h3>
+          <div className="rounded-2xl border border-edge bg-white p-6 shadow-card">
+            <p className="text-center text-[11px] font-bold uppercase tracking-[0.16em] text-slate">
+              Target Deal Sheet (sample)
+            </p>
+            <div className="mt-4 space-y-3 text-sm">
+              <SheetRow label="Vehicle" value="2024 Toyota RAV4 XLE AWD" />
+              <SheetRow
+                label="Target out-the-door price"
+                value="$32,250"
+                strong
+                tone="green"
+              />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-lg border border-edge bg-cream-50 p-3">
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-green-dark">
+                    Fees — legit
+                  </p>
+                  <ul className="mt-1.5 space-y-1 text-xs text-slate">
+                    <li className="flex justify-between"><span>Doc fee (state cap)</span><span className="font-semibold text-ink">$85</span></li>
+                    <li className="flex justify-between"><span>Title</span><span className="font-semibold text-ink">$15</span></li>
+                    <li className="flex justify-between"><span>Reg / tags</span><span className="font-semibold text-ink">$215</span></li>
+                  </ul>
+                </div>
+                <div className="rounded-lg border border-flag-red/20 bg-flag-red/[0.04] p-3">
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-flag-red">
+                    Fees — often junk
+                  </p>
+                  <ul className="mt-1.5 space-y-1 text-xs text-slate">
+                    <li className="flex justify-between"><span>Market adjustment</span><span className="font-semibold text-flag-red">$0</span></li>
+                    <li className="flex justify-between"><span>Protection pkg</span><span className="font-semibold text-flag-red">$0</span></li>
+                    <li className="flex justify-between"><span>Nitrogen / etch</span><span className="font-semibold text-flag-red">$0</span></li>
+                  </ul>
+                </div>
               </div>
-              <p className="mt-2 text-sm leading-relaxed text-slate">
-                Want a real advocate to look at the deal? Submit your paperwork for
-                human review after the scan, or request it directly. Turnaround
-                depends on volume; rush review may be available.
-              </p>
-              <p className="mt-2 text-[11px] font-medium text-slate/80">
-                ~2 min to submit · human review
-              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <SheetRow label="Trade-in target" value="$15,500" />
+                <SheetRow label="Financing benchmark" value="5.49% or less" />
+              </div>
+              <div className="rounded-lg bg-navy px-4 py-2.5 text-center">
+                <span className="text-xs font-semibold uppercase tracking-wide text-white/60">
+                  Walk-away number{" "}
+                </span>
+                <span className="font-bold text-gold">$33,200</span>
+              </div>
             </div>
-            <Link href="/human-review" className="btn-secondary shrink-0">
-              Request human review
+          </div>
+        </Reveal>
+
+        {/* Copy */}
+        <Reveal delay={100}>
+          <div>
+            <h2 className="text-3xl font-bold text-navy sm:text-4xl">
+              The Target Deal Sheet&trade;
+            </h2>
+            <p className="mt-3 max-w-md text-slate">
+              We build a custom game plan so you know your numbers before the
+              dealer gives you theirs.
+            </p>
+            <ul className="mt-6 space-y-3">
+              {points.map((p) => (
+                <li key={p} className="flex items-center gap-3 text-sm font-semibold text-ink">
+                  <CheckDot /> {p}
+                </li>
+              ))}
+            </ul>
+            <Link href="/services" className="btn-blue mt-7">
+              Get my game plan
             </Link>
           </div>
         </Reveal>
@@ -860,36 +389,137 @@ function HumanReviewSection() {
   );
 }
 
+function SheetRow({
+  label,
+  value,
+  strong = false,
+  tone,
+}: {
+  label: string;
+  value: string;
+  strong?: boolean;
+  tone?: "green";
+}) {
+  return (
+    <div className="flex items-center justify-between rounded-lg border border-edge bg-cream-50 px-3 py-2">
+      <span className="text-xs font-medium text-slate">{label}</span>
+      <span
+        className={`text-sm font-bold ${tone === "green" ? "text-green" : "text-ink"} ${strong ? "text-base" : ""}`}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
 /* ========================================================================== */
-/*  ALREADY SIGNED / DEAL RESCUE                                               */
+/*  3 PATHS. 1 GOAL. A BETTER DEAL.                                            */
 /* ========================================================================== */
 
-function AlreadySignedSection() {
+const PATHS = [
+  {
+    n: 1,
+    accent: "green" as Accent,
+    tag: "I have a quote",
+    best: "Deal Rescue · Quote Review",
+    blurb: "You're close to signing. Let us review it.",
+    bullets: ["We review your numbers", "Spot junk fees & add-ons", "Benchmark your price", "Give you clear next steps"],
+    cta: "Review my quote",
+    href: "/check",
+    price: "Free first scan",
+  },
+  {
+    n: 2,
+    accent: "blue" as Accent,
+    tag: "I'm still shopping",
+    best: "Co-Pilot or Deal Maker",
+    blurb: "You want to be prepared before you walk in.",
+    bullets: ["Target Deal Sheet™", "Negotiation strategy", "Scripts & talking points", "Live support options"],
+    cta: "Build my plan",
+    href: "/services",
+    price: "From $349",
+  },
+  {
+    n: 3,
+    accent: "gold" as Accent,
+    tag: "Handle it for me",
+    best: "Concierge",
+    blurb: "You want an advocate to do the heavy lifting.",
+    bullets: ["We source & compare", "Negotiate with dealers", "Review paperwork", "Arrive at a clean deal"],
+    cta: "Start concierge",
+    href: "/services",
+    price: "From $1,499",
+  },
+];
+
+function ThreePaths() {
   return (
-    <section className="relative bg-white">
-      <div className="mx-auto max-w-6xl px-4 pb-12 sm:pb-14">
+    <section className="bg-cream">
+      <div className="mx-auto max-w-6xl px-4 py-16 sm:py-20">
         <Reveal>
-          <div className="flex flex-col gap-5 rounded-2xl border border-flag-orange/25 bg-flag-orange/[0.04] p-6 shadow-card sm:flex-row sm:items-center sm:justify-between sm:p-8">
-            <div className="max-w-xl">
-              <div className="flex items-center gap-2.5">
-                <span className="text-2xl" aria-hidden>
-                  🆘
-                </span>
-                <h3 className="font-serif text-xl font-semibold text-navy">
-                  Already signed / deal rescue
-                </h3>
-              </div>
-              <p className="mt-2 text-sm font-semibold text-navy/80">
-                &ldquo;I already signed and now I think something is wrong.&rdquo;
-              </p>
-              <p className="mt-1.5 text-sm leading-relaxed text-slate">
-                Understand what may still be cancellable, what changed, and what to
-                document.
-              </p>
-            </div>
-            <Link href="/deal-rescue" className="btn-secondary shrink-0">
-              I already signed
-            </Link>
+          <div className="mx-auto max-w-2xl text-center">
+            <h2 className="text-3xl font-bold text-navy sm:text-4xl">
+              3 Paths. 1 Goal. A Better Deal.
+            </h2>
+            <p className="mt-3 text-slate">
+              Tell us where you are in your car-buying process and we&apos;ll
+              point you in the right direction.
+            </p>
+          </div>
+        </Reveal>
+
+        <div className="mt-10 grid gap-6 lg:grid-cols-3">
+          {PATHS.map((p, i) => {
+            const a = ACCENTS[p.accent];
+            return (
+              <Reveal key={p.n} delay={i * 80}>
+                <div className="flex h-full flex-col rounded-2xl border border-edge bg-white p-7 shadow-card">
+                  <span
+                    className={`flex h-10 w-10 items-center justify-center rounded-full text-base font-bold ${a.icon}`}
+                  >
+                    {p.n}
+                  </span>
+                  <p className={`mt-4 text-xs font-bold uppercase tracking-wide ${a.chip}`}>
+                    {p.tag}
+                  </p>
+                  <p className="mt-1 text-sm text-slate">{p.blurb}</p>
+                  <div className={`mt-4 rounded-xl px-4 py-3 ${a.icon}`}>
+                    <p className="text-[10px] font-bold uppercase tracking-wide opacity-70">
+                      Best for you
+                    </p>
+                    <p className="text-sm font-bold">{p.best}</p>
+                  </div>
+                  <ul className="mt-5 flex-1 space-y-2.5">
+                    {p.bullets.map((b) => (
+                      <li key={b} className="flex items-center gap-2.5 text-sm text-ink">
+                        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${a.bar}`} />
+                        {b}
+                      </li>
+                    ))}
+                  </ul>
+                  <Link href={p.href} className={`${a.btn} mt-6 w-full text-sm`}>
+                    {p.cta}
+                  </Link>
+                  <p className="mt-2 text-center text-xs font-medium text-slate">
+                    {p.price}
+                  </p>
+                </div>
+              </Reveal>
+            );
+          })}
+        </div>
+
+        {/* Promise bar */}
+        <Reveal delay={120}>
+          <div className="mt-8 flex items-center gap-4 rounded-2xl bg-navy px-6 py-5 text-white">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gold/15 text-gold">
+              <ShieldCheck />
+            </span>
+            <p className="text-sm leading-relaxed text-white/85">
+              <span className="font-bold text-white">Our promise: </span>
+              We accept no commissions, kickbacks, finder&apos;s fees, or spiffs.
+              We are paid only by you, the buyer.
+            </p>
           </div>
         </Reveal>
       </div>
@@ -898,160 +528,199 @@ function AlreadySignedSection() {
 }
 
 /* ========================================================================== */
-/*  NOT AT THE SIGNING DESK YET — Help me buy + Credit-to-Keys                 */
+/*  CUSTOMER JOURNEY (FUNNELS)                                                 */
 /* ========================================================================== */
 
-function EarlierJourney() {
+const FUNNELS = [
+  {
+    accent: "green" as Accent,
+    title: "Funnel 1: Quote Review",
+    steps: [
+      ["Upload your quote", "Buyer's order, worksheet, or screenshot"],
+      ["Quick info", "Vehicle, ZIP, trade-in, financing status"],
+      ["Get your read", "Junk-fee flags + clear recommendations"],
+      ["Deal review report", "We analyze and send findings"],
+      ["Next step", "Co-Pilot / Deal Maker / Concierge"],
+    ],
+  },
+  {
+    accent: "blue" as Accent,
+    title: "Funnel 2: Target Deal Sheet",
+    steps: [
+      ["Tell us what you want", "Vehicle, trim, must-haves, budget"],
+      ["Provide details", "ZIP, trade-in, financing, timeline"],
+      ["Choose your plan", "Co-Pilot or Deal Maker"],
+      ["Receive your plan", "Target Deal Sheet, scripts, strategy"],
+      ["Support during negotiation", "Add-on support if needed"],
+    ],
+  },
+  {
+    accent: "gold" as Accent,
+    title: "Funnel 3: Concierge",
+    steps: [
+      ["Application", "Tell us what you're looking for"],
+      ["Discovery call", "We confirm scope & expectations"],
+      ["Custom agreement", "Scope, timeline, flat fee"],
+      ["We get to work", "Source, negotiate, review paperwork"],
+      ["You get a better deal", "Delivered with confidence"],
+    ],
+  },
+];
+
+function CustomerJourney() {
   return (
-    <section className="relative overflow-hidden bg-cream-100">
-      <div aria-hidden className="absolute inset-0 bg-grid opacity-40" />
-      <div className="relative mx-auto max-w-6xl px-4 py-16 sm:py-20">
+    <section className="border-y border-edge bg-cream-100">
+      <div className="mx-auto max-w-6xl px-4 py-16 sm:py-20">
         <Reveal>
-          <h2 className="font-serif text-3xl font-semibold text-navy sm:text-4xl">
-            Not at the signing desk yet?
+          <h2 className="text-2xl font-bold text-navy sm:text-3xl">
+            The customer journey
           </h2>
-          <p className="mt-2 max-w-2xl text-slate">
-            Get ahead of the finance office before you ever start talking numbers.
+          <p className="mt-2 text-slate">
+            Three clear paths — pick the one that fits where you are.
           </p>
         </Reveal>
 
-        <div className="mt-8 grid gap-5 md:grid-cols-2">
-          <Reveal delay={80}>
-            <EarlierCard
-              emoji="🧭"
-              title="Help me buy"
-              body="For buyers who are still shopping and want a target price, negotiation strategy, and deal review before they start."
-              cta="Get buying help"
-              href="/services"
-            />
-          </Reveal>
-          <Reveal delay={140}>
-            <EarlierCard
-              emoji="🔑"
-              title="Credit-to-Keys"
-              body="For buyers 3–9 months out who need to improve approval odds, rate position, or buying readiness before shopping."
-              cta="Explore Credit-to-Keys"
-              href="/credit-to-keys"
-            />
-          </Reveal>
+        <div className="mt-10 grid gap-6 lg:grid-cols-3">
+          {FUNNELS.map((f, i) => {
+            const a = ACCENTS[f.accent];
+            return (
+              <Reveal key={f.title} delay={i * 80}>
+                <div className="h-full rounded-2xl border border-edge bg-white p-6 shadow-card">
+                  <p className={`text-xs font-bold uppercase tracking-wide ${a.chip}`}>
+                    {f.title}
+                  </p>
+                  <ol className="mt-4 space-y-4">
+                    {f.steps.map((s, idx) => (
+                      <li key={s[0]} className="flex gap-3">
+                        <span
+                          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${a.icon}`}
+                        >
+                          {idx + 1}
+                        </span>
+                        <div>
+                          <p className="text-sm font-bold text-ink">{s[0]}</p>
+                          <p className="text-xs leading-relaxed text-slate">{s[1]}</p>
+                        </div>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              </Reveal>
+            );
+          })}
         </div>
       </div>
     </section>
   );
 }
 
-function EarlierCard({
-  emoji,
-  title,
-  body,
-  cta,
-  href,
-}: {
-  emoji: string;
-  title: string;
-  body: string;
-  cta: string;
-  href: string;
-}) {
+/* ========================================================================== */
+/*  SERVICE EXAMPLES                                                           */
+/* ========================================================================== */
+
+const SERVICES = [
+  {
+    accent: "green" as Accent,
+    name: "Deal Rescue — Quote Review",
+    blurb: "Already have numbers from a dealer? Send them to us before you sign.",
+    bullets: ["Review of your buyer's order/worksheet", "Spot junk fees & overcharges", "Benchmark pricing in your market", "Clear recommendations"],
+    cta: "Review my deal — $199",
+    href: "/services",
+  },
+  {
+    accent: "blue" as Accent,
+    name: "Co-Pilot — Negotiation Support",
+    blurb: "You handle the conversations. We give you the game plan.",
+    bullets: ["Target Deal Sheet™", "Negotiation scripts & talking points", "Fee & add-on checklist", "Live call/text support"],
+    cta: "Get my game plan — from $349",
+    href: "/services",
+  },
+  {
+    accent: "blue" as Accent,
+    name: "Deal Maker — Full Strategy",
+    blurb: "We build the offer and strategy before you talk to any dealer.",
+    bullets: ["Vehicle & market research", "Custom offer strategy", "Dealer short list & outreach plan", "Negotiation roadmap"],
+    cta: "Build my strategy — from $749",
+    href: "/services",
+  },
+  {
+    accent: "gold" as Accent,
+    name: "Concierge — We Handle It",
+    blurb: "We source, negotiate, and handle the process so you get a clean deal.",
+    bullets: ["Vehicle sourcing & comparison", "Direct negotiation with dealers", "Paperwork review", "Delivery coordination"],
+    cta: "Let us handle it — from $1,499",
+    href: "/services",
+  },
+];
+
+function ServiceExamples() {
   return (
-    <div className="group flex h-full flex-col rounded-2xl border border-navy/10 bg-white/80 p-6 shadow-card backdrop-blur transition-all duration-300 hover:-translate-y-1 hover:border-gold/30 hover:shadow-lift sm:p-7">
-      <span
-        className="flex h-11 w-11 items-center justify-center rounded-xl bg-navy/5 text-2xl ring-1 ring-navy/10"
-        aria-hidden
-      >
-        {emoji}
-      </span>
-      <h3 className="mt-4 font-serif text-xl font-semibold text-navy">{title}</h3>
-      <p className="mt-1.5 flex-1 text-sm leading-relaxed text-slate">{body}</p>
-      <Link
-        href={href}
-        className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-gold-dark transition group-hover:gap-2.5"
-      >
-        {cta}
-        <span aria-hidden className="transition-transform group-hover:translate-x-0.5">
-          →
-        </span>
-      </Link>
-    </div>
+    <section className="bg-cream">
+      <div className="mx-auto max-w-6xl px-4 py-16 sm:py-20">
+        <Reveal>
+          <h2 className="text-2xl font-bold text-navy sm:text-3xl">
+            Service pages
+          </h2>
+          <p className="mt-2 text-slate">
+            Pick the level of help that fits your moment. Flat fees, paid only by
+            you.
+          </p>
+        </Reveal>
+
+        <div className="mt-10 grid gap-6 sm:grid-cols-2">
+          {SERVICES.map((s, i) => {
+            const a = ACCENTS[s.accent];
+            return (
+              <Reveal key={s.name} delay={(i % 2) * 80}>
+                <div className="flex h-full flex-col rounded-2xl border border-edge bg-white p-6 shadow-card">
+                  <span aria-hidden className={`h-1 w-12 rounded-full ${a.bar}`} />
+                  <h3 className={`mt-4 text-lg font-bold ${a.chip}`}>{s.name}</h3>
+                  <p className="mt-1.5 text-sm text-slate">{s.blurb}</p>
+                  <ul className="mt-4 flex-1 space-y-2">
+                    {s.bullets.map((b) => (
+                      <li key={b} className="flex items-center gap-2.5 text-sm text-ink">
+                        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${a.bar}`} />
+                        {b}
+                      </li>
+                    ))}
+                  </ul>
+                  <Link href={s.href} className={`${a.btn} mt-6 self-start text-sm`}>
+                    {s.cta}
+                  </Link>
+                </div>
+              </Reveal>
+            );
+          })}
+        </div>
+      </div>
+    </section>
   );
 }
 
 /* ========================================================================== */
-/*  RED FLAG MATRIX — compact                                                  */
+/*  RED FLAG MATRIX — compact (compliance-aligned)                            */
 /* ========================================================================== */
 
 const MATRIX = [
-  {
-    title: "Price",
-    icon: "tag",
-    body: "Markups and out-the-door numbers that do not add up.",
-    detail:
-      "a “market adjustment” or accessory markup quietly baked into the out-the-door number.",
-  },
-  {
-    title: "Fees",
-    icon: "receipt",
-    body: "Doc, prep, nitrogen, VIN-etch, and vague dealer padding.",
-    detail:
-      "dealer-installed packages — nitrogen, etch, recon — bundled in as if they were mandatory.",
-  },
-  {
-    title: "Financing",
-    icon: "percent",
-    body: "APR markup, stretched terms, and payment packing.",
-    detail:
-      "the payment looks right, but the APR is marked up over what you qualify for, or the term is stretched.",
-  },
-  {
-    title: "Trade-in",
-    icon: "swap",
-    body: "Lowball values and buried negative-equity games.",
-    detail:
-      "a lowball trade with your negative equity quietly rolled into the new loan.",
-  },
-  {
-    title: "Warranty & F&I",
-    icon: "shield",
-    body: "Overpriced VSCs, GAP, tire/wheel, and add-on bundles.",
-    detail:
-      "a VSC, GAP, or protection bundle priced at 2–3× cost and pitched as “only $X a month.”",
-  },
-  {
-    title: "Used-car risk",
-    icon: "car",
-    body: "Condition, history, title, and mileage red flags.",
-    detail:
-      "title, history, or mileage issues that do not surface until after you have signed.",
-  },
-  {
-    title: "Contract mismatch signals",
-    icon: "doc",
-    body: "Signed terms that drift from the quote you agreed to.",
-    detail:
-      "numbers on the signed contract that drift from the quote you agreed to.",
-  },
-  {
-    title: "Pressure tactics",
-    icon: "bolt",
-    body: "Spot delivery, rushed signing, and today-only claims.",
-    detail:
-      "spot delivery and “today only” urgency engineered to rush your signature.",
-  },
-] as const;
+  { title: "Price", icon: "tag" as IconName, body: "Markups and out-the-door numbers that do not add up.", detail: "a “market adjustment” quietly baked into the out-the-door number." },
+  { title: "Fees", icon: "receipt" as IconName, body: "Doc, prep, nitrogen, VIN-etch, and vague dealer padding.", detail: "dealer-installed packages bundled in as if they were mandatory." },
+  { title: "Financing", icon: "percent" as IconName, body: "APR markup, stretched terms, and payment packing.", detail: "the payment looks right, but the APR is marked up over what you qualify for." },
+  { title: "Trade-in", icon: "swap" as IconName, body: "Lowball values and buried negative-equity games.", detail: "a lowball trade with your negative equity rolled into the new loan." },
+  { title: "Warranty & F&I", icon: "shield" as IconName, body: "Overpriced VSCs, GAP, tire/wheel, and add-on bundles.", detail: "a VSC or protection bundle priced at 2–3× cost and pitched “only $X a month.”" },
+  { title: "Used-car risk", icon: "car" as IconName, body: "Condition, history, title, and mileage red flags.", detail: "title, history, or mileage issues that surface only after you sign." },
+  { title: "Contract mismatch signals", icon: "doc" as IconName, body: "Signed terms that drift from the quote you agreed to.", detail: "numbers on the signed contract that drift from the quote you agreed to." },
+  { title: "Pressure tactics", icon: "bolt" as IconName, body: "Spot delivery, rushed signing, and today-only claims.", detail: "spot delivery and “today only” urgency engineered to rush your signature." },
+];
 
 function RedFlagMatrix() {
   return (
-    <section
-      id="what-we-catch"
-      className="relative scroll-mt-20 overflow-hidden bg-white"
-    >
-      <div aria-hidden className="absolute inset-0 bg-grid opacity-40" />
-      <div className="relative mx-auto max-w-6xl px-4 py-16 sm:py-20">
+    <section id="what-we-catch" className="scroll-mt-20 border-y border-edge bg-cream-100">
+      <div className="mx-auto max-w-6xl px-4 py-16 sm:py-20">
         <Reveal>
-          <span className="inline-flex items-center gap-2 rounded-full border border-navy/10 bg-cream-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gold-dark">
+          <span className="inline-flex items-center gap-2 rounded-full border border-edge bg-white px-3 py-1 text-xs font-semibold uppercase tracking-wide text-navy">
             Proprietary diagnostic
           </span>
-          <h2 className="mt-4 font-serif text-3xl font-semibold text-navy sm:text-4xl">
+          <h2 className="mt-4 text-3xl font-bold text-navy sm:text-4xl">
             The Driveway Red Flag Matrix&trade;
           </h2>
           <p className="mt-2 max-w-2xl text-slate">
@@ -1075,14 +744,14 @@ function RedFlagMatrix() {
         </div>
 
         <Reveal delay={120}>
-          <div className="mt-8 flex flex-wrap items-center gap-4">
+          <p className="mt-7">
             <Link
               href="/sample"
-              className="inline-flex items-center gap-1.5 text-sm font-semibold text-gold-dark hover:underline"
+              className="text-sm font-bold text-blue hover:underline"
             >
               See what we check →
             </Link>
-          </div>
+          </p>
         </Reveal>
 
         <Reveal delay={160}>
@@ -1099,97 +768,44 @@ function RedFlagMatrix() {
 }
 
 /* ========================================================================== */
-/*  HOW IT WORKS                                                               */
-/* ========================================================================== */
-
-function HowItWorks() {
-  const steps = [
-    {
-      n: 1,
-      title: "Upload or tap in the offer",
-      body: "Snap a photo of the quote, or tap through a few questions — no forms.",
-    },
-    {
-      n: 2,
-      title: "Get your Deal Score",
-      body: "See whether to sign, push back, or walk — with a fairness read on every line.",
-    },
-    {
-      n: 3,
-      title: "Push back with confidence",
-      body: "Plain-English flags and the exact numbers to use with the dealer.",
-    },
-  ];
-  return (
-    <section id="how-it-works" className="scroll-mt-20 bg-cream-50">
-      <div className="mx-auto max-w-6xl px-4 py-16 sm:py-20">
-        <Reveal>
-          <h2 className="font-serif text-3xl font-semibold text-navy sm:text-4xl">
-            How it works
-          </h2>
-          <p className="mt-2 text-slate">Three steps. About a minute.</p>
-        </Reveal>
-
-        <div className="relative mt-10 grid gap-6 sm:grid-cols-3">
-          <div
-            aria-hidden
-            className="absolute left-0 right-0 top-9 hidden h-px bg-gradient-to-r from-transparent via-gold/40 to-transparent sm:block"
-          />
-          {steps.map((s, i) => (
-            <Reveal key={s.n} delay={i * 90} className="relative">
-              <div className="group h-full rounded-2xl border border-navy/10 bg-white/80 p-6 shadow-card backdrop-blur transition-all duration-300 hover:-translate-y-1.5 hover:shadow-lift">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-b from-gold to-gold-dark font-serif text-xl font-bold text-white shadow-glow">
-                  {s.n}
-                </div>
-                <h3 className="mt-4 text-lg font-semibold text-navy">{s.title}</h3>
-                <p className="mt-1.5 text-sm leading-relaxed text-slate">{s.body}</p>
-              </div>
-            </Reveal>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* ========================================================================== */
 /*  FINAL CTA + DISCLAIMER                                                     */
 /* ========================================================================== */
 
 function FinalCta() {
   return (
-    <section className="relative overflow-hidden bg-gradient-to-b from-navy-900 to-navy-950 text-cream">
+    <section className="relative overflow-hidden bg-navy-950 text-white">
       <div aria-hidden className="absolute inset-0">
         <div className="absolute inset-0 bg-grid-dark opacity-40" />
-        <div className="orb left-1/2 top-[-6rem] h-64 w-[40rem] -translate-x-1/2 bg-gold/15" />
+        <div className="orb left-1/2 top-[-6rem] h-64 w-[40rem] -translate-x-1/2 bg-blue/20" />
       </div>
       <div className="relative mx-auto max-w-3xl px-4 py-16 text-center sm:py-20">
         <Reveal>
-          <h2 className="font-serif text-3xl font-semibold text-white sm:text-4xl">
+          <h2 className="text-3xl font-bold sm:text-4xl">
             Before you sign, get the numbers checked.
           </h2>
         </Reveal>
         <Reveal delay={80}>
-          <p className="mx-auto mt-3 max-w-xl text-base leading-relaxed text-cream/75">
+          <p className="mx-auto mt-3 max-w-xl text-base leading-relaxed text-white/75">
             Free first scan, no account needed, about a minute. You always make
             the final decision.
           </p>
         </Reveal>
         <Reveal delay={140}>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Link href="/check" className="btn-primary text-base">
-              Check my deal before I sign
+            <Link href="/check" className="btn-green text-base">
+              Get started now
             </Link>
-            <Link href="/deal-rescue" className="btn-ghost-light text-base">
+            <Link href="/deal-rescue" className="btn-outline-light px-5 py-3 text-base">
               I already signed — what now?
             </Link>
           </div>
         </Reveal>
         <Reveal delay={200}>
-          <p className="mx-auto mt-10 max-w-2xl text-xs leading-relaxed text-cream/55">
+          <p className="mx-auto mt-10 max-w-2xl text-xs leading-relaxed text-white/55">
             Driveway Advocate provides decision support, not legal or financial
-            advice. We help buyers understand risk signals before they sign — and
-            we never take money from dealers, lenders, or warranty companies.
+            advice. We never take money from dealers, lenders, or warranty
+            companies. After a deal is signed, options are limited and outcomes
+            cannot be guaranteed.
           </p>
         </Reveal>
       </div>
@@ -1201,18 +817,21 @@ function FinalCta() {
 /*  SMALL SHARED BITS                                                          */
 /* ========================================================================== */
 
-function Check() {
+function CheckDot() {
   return (
-    <svg viewBox="0 0 20 20" className="h-4 w-4 shrink-0 text-gold-dark" aria-hidden>
-      <circle cx="10" cy="10" r="9" fill="currentColor" fillOpacity="0.12" />
-      <path
-        d="M6 10.5l2.5 2.5L14 7"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-green-soft text-green-dark">
+      <svg viewBox="0 0 20 20" className="h-3 w-3" fill="none" aria-hidden>
+        <path d="M5 10.5l2.5 2.5L15 7" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </span>
+  );
+}
+
+function ShieldCheck() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+      <path d="M12 3 5 5.5V11c0 4.2 2.8 7.2 7 9 4.2-1.8 7-4.8 7-9V5.5L12 3Z" />
+      <path d="M9 12l2 2 4-4.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
