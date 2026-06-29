@@ -30,13 +30,13 @@ export default function SamplePage() {
         <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
           <div className="absolute inset-0 bg-gradient-to-b from-cream-50 via-cream to-cream" />
           <div className="absolute inset-0 bg-grid mask-fade-b opacity-60" />
-          <div className="orb -left-24 -top-20 h-96 w-96 bg-gold/15" />
+          <div className="orb -left-24 -top-20 h-96 w-96 bg-blue/10" />
           <div className="orb right-[-8rem] top-24 h-[26rem] w-[26rem] bg-paleblue/60" />
         </div>
 
         {/* Intro — answer "what do I actually get?" */}
         <section className="mx-auto max-w-3xl px-4 pt-12 text-center sm:pt-16">
-          <span className="inline-flex items-center gap-2 rounded-full border border-gold/30 bg-white/70 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gold-dark shadow-sm backdrop-blur">
+          <span className="inline-flex items-center gap-2 rounded-full border border-edge bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-navy shadow-sm backdrop-blur">
             Sample report
           </span>
           <h1 className="mt-5 font-serif text-4xl font-semibold leading-[1.08] text-navy sm:text-5xl">
@@ -62,7 +62,7 @@ export default function SamplePage() {
         {/* The real report, rendered through the production verdict system */}
         <section className="mx-auto max-w-md px-4 pb-6 pt-12">
           <div className="mb-3 flex items-center gap-2">
-            <span className="h-2 w-2 animate-pulse-ring rounded-full bg-gold" />
+            <span className="h-2 w-2 animate-pulse-ring rounded-full bg-green" />
             <span className="text-[11px] font-semibold uppercase tracking-wider text-slate">
               Live sample · 2021 Toyota Camry
             </span>
@@ -109,7 +109,7 @@ function Check() {
   return (
     <svg
       viewBox="0 0 20 20"
-      className="mt-0.5 h-4 w-4 shrink-0 text-gold-dark"
+      className="mt-0.5 h-4 w-4 shrink-0 text-green-dark"
       aria-hidden
     >
       <circle cx="10" cy="10" r="9" fill="currentColor" fillOpacity="0.12" />
