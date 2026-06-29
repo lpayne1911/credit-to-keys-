@@ -1,8 +1,10 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Disclaimer } from "@/components/Disclaimer";
 import { VerdictView } from "@/components/VerdictView";
 import { RequestReviewButton } from "@/components/RequestReviewButton";
 import { getDealById } from "@/lib/deals";
+import { isDealReviewResult } from "@/lib/deal-engine/is-deal-review";
 import type { FairnessResult } from "@/lib/fairness-engine";
 
 export const metadata = {
@@ -15,6 +17,13 @@ export default async function VerdictPage({
   params: { id: string };
 }) {
   const deal = await getDealById(params.id);
+
+  // A deal submitted through Quote Review stores a Deal Review result in the
+  // shared column; it renders on its own page, not here. Send the buyer there
+  // instead of trying (and failing) to show it as a fairness verdict.
+  if (deal && isDealReviewResult(deal.auto_result)) {
+    redirect(`/deal-review/${deal.id}`);
+  }
 
   return (
     <div className="relative flex min-h-[100dvh] flex-col bg-cream">
@@ -48,9 +57,23 @@ export default async function VerdictPage({
                   loan={loanOf(deal)}
                 />
               ) : (
-                <p className="text-navy/60">
-                  We couldn&apos;t load the verdict for this deal.
-                </p>
+                <div className="card text-center">
+                  <h1 className="font-serif text-xl font-semibold text-navy">
+                    We couldn&apos;t load this verdict
+                  </h1>
+                  <p className="mx-auto mt-2 max-w-sm text-sm text-navy/60">
+                    This deal was saved, but its verdict isn&apos;t available yet.
+                    Run a fresh check or have a human take a look.
+                  </p>
+                  <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-center">
+                    <Link href="/check" className="btn-primary">
+                      Check a deal
+                    </Link>
+                    <Link href="/human-review" className="btn-secondary">
+                      Get human review
+                    </Link>
+                  </div>
+                </div>
               )}
 
               <RequestReviewButton
@@ -95,7 +118,7 @@ function VerdictNextSteps({ result }: { result: FairnessResult | null }) {
     items.push({ href: "/apr-check", label: "Check APR / payment" });
   if (types.has("junk_fee") || types.has("overpriced_addon") || types.has("government_fee"))
     items.push({ href: "/add-on-check", label: "Review add-ons & fees" });
-  items.push({ href: "/deal-rescue", label: "I already signed" });
+  items.push({ href: "/post-sale-triage", label: "I already signed" });
   return (
     <div className="glass p-4">
       <p className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-slate">
