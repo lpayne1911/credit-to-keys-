@@ -23,6 +23,7 @@
   --da-gold-soft: #fff4dd;
 
   --da-red: #c2412d;
+  --da-red-dark: #9f2f20;
   --da-red-soft: #fdecea;
   --da-orange: #e17b22;
   --da-orange-soft: #fff0e3;
@@ -92,6 +93,14 @@
       text-base font-semibold uppercase tracking-wide text-white shadow-[0_8px_24px_-8px_rgba(201,138,18,0.55)]
       transition-all duration-200 hover:-translate-y-0.5 hover:bg-gold-dark
       focus:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2
+      focus-visible:ring-offset-cream disabled:cursor-not-allowed disabled:opacity-60;
+  }
+  /* RED — post-sale triage path ONLY (never a generic CTA). */
+  .btn-red {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-red px-6 py-3
+      text-base font-semibold uppercase tracking-wide text-white shadow-[0_8px_24px_-8px_rgba(194,65,45,0.55)]
+      transition-all duration-200 hover:-translate-y-0.5 hover:bg-red-dark
+      focus:outline-none focus-visible:ring-2 focus-visible:ring-red focus-visible:ring-offset-2
       focus-visible:ring-offset-cream disabled:cursor-not-allowed disabled:opacity-60;
   }
   .btn-secondary {

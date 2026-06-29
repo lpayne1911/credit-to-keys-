@@ -52,6 +52,17 @@ const config: Config = {
           dark: "#083968",
           soft: "#EAF2FB",
         },
+        // RED — post-sale triage funnel only (also risk/overcharge).
+        red: {
+          DEFAULT: "#C2412D",
+          dark: "#9F2F20",
+          soft: "#FDECEA",
+        },
+        // ORANGE — caution accent within post-sale / risk.
+        orange: {
+          DEFAULT: "#E17B22",
+          soft: "#FFF0E3",
+        },
         // Cool neutral surfaces (formerly "cream"): page bg, washes, cards.
         cream: {
           DEFAULT: "#F6F8FB", // page background

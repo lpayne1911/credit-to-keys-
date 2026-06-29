@@ -228,9 +228,9 @@ export const PRODUCTS: Product[] = [
   },
   {
     id: "deal-rescue",
-    label: "Already signed / deal rescue",
+    label: "Already signed / post-sale triage",
     shortDescription: "Bought it already? Understand your options.",
-    route: "/deal-rescue",
+    route: "/post-sale-triage",
     ctaLabel: "I already signed",
     ctaLabelAlts: ["Review my signed deal", "Help me after purchase"],
     intent: "I already bought the car and need help understanding it.",
@@ -254,6 +254,64 @@ export const PRODUCTS: Product[] = [
       ],
       result:
         "A decision-support summary of your likely options and the questions to ask, routed to a human advocate. No guarantees of cancellation or refund.",
+    },
+  },
+  {
+    id: "build-my-plan",
+    label: "Build My Plan",
+    shortDescription: "Target numbers, fee checklist, and a negotiation game plan before you shop.",
+    route: "/build-my-plan",
+    ctaLabel: "Build My Plan",
+    ctaLabelAlts: ["Get my game plan", "Help me shop"],
+    intent: "I'm still shopping and want to prepare before I go to the dealership.",
+    problem: "I want to know what to pay and what to say before I walk in.",
+    whoFor: "You haven't committed to a specific deal yet.",
+    estTime: "~3 min to submit",
+    intakeLabel: "Human",
+    type: "intake",
+    status: "beta",
+    usesAutomatedScoring: false,
+    supportsHumanReview: true,
+    supportsUpload: false,
+    emoji: "🎯",
+    page: {
+      what: "A Target Deal Sheet™: target out-the-door number, fee checklist, financing benchmark, trade-in target, and a negotiation game plan built before you talk price.",
+      inputs: [
+        "The vehicle you're targeting (and acceptable trims)",
+        "ZIP, budget or target payment, and timeline",
+        "Trade-in and financing status, if any",
+      ],
+      result:
+        "A custom plan and scripts, routed to a buyer-side advocate. Decision support only — no guaranteed savings.",
+    },
+  },
+  {
+    id: "concierge",
+    label: "Concierge — We Handle It",
+    shortDescription: "We source, negotiate, and handle the process, from start to keys.",
+    route: "/concierge",
+    ctaLabel: "Apply Now",
+    ctaLabelAlts: ["Start Concierge", "Handle it for me"],
+    intent: "I want an advocate to handle the buying process for me.",
+    problem: "I don't want to deal with this. Handle it for me.",
+    whoFor: "You'd rather hand the process to a buyer-side advocate.",
+    estTime: "~10 min to apply",
+    intakeLabel: "Human",
+    type: "intake",
+    status: "beta",
+    usesAutomatedScoring: false,
+    supportsHumanReview: true,
+    supportsUpload: false,
+    emoji: "🔑",
+    page: {
+      what: "A done-for-you buyer-advocate service: sourcing, comparison, dealer negotiation, paperwork review, and delivery coordination — scope and a flat fee confirmed on a discovery call.",
+      inputs: [
+        "What you're looking for and your budget",
+        "ZIP, timeline, and trade-in status",
+        "Any dealbreakers or existing quotes",
+      ],
+      result:
+        "An application reviewed by a buyer-side advocate, then a discovery call. No guaranteed savings; we never take dealer money.",
     },
   },
 ];
@@ -282,9 +340,9 @@ export interface NavLink {
 export const NAV_LINKS: NavLink[] = [
   { label: "How it works", href: "/#how-it-works" },
   { label: "What we catch", href: "/#what-we-catch" },
-  { label: "Human review", href: "/human-review" },
-  { label: "Already signed?", href: "/deal-rescue" },
-  { label: "Check my deal", href: "/check", primary: true },
+  { label: "Concierge", href: "/concierge" },
+  { label: "Already signed?", href: "/post-sale-triage" },
+  { label: "Review my deal", href: "/quote-review", primary: true },
 ];
 
 /** Analytics event names for CTA clicks / intake submissions. */

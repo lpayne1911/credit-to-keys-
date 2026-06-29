@@ -15,7 +15,7 @@ describe("product CTA routing (rendered markup)", () => {
       ["apr-check", "/apr-check"],
       ["add-on-check", "/add-on-check"],
       ["human-review", "/human-review"],
-      ["deal-rescue", "/deal-rescue"],
+      ["deal-rescue", "/post-sale-triage"],
     ];
     for (const [id, route] of cases) {
       const markup = html(createElement(ProductCard, { product: getProduct(id)! }));
@@ -29,21 +29,19 @@ describe("product CTA routing (rendered markup)", () => {
     expect(markup).toContain('href="/check"');
   });
 
-  it("footer exposes product links (not only the free check)", () => {
+  it("footer exposes the four funnel paths", () => {
     const markup = html(createElement(SiteFooter));
-    expect(markup).toContain('href="/products"');
-    expect(markup).toContain('href="/warranty-check"');
-    expect(markup).toContain('href="/apr-check"');
-    expect(markup).toContain('href="/add-on-check"');
-    expect(markup).toContain('href="/human-review"');
-    expect(markup).toContain('href="/deal-rescue"');
+    expect(markup).toContain('href="/quote-review"');
+    expect(markup).toContain('href="/build-my-plan"');
+    expect(markup).toContain('href="/concierge"');
+    expect(markup).toContain('href="/post-sale-triage"');
   });
 
-  it("header nav routes to human review, deal rescue, and the free check", () => {
+  it("header nav routes to the funnels with quote review as primary", () => {
     const markup = html(createElement(SiteHeader));
-    expect(markup).toContain('href="/human-review"');
-    expect(markup).toContain('href="/deal-rescue"');
-    expect(markup).toContain('href="/check"');
+    expect(markup).toContain('href="/concierge"');
+    expect(markup).toContain('href="/post-sale-triage"');
+    expect(markup).toContain('href="/quote-review"');
     expect(markup).toContain("How it works");
     expect(markup).toContain("What we catch");
     expect(markup).not.toContain("Pricing");
