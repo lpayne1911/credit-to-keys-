@@ -26,6 +26,21 @@ function baseInput(overrides: Partial<FairnessInput> = {}): FairnessInput {
 }
 
 describe("buildNegotiationScript", () => {
+  it("turns an above-market price flag into a 'Vehicle price' desk script point", () => {
+    const result = scoreDeal(
+      baseInput({
+        deal: { vehiclePrice: 31_000, creditBand: "unknown", fees: [] },
+        marketValue: { low: 28_000, high: 32_000, confidence: "high", basis: "MarketCheck comps." },
+        marketMedian: 30_000,
+        marketTarget: 28_800,
+      }),
+    );
+    const script = buildNegotiationScript(result);
+    const point = script.points.find((p) => p.heading === "Vehicle price");
+    expect(point).toBeTruthy();
+    expect(point!.say).toMatch(/comparable listings|market/i);
+  });
+
   it("makes one talking point per real flag and ignores info notes", () => {
     const result = scoreDeal(
       baseInput({

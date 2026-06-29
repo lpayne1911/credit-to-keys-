@@ -105,6 +105,8 @@ function headingFor(flag: Flag): string {
       return "Trade-in payoff";
     case "government_fee":
       return "Government fees";
+    case "overpriced_vehicle":
+      return "Vehicle price";
     default:
       return itemName(flag);
   }
@@ -151,6 +153,8 @@ function sayFor(flag: Flag, ctx: SayContext): string {
           : "";
       return `I'm not paying${quoted} for the service contract${fair}. Bring it to a fair price or I'll pass — I can buy coverage elsewhere.`;
     }
+    case "overpriced_vehicle":
+      return `Based on comparable listings nearby, this price is above the local market${impact}. Can you bring the selling price down closer to the market median?`;
     case "trade_lowball":
       return `Your offer on my trade-in is low${impact}. Please come up to a fair number, or I'll get competing offers and sell it myself.`;
     case "negative_equity":
