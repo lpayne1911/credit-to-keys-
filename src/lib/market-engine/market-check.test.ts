@@ -201,3 +201,66 @@ describe("fetchActiveListings query (comparables, not the single VIN)", () => {
     expect(lastUrl).not.toContain("ymmt=");
   });
 });
+
+describe("runMarketCheck premium-endpoint gating (Free-plan call budget)", () => {
+  const KEY = "MARKETCHECK_API_KEY";
+  const orig = {
+    key: process.env[KEY],
+    history: process.env.MARKETCHECK_HISTORY_ENABLED,
+    specs: process.env.MARKETCHECK_SPECS_ENABLED,
+  };
+  let urls: string[] = [];
+
+  function stubFetch(listings: number) {
+    vi.stubGlobal("fetch", async (url: unknown) => {
+      const u = String(url);
+      urls.push(u);
+      if (u.includes("/search/car/active")) {
+        const arr = Array.from({ length: listings }, (_, i) => ({
+          id: `l${i}`,
+          vin: i === 0 ? "JTEBU5JRXK5656862" : undefined,
+          price: 28_000 + i * 500,
+          miles: 20_000,
+          dom: 20 + i,
+          dist: 10 + i,
+          dealer: { name: "Test Toyota" },
+          build: { year: 2021, make: "Toyota", model: "Camry", trim: "XLE" },
+        }));
+        return { ok: true, json: async () => ({ num_found: listings, listings: arr }) } as unknown as Response;
+      }
+      return { ok: true, json: async () => ({ listings: [] }) } as unknown as Response;
+    });
+  }
+
+  beforeEach(() => {
+    process.env[KEY] = "test-key";
+    urls = [];
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    for (const [k, v] of [[KEY, orig.key], ["MARKETCHECK_HISTORY_ENABLED", orig.history], ["MARKETCHECK_SPECS_ENABLED", orig.specs]] as const) {
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+    }
+  });
+
+  it("on Free (flags off): one active call, no /decode/ or /recents/, dealer intel from comps", async () => {
+    delete process.env.MARKETCHECK_HISTORY_ENABLED;
+    delete process.env.MARKETCHECK_SPECS_ENABLED;
+    stubFetch(5);
+    const r = await runMarketCheck(req({ year: 2021, make: "Toyota", model: "Camry", trim: "XLE", vin: "JTEBU5JRXK5656862", zipCode: "80202" }));
+    expect(urls.some((u) => u.includes("/decode/"))).toBe(false);
+    expect(urls.some((u) => u.includes("/search/car/recents"))).toBe(false);
+    expect(urls.filter((u) => u.includes("/search/car/active")).length).toBe(1);
+    // dealer name + days-on-market derived from the matched comp (no extra call)
+    expect(r.dealerInsight?.dealerName).toBe("Test Toyota");
+    expect(r.dealerInsight?.thisListingDaysOnMarket).toBe(20);
+  });
+
+  it("requests recents only when MARKETCHECK_HISTORY_ENABLED=true", async () => {
+    process.env.MARKETCHECK_HISTORY_ENABLED = "true";
+    stubFetch(5);
+    await runMarketCheck(req({ year: 2021, make: "Toyota", model: "Camry", zipCode: "80202" }));
+    expect(urls.some((u) => u.includes("/search/car/recents"))).toBe(true);
+  });
+});

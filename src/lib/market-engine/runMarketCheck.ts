@@ -6,10 +6,9 @@
  */
 import {
   fetchActiveListings,
-  fetchListingByVin,
   fetchRecentListings,
   decodeVin,
-  type RawListing,
+  featureEnabled,
   type RawActiveResponse,
 } from "@/lib/sources/marketcheck/connector";
 import { demandFromDom, rankAmong } from "./signals";
@@ -72,9 +71,9 @@ function recentToDated(recent: RawActiveResponse): DatedPrice[] {
 function deriveDealerInsight(
   comps: ComparableListing[],
   trend: MarketTrend,
-  extra: { matched?: RawListing | null; refPrice?: number | null } = {},
+  extra: { dealerName?: string | null; thisDom?: number | null; refPrice?: number | null } = {},
 ): DealerMarketInsight | null {
-  if (comps.length === 0 && !extra.matched) return null;
+  if (comps.length === 0 && !extra.dealerName) return null;
   const competition = trend.supplyLevel; // low | moderate | high
   const insight =
     competition === "high"
@@ -82,12 +81,12 @@ function deriveDealerInsight(
       : competition === "low"
         ? "Comparable inventory is thin nearby, which can reduce your negotiating leverage."
         : `${trend.activeListings} comparable listings are active nearby — a balanced local market.`;
-  // Real, listings-derived fields for the searched car (when a VIN matched an
-  // active listing). similarAtDealer / avgPriceAtDealer need the dealer-inventory
-  // API, so they stay null and the report hides those rows.
-  const dealerName = extra.matched?.dealer?.name?.trim() || null;
+  // Real, listings-derived fields for the searched car (when its VIN appears in
+  // the comps we already fetched). similarAtDealer / avgPriceAtDealer need the
+  // dealer-inventory API (premium), so they stay null and the report hides them.
+  const dealerName = extra.dealerName?.trim() || null;
   const thisListingDaysOnMarket =
-    typeof extra.matched?.dom === "number" ? extra.matched.dom : null;
+    typeof extra.thisDom === "number" ? extra.thisDom : null;
   const priceRankAtDealer =
     extra.refPrice != null
       ? rankAmong(extra.refPrice, comps.map((c) => c.listPrice))
@@ -180,7 +179,10 @@ export async function runMarketCheck(request: MarketCheckRequest): Promise<Marke
     // vPIC equipment is the baseline; the MarketCheck specs decode (when the key
     // is set) overrides it via mergeSpecs where it has richer data.
     identity = applyEquipment(identity, vpicEquipment);
-    if (request2.vin) {
+    // The MarketCheck specs decode is a PREMIUM endpoint (403 on Free) and vPIC
+    // already supplies equipment for free — so only call it when explicitly
+    // enabled. MSRP (specs-only) stays null on Free and the report shows "—".
+    if (request2.vin && featureEnabled("specs")) {
       const specs = await decodeVin(request2.vin);
       identity = mergeSpecs(identity, specs);
     }
@@ -188,19 +190,31 @@ export async function runMarketCheck(request: MarketCheckRequest): Promise<Marke
     comps = normalizeListings(raw, identity);
     trend = deriveTrendFromComps(comps, raw.num_found ?? comps.length);
 
-    // Real dealer intel for the searched car from its own active listing.
-    const matched = request2.vin ? await fetchListingByVin(request2.vin) : null;
+    // Dealer name + days-on-market for the searched car, taken from the comps we
+    // ALREADY fetched (its VIN usually appears among the active listings) — no
+    // extra MarketCheck call, which matters on the 500-call Free plan.
+    const matched =
+      request2.vin
+        ? comps.find((c) => c.vin && c.vin.toUpperCase() === request2.vin!.toUpperCase()) ?? null
+        : null;
     const refPrice =
       request2.dealerAskingPrice ??
-      (typeof matched?.price === "number" ? matched.price : null);
-    dealerInsight = deriveDealerInsight(comps, trend, { matched, refPrice });
+      (typeof matched?.listPrice === "number" ? matched.listPrice : null);
+    dealerInsight = deriveDealerInsight(comps, trend, {
+      dealerName: matched?.dealerName ?? null,
+      thisDom: matched?.daysOnMarket ?? null,
+      refPrice,
+    });
 
-    // Real price history when the plan exposes recents/sold; otherwise the report
-    // falls back to the price-distribution. Best-effort, never fabricated.
-    const recent = await fetchRecentListings(request2);
-    const history = recent ? buildHistoryPoints(recentToDated(recent)) : null;
-    if (history) {
-      trend = { ...trend, points: history.points, trendDirection: history.trendDirection };
+    // Real price history needs the recents/sold endpoint (PREMIUM, 403 on Free).
+    // Gated so the Free plan never wastes a call; otherwise the report shows the
+    // real price-distribution instead. Lights up on upgrade via the env flag.
+    if (featureEnabled("history")) {
+      const recent = await fetchRecentListings(request2);
+      const history = recent ? buildHistoryPoints(recentToDated(recent)) : null;
+      if (history) {
+        trend = { ...trend, points: history.points, trendDirection: history.trendDirection };
+      }
     }
   } else {
     trend = deriveTrendFromComps([], 0); // placeholder; replaced below by mock

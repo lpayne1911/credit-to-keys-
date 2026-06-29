@@ -133,3 +133,22 @@ export async function decodeVin(vin: string): Promise<RawSpecs | null> {
 export function isConfigured(): boolean {
   return Boolean(apiKey());
 }
+
+/**
+ * Whether an optional PREMIUM MarketCheck endpoint is explicitly enabled. These
+ * default OFF so the Free plan (Inventory Search + decode only) never spends a
+ * call on — or 403s against — an endpoint it doesn't have. Flip the matching env
+ * var to "true" after upgrading to Basic+:
+ *   - "specs"   → MARKETCHECK_SPECS_ENABLED   (NeoVIN/Epi specs decode; MSRP/equipment)
+ *   - "history" → MARKETCHECK_HISTORY_ENABLED (Dealer Recent Inventory; price trend)
+ *   - "dealer"  → MARKETCHECK_DEALER_ENABLED  (Dealer API; same-dealer rows)
+ */
+export function featureEnabled(feature: "specs" | "history" | "dealer"): boolean {
+  const env =
+    feature === "specs"
+      ? process.env.MARKETCHECK_SPECS_ENABLED
+      : feature === "history"
+        ? process.env.MARKETCHECK_HISTORY_ENABLED
+        : process.env.MARKETCHECK_DEALER_ENABLED;
+  return env === "true";
+}
