@@ -1,5 +1,6 @@
 /**
- * Review console — list view. Private; gated by the v1 stopgap password.
+ * Review console — list view. Private; gated by operator auth (Supabase Auth +
+ * operator allowlist, see lib/console-auth.ts).
  *
  * This is the SEED of a future full operator console. It's intentionally
  * simple, but the data model (deals + findings + leads) and server-mediated
@@ -25,7 +26,7 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export default async function ConsolePage() {
-  if (!isConsoleAuthed()) {
+  if (!(await isConsoleAuthed())) {
     return (
       <main className="min-h-screen bg-navy/5 px-4 py-16">
         <ConsoleLogin configured={isConsoleConfigured()} />

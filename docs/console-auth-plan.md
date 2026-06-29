@@ -1,8 +1,18 @@
 # Console Auth — Replacing the v1 Stopgap
 
-_Plan to replace the single shared-password gate on the review console with real
-operator authentication. Companion to [`docs/SECURITY-REVIEW.md`](./SECURITY-REVIEW.md)
-finding #3._
+> **STATUS: IMPLEMENTED.** The shared-password gate is gone. The console now uses
+> Supabase Auth (email+password **and** social/OAuth — Google, Apple) gated by an
+> `operators` allowlist, with a `review_audit` trail. See
+> `supabase/migrations/0005_operators.sql`, `src/lib/console-auth.ts`,
+> `src/lib/supabase/ssr.ts`, and the routes under `src/app/api/console/`. The
+> design below is retained as the rationale + operator-onboarding runbook.
+>
+> **To go live:** (1) apply migration `0005`, (2) enable the Email + Google +
+> Apple providers in the Supabase dashboard (+ set each provider's OAuth client),
+> (3) seed the first admin operator (SQL at the bottom of the migration),
+> (4) optionally set `NEXT_PUBLIC_SITE_URL` for stable OAuth redirects.
+
+_Companion to [`docs/SECURITY-REVIEW.md`](./SECURITY-REVIEW.md) finding #3._
 
 ## Where we are today
 

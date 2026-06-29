@@ -1,63 +1,81 @@
 /**
  * ============================================================================
- *  REVIEW CONSOLE AUTH — DELIBERATE V1 STOPGAP. NOT REAL AUTH.
+ *  REVIEW CONSOLE AUTH — real per-operator authentication.
  * ============================================================================
  *
- *  The review console is gated by a SINGLE shared password from the
- *  CONSOLE_PASSWORD env var. On success we set a signed-ish httpOnly cookie so
- *  the operator stays logged in. There are NO user accounts, NO roles, NO
- *  per-operator audit trail, and NO brute-force protection.
+ *  The console is gated by Supabase Auth (email+password OR an OAuth/social
+ *  provider) PLUS an operator allowlist. Authenticating with Supabase is not
+ *  enough: the user's id must also appear in `public.operators` with
+ *  `active = true`. So:
  *
- *  >>> REPLACE WITH PROPER AUTH BEFORE LAUNCH <<<
- *  (e.g. Supabase Auth with an `operators` table + RLS, or an SSO provider).
- *  This console is the seed of a future full operator console — when you add
- *  real auth, keep this module's interface (isConsoleAuthed / cookie name) so
- *  the route guards don't have to change.
+ *      authorized  ==  valid Supabase session  AND  active operator row
+ *
+ *  This replaces the v1 single shared-password gate. The PUBLIC INTERFACE is
+ *  preserved — `isConsoleAuthed()` / `isConsoleConfigured()` keep their names so
+ *  the route guards and pages didn't have to change shape — but `isConsoleAuthed`
+ *  is now async (it validates a session and reads the allowlist).
+ *
+ *  - Session validation uses the cookie-wired anon client (`getConsoleClient`)
+ *    and `auth.getUser()`, which verifies the JWT against the Supabase auth
+ *    server (not just trusting the cookie).
+ *  - The allowlist is read with the service client (RLS default-deny means the
+ *    anon client can't see `operators`).
  *
  *  This file is SERVER ONLY.
  * ============================================================================
  */
 
-import { cookies } from "next/headers";
-import { createHmac, timingSafeEqual } from "crypto";
+import { getConsoleClient } from "./supabase/ssr";
+import { getServiceClient } from "./supabase/server";
 
-export const CONSOLE_COOKIE = "da_console";
-
-function expectedToken(): string | null {
-  const pw = process.env.CONSOLE_PASSWORD;
-  if (!pw) return null;
-  // Derive an opaque cookie value from the password so the raw password isn't
-  // stored in the cookie. NOT a substitute for real sessions — stopgap only.
-  return createHmac("sha256", pw).update("driveway-advocate-console").digest("hex");
+export interface ConsoleOperator {
+  userId: string;
+  email: string;
+  role: "reviewer" | "admin";
 }
 
-/** Constant-time check that a submitted password matches CONSOLE_PASSWORD. */
-export function passwordMatches(submitted: string): boolean {
-  const pw = process.env.CONSOLE_PASSWORD;
-  if (!pw) return false;
-  const a = Buffer.from(submitted);
-  const b = Buffer.from(pw);
-  if (a.length !== b.length) return false;
-  return timingSafeEqual(a, b);
-}
-
-export function consoleCookieValue(): string | null {
-  return expectedToken();
-}
-
-/** True when the current request carries a valid console session cookie. */
-export function isConsoleAuthed(): boolean {
-  const expected = expectedToken();
-  if (!expected) return false;
-  const got = cookies().get(CONSOLE_COOKIE)?.value;
-  if (!got) return false;
-  const a = Buffer.from(got);
-  const b = Buffer.from(expected);
-  if (a.length !== b.length) return false;
-  return timingSafeEqual(a, b);
-}
-
-/** Whether the console is usable at all (password configured). */
+/** Whether console auth can run at all (Supabase configured on the server). */
 export function isConsoleConfigured(): boolean {
-  return Boolean(process.env.CONSOLE_PASSWORD);
+  return Boolean(
+    process.env.NEXT_PUBLIC_SUPABASE_URL &&
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
+      process.env.SUPABASE_SERVICE_ROLE_KEY,
+  );
+}
+
+/**
+ * Resolve the current operator from the request's Supabase session, or null if
+ * not signed in, not an operator, or deactivated. This is the single source of
+ * truth for both the boolean guard and audit attribution.
+ */
+export async function getConsoleOperator(): Promise<ConsoleOperator | null> {
+  const auth = getConsoleClient();
+  const service = getServiceClient();
+  if (!auth || !service) return null;
+
+  // Validate the session against the auth server (not just the cookie).
+  const {
+    data: { user },
+    error: userErr,
+  } = await auth.auth.getUser();
+  if (userErr || !user) return null;
+
+  // Authorization: the authenticated user must be an active operator.
+  const { data: op, error: opErr } = await service
+    .from("operators")
+    .select("user_id, email, role, active")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (opErr || !op || op.active !== true) return null;
+
+  return {
+    userId: op.user_id as string,
+    email: (op.email as string) ?? user.email ?? "",
+    role: (op.role as "reviewer" | "admin") ?? "reviewer",
+  };
+}
+
+/** True when the current request is from an authenticated, active operator. */
+export async function isConsoleAuthed(): Promise<boolean> {
+  return (await getConsoleOperator()) !== null;
 }

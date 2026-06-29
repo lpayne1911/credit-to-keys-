@@ -19,7 +19,7 @@ below. The console-auth replacement is specified separately in
 |---|---------|----------|--------|
 | 1 | No rate limiting on public/auth routes (brute-force + cost amplification) | High | **Fixed** |
 | 2 | `/api/parse` trusted client MIME + user filename in storage key | Medium | **Fixed** |
-| 3 | Console auth is a single shared password, no accounts/audit | Medium | Planned (stopgap, documented) |
+| 3 | Console auth is a single shared password, no accounts/audit | Medium | **Fixed** (Supabase Auth + operators allowlist + audit) |
 | 4 | In-memory rate limiter is per-instance on serverless | Low | **Fixed** (Upstash/KV shared store; in-memory fallback) |
 | 5 | `email` fields validated for length only, not format | Low | Accept (not used for auth) |
 
@@ -103,14 +103,21 @@ server-generated UUID + the sniffed extension only — `file.name` never touches
 the key. Unit-tested in `src/lib/parse/sniff-upload.test.ts`, including a spoofed
 HTML/script payload that is correctly rejected.
 
-### 3. Console auth is a single shared password — **Medium** — Planned
+### 3. Console auth is a single shared password — **Medium** — Fixed
 
-Already flagged in-code (`REPLACE WITH PROPER AUTH`). No user accounts, no roles,
-no per-operator audit trail. The HMAC cookie can't be revoked without rotating
-the password, and the 8-hour session is the only expiry. The rate limit (finding
-1) is the interim brake; the real replacement is specified in
-[`docs/console-auth-plan.md`](./console-auth-plan.md). **Do not launch the
-operator console publicly on the shared-password gate.**
+The shared password is gone. The console now uses **Supabase Auth** (email+password
+and social/OAuth — Google, Apple) **plus an `operators` allowlist**: a valid
+Supabase session is necessary but not sufficient — the user id must also be an
+`active` row in `public.operators`. Sessions are real (revocable per-user, JWT
+validated against the auth server via `getUser()`, not just trusting the cookie),
+there are roles (`reviewer`/`admin`), and every publish writes an attributable
+`review_audit` row (also the CROA/TSR delivery-timestamp proof).
+
+Implementation: `0005_operators.sql`, `src/lib/console-auth.ts` (authorization
+gate, unit-tested in `console-auth.test.ts`), `src/lib/supabase/ssr.ts` (cookie
+session), routes under `src/app/api/console/` (login, oauth, callback, logout,
+publish). To activate: apply migration 0005, enable providers in Supabase, seed
+the first operator. See [`docs/console-auth-plan.md`](./console-auth-plan.md).
 
 ### 4. In-memory limiter is per-instance on serverless — **Low** — Fixed
 
@@ -150,7 +157,8 @@ built (it's on the deferred list).
 
 ## Recommended next steps (priority order)
 
-1. Ship real console auth before any public operator access — see the plan doc.
+1. Activate the new console auth: apply migration `0005_operators.sql`, enable
+   the Email/Google/Apple providers in Supabase, and seed the first operator.
 2. Set `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` in Vercel to turn on
    the hard cluster-wide rate-limit cap (code is wired; it just needs the store).
 3. Add `.email()` validation when email automation is introduced.

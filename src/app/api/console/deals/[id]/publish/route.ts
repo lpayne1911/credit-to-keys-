@@ -1,25 +1,29 @@
 /**
  * POST /api/console/deals/[id]/publish — operator publishes a reviewed verdict.
  *
- * Auth: the v1 console stopgap cookie (see lib/console-auth.ts). Server-side,
- * service-role write.
+ * Auth: an authenticated, active operator (see lib/console-auth.ts). Server-side
+ * service-role write, attributed to the operator in `review_audit`.
  *
  * COMPLIANCE — ADVANCE-FEE RULE (CROA / TSR): publishing the reviewed verdict
  * IS the delivery of the service. If/when a paid review is introduced, the
  * customer may only be charged AT or AFTER this publish step — never before.
- * This route is the enforcement seam for that rule.
+ * This route is the enforcement seam for that rule, and the audit row is the
+ * timestamped proof of when delivery happened.
  */
 import { NextResponse } from "next/server";
-import { isConsoleAuthed } from "@/lib/console-auth";
+import { getConsoleOperator } from "@/lib/console-auth";
 import { getServiceClient } from "@/lib/supabase/server";
 import type { Flag } from "@/lib/fairness-engine";
 import { publishSchema } from "@/lib/schemas";
+
+export const runtime = "nodejs";
 
 export async function POST(
   req: Request,
   { params }: { params: { id: string } },
 ) {
-  if (!isConsoleAuthed()) {
+  const operator = await getConsoleOperator();
+  if (!operator) {
     return NextResponse.json({ ok: false, error: "Not authorized." }, { status: 401 });
   }
   const supabase = getServiceClient();
@@ -76,6 +80,15 @@ export async function POST(
       })),
     );
   }
+
+  // Audit: attribute the publish to the operator (who delivered what, when).
+  await supabase.from("review_audit").insert({
+    deal_id: params.id,
+    operator: operator.userId,
+    operator_email: operator.email,
+    action: "publish_review",
+    verdict: body.verdict,
+  });
 
   return NextResponse.json({ ok: true });
 }

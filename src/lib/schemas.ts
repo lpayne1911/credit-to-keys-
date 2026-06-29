@@ -156,6 +156,13 @@ export const publishSchema = z.object({
     .default([]),
 });
 
+/** Console operator sign-in with email + password (Supabase Auth). */
 export const loginSchema = z.object({
+  email: z.string().email().max(320),
   password: z.string().min(1).max(400),
+});
+
+/** Start an OAuth/social sign-in for the console. */
+export const oauthStartSchema = z.object({
+  provider: z.enum(["google", "apple"]),
 });
