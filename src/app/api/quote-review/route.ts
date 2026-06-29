@@ -26,6 +26,7 @@ import type { PriceRange } from "@/lib/fairness-engine";
 import { getServiceClient } from "@/lib/supabase/server";
 import { rateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import { getBuyer } from "@/lib/buyer-auth";
+import { ensureCaseForDeal } from "@/lib/cases";
 
 export const runtime = "nodejs";
 
@@ -157,6 +158,23 @@ export async function POST(req: Request) {
 
     if (error || !persistedDeal) {
       return NextResponse.json({ dealId: randomUUID(), result, persisted: false });
+    }
+
+    // Open an engagement + Quote Review case for a signed-in buyer (best-effort).
+    if (buyer?.id) {
+      try {
+        await ensureCaseForDeal({
+          id: persistedDeal.id as string,
+          user_id: buyer.id,
+          status: "new",
+          auto_result: result as unknown as Record<string, unknown>,
+          vehicle_year: deal.vehicle.year,
+          vehicle_make: deal.vehicle.make,
+          vehicle_model: deal.vehicle.model,
+        });
+      } catch {
+        /* ignore — dashboard backfill is best-effort */
+      }
     }
 
     return NextResponse.json({

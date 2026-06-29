@@ -17,6 +17,7 @@ import { runMarketCheck } from "@/lib/market-engine/runMarketCheck";
 import { isConfigured as isMarketCheckConfigured } from "@/lib/sources/marketcheck/connector";
 import { rateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import { getBuyer } from "@/lib/buyer-auth";
+import { ensureCaseForDeal } from "@/lib/cases";
 
 export const runtime = "nodejs";
 
@@ -149,6 +150,25 @@ export async function POST(req: Request) {
     }));
     if (findings.length) {
       await supabase.from("findings").insert(findings);
+    }
+
+    // Open an engagement + case for a signed-in buyer so it shows on their
+    // command-center dashboard. Non-fatal: a case failure never affects the
+    // verdict response.
+    if (buyer?.id) {
+      try {
+        await ensureCaseForDeal({
+          id: deal.id as string,
+          user_id: buyer.id,
+          status: "new",
+          auto_result: result,
+          vehicle_year: input.vehicle.year ?? null,
+          vehicle_make: input.vehicle.make ?? null,
+          vehicle_model: input.vehicle.model ?? null,
+        });
+      } catch {
+        /* ignore — dashboard backfill is best-effort */
+      }
     }
 
     return NextResponse.json({ id: deal.id, result, feeRisk, persisted: true });
