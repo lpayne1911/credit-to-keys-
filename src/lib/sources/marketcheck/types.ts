@@ -146,5 +146,9 @@ export interface MarketCheckResponse {
     snapshotId: string;
     /** True when served from mock.ts (no API key / no result). */
     isMock: boolean;
+    /** True when a live lookup was attempted but MarketCheck rate-limited us
+     *  (429 — e.g. the Free plan's monthly call cap). Lets the UI say so
+     *  honestly instead of presenting the sample as if it were live data. */
+    liveUnavailable?: boolean;
   };
 }

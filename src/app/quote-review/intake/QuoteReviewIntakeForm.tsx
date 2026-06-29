@@ -17,6 +17,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { VehicleSelector, type VehicleValue } from "@/components/vehicle/VehicleSelector";
 import { saveReport } from "@/lib/workspace/store";
+import type { ExtractedFields } from "@/lib/parse/extract";
 
 type Mode = "choose" | "upload" | "manual";
 
@@ -118,6 +119,9 @@ export function QuoteReviewIntakeForm() {
   const [form, setForm] = useState<FormState>(EMPTY);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [parsing, setParsing] = useState(false);
+  const [uploadedFilePath, setUploadedFilePath] = useState<string | null>(null);
+  const [uploadNote, setUploadNote] = useState<string | null>(null);
 
   function set<K extends keyof FormState>(key: K, val: FormState[K]) {
     setForm((f) => ({ ...f, [key]: val }));
@@ -146,14 +150,63 @@ export function QuoteReviewIntakeForm() {
     setForm((f) => ({ ...f, [key]: f[key].filter((_, idx) => idx !== i) }));
   }
 
-  function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
+  async function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    // Parsing is stubbed — capture the name, mark the deal document-sourced, and
-    // route into manual confirmation so the buyer verifies the figures.
+    // Send the file to /api/parse, which stores it and extracts what it can
+    // (real fields when PARSE_PROVIDER is set, otherwise {}). Either way we drop
+    // the buyer into the manual form to CONFIRM — we never auto-score an upload.
     setUploadName(file.name);
     setDocumentUploaded(true);
     setMode("manual");
+    setParsing(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/parse", { method: "POST", body: fd });
+      const data = (await res.json().catch(() => null)) as {
+        uploadedFilePath?: string | null;
+        extracted?: ExtractedFields;
+        note?: string;
+      } | null;
+      if (!res.ok || !data) {
+        setUploadNote("We saved your upload, but couldn't read it automatically — please enter the figures below.");
+        return;
+      }
+      if (data.uploadedFilePath) setUploadedFilePath(data.uploadedFilePath);
+      if (data.note) setUploadNote(data.note);
+      prefillFromExtracted(data.extracted ?? {});
+    } catch {
+      setUploadNote("We couldn't reach the reader — please enter the figures below.");
+    } finally {
+      setParsing(false);
+    }
+  }
+
+  /** Map whatever the parser returned onto the form, never clobbering anything
+   *  the buyer already typed. Numbers stay strings (the engine coerces them). */
+  function prefillFromExtracted(ex: ExtractedFields) {
+    setForm((f) => ({
+      ...f,
+      vehicle: {
+        ...f.vehicle,
+        year: ex.year && f.vehicle.year === undefined ? Number(ex.year) || "" : f.vehicle.year,
+        make: f.vehicle.make || ex.make || undefined,
+        model: f.vehicle.model || ex.model || undefined,
+        trim: f.vehicle.trim || ex.trim || undefined,
+      },
+      mileage: f.mileage || ex.mileage || "",
+      vin: f.vin || ex.vin || "",
+      vehiclePrice: f.vehiclePrice || ex.vehiclePrice || "",
+      apr: f.apr || ex.apr || "",
+      termMonths: f.termMonths || ex.termMonths || "",
+      monthlyPayment: f.monthlyPayment || ex.monthlyPayment || "",
+      dealerZip: f.dealerZip || ex.dealerZip || "",
+      fees: ex.fees && ex.fees.length ? ex.fees.map((x) => ({ label: x.label, amount: String(x.amount) })) : f.fees,
+      addOns: ex.warrantyPrice
+        ? [{ label: "Extended warranty", amount: ex.warrantyPrice, financed: true }, ...f.addOns]
+        : f.addOns,
+    }));
   }
 
   async function submit() {
@@ -205,6 +258,7 @@ export function QuoteReviewIntakeForm() {
         alreadySigned: form.alreadySigned,
         source: documentUploaded ? "upload" : "manual",
         documentUploaded,
+        uploadedFilePath: uploadedFilePath ?? undefined,
       };
 
       const res = await fetch("/api/quote-review", {
@@ -257,7 +311,7 @@ export function QuoteReviewIntakeForm() {
             />
           </label>
           <p className="mt-2 text-xs text-navy/45">
-            Automatic reading is coming soon — for now you&apos;ll confirm the
+            We&apos;ll read what we can from your upload, then you confirm the
             figures on the next screen.
           </p>
         </div>
@@ -280,8 +334,14 @@ export function QuoteReviewIntakeForm() {
     <div className="space-y-5">
       {documentUploaded ? (
         <div className="rounded-xl border border-green/30 bg-green-soft px-4 py-3 text-sm text-green-dark">
-          Using <span className="font-semibold">{uploadName}</span> as a starting
-          point. Confirm or fill in the figures below.
+          {parsing ? (
+            <>Reading <span className="font-semibold">{uploadName}</span>…</>
+          ) : (
+            <>
+              Using <span className="font-semibold">{uploadName}</span> as a starting point.{" "}
+              {uploadNote ?? "Confirm or fill in the figures below."}
+            </>
+          )}
         </div>
       ) : null}
 
