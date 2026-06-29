@@ -15,7 +15,7 @@
  */
 import { NextResponse } from "next/server";
 import { getServiceClient } from "@/lib/supabase/server";
-import { extractFields } from "@/lib/parse/extract";
+import { extractFields, getExtractor, type ExtractedFields } from "@/lib/parse/extract";
 import { rateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import { sniffUpload } from "@/lib/parse/sniff-upload";
 
@@ -89,16 +89,23 @@ export async function POST(req: Request) {
     }
   }
 
-  const extracted = await extractFields({
-    bytes,
-    contentType,
-    filename: file.name,
-  });
+  let extracted: ExtractedFields = {};
+  let debug: string | undefined;
+  try {
+    extracted = await extractFields({ bytes, contentType, filename: file.name });
+  } catch (err) {
+    // Extractor ran but failed (bad key, no credits, model access, timeout…).
+    debug = err instanceof Error ? err.message : String(err);
+    console.error("[parse] extraction error:", debug);
+  }
   const gotAnything = Object.keys(extracted).length > 0;
 
   return NextResponse.json({
     uploadedFilePath,
     extracted,
+    // Diagnostics so the UI can explain WHY autofill produced nothing.
+    provider: getExtractor().name, // "anthropic" when a key is configured, else "none"
+    debug,
     note: gotAnything
       ? "We read what we could from your quote. Please check each field and fill anything we missed before getting your verdict."
       : "We saved your quote, but automatic reading isn't available yet — please enter the numbers from it below. We'll score them the same way.",

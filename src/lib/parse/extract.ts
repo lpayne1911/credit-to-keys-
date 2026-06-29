@@ -62,8 +62,9 @@ const noneExtractor: QuoteExtractor = {
  * photos work, across any dealer layout. Buyer-side only — the prompt extracts
  * verbatim figures and never invents a "fair price"; the fairness engine scores.
  *
- * Runs server-side only (the API key never reaches the browser). On any failure
- * it returns {} so the upload path degrades gracefully to manual confirmation.
+ * Runs server-side only (the API key never reaches the browser). Tries the
+ * configured model then a fallback; if all fail it throws the last error so the
+ * route can surface a concise reason and degrade to manual confirmation.
  */
 const anthropicExtractor: QuoteExtractor = {
   name: "anthropic",
@@ -74,7 +75,11 @@ const anthropicExtractor: QuoteExtractor = {
     // Lazy import so the SDK never ends up in a client/edge bundle.
     const { default: Anthropic } = await import("@anthropic-ai/sdk");
     const client = new Anthropic({ apiKey });
-    const model = process.env.PARSE_MODEL || "claude-opus-4-8";
+    const primary = process.env.PARSE_MODEL || "claude-opus-4-8";
+    // If the primary model isn't enabled for this account (e.g. model_not_found),
+    // fall back to a broadly-available one that also supports PDF + vision.
+    const FALLBACK = "claude-haiku-4-5-20251001";
+    const models = primary === FALLBACK ? [primary] : [primary, FALLBACK];
 
     const base64 = Buffer.from(input.bytes).toString("base64");
     const isPdf = input.contentType.startsWith("application/pdf");
@@ -110,29 +115,36 @@ Return a single JSON object (no prose, no code fences) with these keys, omitting
 }
 Strip "$" and commas from all numbers. If the document is not a car quote, return {}.`;
 
-    try {
-      const res = await client.messages.create(
-        {
-          model,
-          max_tokens: 1500,
-          messages: [
-            {
-              role: "user",
-              content: [fileBlock, { type: "text", text: instruction }],
-            },
-          ],
-        },
-        { timeout: 60_000 },
-      );
-      const text = res.content
-        .map((b) => (b.type === "text" ? b.text : ""))
-        .join("")
-        .trim();
-      return normalize(parseJsonObject(text));
-    } catch {
-      // Network/auth/model error — fall back to manual confirmation.
-      return {};
+    let lastError = "";
+    for (const model of models) {
+      try {
+        const res = await client.messages.create(
+          {
+            model,
+            max_tokens: 1500,
+            messages: [
+              {
+                role: "user",
+                content: [fileBlock, { type: "text", text: instruction }],
+              },
+            ],
+          },
+          { timeout: 60_000 },
+        );
+        const text = res.content
+          .map((b) => (b.type === "text" ? b.text : ""))
+          .join("")
+          .trim();
+        return normalize(parseJsonObject(text));
+      } catch (err) {
+        lastError = err instanceof Error ? err.message : String(err);
+        console.error(`[parse] extract failed on ${model}: ${lastError}`);
+        // try the next model
+      }
     }
+    // Every model failed — throw so the route can surface a concise reason; the
+    // route catches it and the upload path still degrades to manual entry.
+    throw new Error(lastError || "extraction failed");
   },
 };
 

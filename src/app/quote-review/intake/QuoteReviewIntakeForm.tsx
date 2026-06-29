@@ -208,12 +208,26 @@ export function QuoteReviewIntakeForm() {
       fd.append("file", file);
       const res = await fetch("/api/parse", { method: "POST", body: fd });
       const data = (await res.json().catch(() => null)) as
-        | { extracted?: ExtractedFields; note?: string; uploadedFilePath?: string | null }
+        | {
+            extracted?: ExtractedFields;
+            note?: string;
+            uploadedFilePath?: string | null;
+            provider?: string;
+            debug?: string;
+          }
         | null;
       if (data?.uploadedFilePath) setUploadedFilePath(data.uploadedFilePath);
-      if (res.ok && data?.extracted) {
-        applyExtracted(data.extracted);
-        setParseNote(typeof data.note === "string" ? data.note : null);
+      const fieldCount = data?.extracted ? Object.keys(data.extracted).length : 0;
+      if (res.ok && fieldCount > 0) {
+        applyExtracted(data!.extracted!);
+        setParseNote(typeof data?.note === "string" ? data.note : null);
+      } else if (res.ok && data?.debug) {
+        // Extractor ran but errored — surface the concise reason so it's fixable.
+        setParseNote(`Couldn't read it automatically: ${data.debug}. Enter the figures below.`);
+      } else if (res.ok && data?.provider === "none") {
+        setParseNote(
+          "Automatic reading isn't enabled on the server yet (no AI key configured) — please enter the figures below.",
+        );
       } else {
         setParseNote(
           "We couldn't read that file automatically — please enter the figures below.",
