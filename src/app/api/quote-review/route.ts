@@ -7,8 +7,8 @@
  *
  * Persistence mirrors /api/deals: when Supabase is configured we store the
  * result in `deals.auto_result` (JSONB) and return the row id; when it isn't, we
- * generate an id and return the result so the client can stash it in
- * sessionStorage and still render the Deal Review page. The result is branded
+ * generate an id and return the result so the client can save it to the on-device
+ * workspace and still render the Deal Review page. The result is branded
  * with `schemaVersion: "deal-review-1"` so it never collides with a
  * fairness-engine verdict read by /verdict.
  *
@@ -111,7 +111,7 @@ export async function POST(req: Request) {
 
   const supabase = getServiceClient();
   if (!supabase) {
-    // Not configured — return the result + a generated id for sessionStorage.
+    // Not configured — return the result + a generated id for the workspace.
     return NextResponse.json({
       dealId: randomUUID(),
       result,

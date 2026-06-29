@@ -1,15 +1,15 @@
 "use client";
 
 /**
- * Client fallback for the Deal Review page. When Supabase isn't configured the
- * API returns the result un-persisted and the intake form stashes it in
- * sessionStorage under `deal-review:<dealId>`. This reads it back so the page
- * still renders on the device that submitted it.
+ * Client fallback for the Deal Review page. When Supabase isn't the source, the
+ * intake form saved the result to the on-device workspace; this reads it back so
+ * the page still renders on the device that submitted it.
  */
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { DealReviewView } from "@/components/deal-review/DealReviewView";
 import { Disclaimer } from "@/components/Disclaimer";
+import { getReportPayload } from "@/lib/workspace/store";
 import type { DealReviewResult } from "@/lib/deal-engine/types";
 
 export function DealReviewClientFallback({ dealId }: { dealId: string }) {
@@ -17,18 +17,11 @@ export function DealReviewClientFallback({ dealId }: { dealId: string }) {
   const [result, setResult] = useState<DealReviewResult | null>(null);
 
   useEffect(() => {
-    try {
-      const raw = sessionStorage.getItem(`deal-review:${dealId}`);
-      if (raw) {
-        const parsed = JSON.parse(raw) as DealReviewResult;
-        if (parsed?.schemaVersion === "deal-review-1") {
-          setResult(parsed);
-          setState("found");
-          return;
-        }
-      }
-    } catch {
-      // corrupt/blocked storage — fall through to the missing state
+    const parsed = getReportPayload<DealReviewResult>("quote-review", dealId);
+    if (parsed?.schemaVersion === "deal-review-1") {
+      setResult(parsed);
+      setState("found");
+      return;
     }
     setState("missing");
   }, [dealId]);

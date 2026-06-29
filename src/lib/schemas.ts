@@ -67,6 +67,14 @@ export const dealSubmissionSchema = z.object({
     .optional(),
   buyerState: z.string().max(8).optional(),
   alreadySigned: z.boolean().optional(),
+  // Internal location signal (not a scoring input). ZIP-derived; never shown to
+  // the buyer. Optional so it never blocks a submission.
+  location: z
+    .object({
+      zip: z.string().max(10).optional(),
+      state: z.string().max(2).optional(),
+    })
+    .optional(),
   inputPath: z.enum(["manual", "upload"]).optional(),
   uploadedFilePath: z.string().max(400).optional(),
 });
@@ -130,6 +138,53 @@ export const quoteReviewSchema = z.object({
   source: z.enum(["manual", "upload", "mixed"]).optional(),
   uploadedFilePath: z.string().max(400).optional(),
   documentUploaded: z.boolean().optional(),
+});
+
+/** Build My Plan intake — forward-looking, so it's lighter than a full quote. */
+export const buildPlanSchema = z.object({
+  vehicle: z
+    .object({
+      year: numLike,
+      make: shortStr,
+      model: shortStr,
+      trim: shortStr,
+      mileage: numLike,
+    })
+    .optional(),
+  condition: z.enum(["new", "used", "cpo"]).optional(),
+  zip: z.string().max(12).optional(),
+  buyerState: z.string().max(8).optional(),
+  creditBand: z.enum(["excellent", "good", "fair", "poor", "unknown"]).optional(),
+  termMonths: numLike,
+  downPayment: numLike,
+  maxMonthly: numLike,
+  maxOutTheDoor: numLike,
+  trade: z
+    .object({
+      estimatedValue: numLike,
+      loanPayoff: numLike,
+    })
+    .optional()
+    .nullable(),
+});
+
+/** Post-Sale Triage intake — already signed; what was bought + the basics. */
+export const postSaleSchema = z.object({
+  buyerState: z.string().max(8).optional(),
+  daysSinceSigned: numLike,
+  financed: z.boolean().optional(),
+  lienholder: z.string().max(120).optional(),
+  dealerName: z.string().max(200).optional(),
+  addOns: z
+    .array(
+      z.object({
+        rawLabel: z.string().max(120).optional(),
+        amount: numLike,
+        financed: z.boolean().optional(),
+      }),
+    )
+    .max(40)
+    .optional(),
 });
 
 export const reviewRequestSchema = z.object({

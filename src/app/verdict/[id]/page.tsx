@@ -5,6 +5,7 @@ import { VerdictView } from "@/components/VerdictView";
 import { RequestReviewButton } from "@/components/RequestReviewButton";
 import { getDealById } from "@/lib/deals";
 import { isDealReviewResult } from "@/lib/deal-engine/is-deal-review";
+import { reviewFees } from "@/lib/fee-classifier";
 import type { FairnessResult } from "@/lib/fairness-engine";
 
 export const metadata = {
@@ -17,6 +18,8 @@ export default async function VerdictPage({
   params: { id: string };
 }) {
   const deal = await getDealById(params.id);
+  // Recompute the state-aware fee-risk from the stored fees + buyer_state.
+  const feeRisk = deal ? reviewFees(deal.fees ?? [], deal.buyer_state ?? null) : null;
 
   // A deal submitted through Quote Review stores a Deal Review result in the
   // shared column; it renders on its own page, not here. Send the buyer there
@@ -49,12 +52,14 @@ export default async function VerdictPage({
                   }
                   vehicle={vehicleOf(deal)}
                   loan={loanOf(deal)}
+                  feeRisk={feeRisk}
                 />
               ) : deal.auto_result ? (
                 <VerdictView
                   result={deal.auto_result as FairnessResult}
                   vehicle={vehicleOf(deal)}
                   loan={loanOf(deal)}
+                  feeRisk={feeRisk}
                 />
               ) : (
                 <div className="card text-center">
