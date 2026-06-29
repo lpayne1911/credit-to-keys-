@@ -129,7 +129,7 @@ export const FUNNELS: Funnel[] = [
       bullets: ["Same day or next business day turnaround", "Full review + pushback script"],
       addOn: { label: "Add: Human Review Upgrade", amount: PRICES.humanReview, sub: "Expert advocate review for high-stakes deals." },
     },
-    primaryCta: { label: "Review My Quote", href: "/check" },
+    primaryCta: { label: "Review My Quote", href: "/quote-review/intake" },
     secondaryCta: { label: "See a sample report", href: "/sample" },
   },
 
