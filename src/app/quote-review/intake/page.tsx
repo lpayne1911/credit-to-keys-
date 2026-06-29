@@ -19,7 +19,7 @@ export default function QuoteReviewIntakePage() {
     <div className="relative flex min-h-[100dvh] flex-col bg-cream">
       <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute inset-0 bg-grid opacity-40" />
-        <div className="orb -left-24 top-10 h-72 w-72 bg-gold/15" />
+        <div className="orb -left-24 top-10 h-72 w-72 bg-green/15" />
         <div className="orb right-[-6rem] top-1/3 h-80 w-80 bg-paleblue/60" />
       </div>
 

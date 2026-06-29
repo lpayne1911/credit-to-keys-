@@ -41,7 +41,7 @@ export default async function DealReviewPage({
     <div className="relative flex min-h-[100dvh] flex-col bg-cream">
       <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute inset-0 bg-grid opacity-40" />
-        <div className="orb -left-24 top-10 h-72 w-72 bg-gold/15" />
+        <div className="orb -left-24 top-10 h-72 w-72 bg-green/15" />
         <div className="orb right-[-6rem] top-1/3 h-80 w-80 bg-paleblue/60" />
       </div>
       <TopBar />
@@ -53,7 +53,7 @@ export default async function DealReviewPage({
               <Disclaimer />
               <Link
                 href="/quote-review/intake"
-                className="block py-2 text-center text-sm font-semibold text-gold-dark hover:underline"
+                className="block py-2 text-center text-sm font-semibold text-green-dark hover:underline"
               >
                 ← Review another quote
               </Link>
@@ -93,7 +93,7 @@ function TopBar() {
           </svg>
         </Link>
       </div>
-      <div className="h-1 w-full bg-gradient-to-r from-gold via-gold-light to-gold" />
+      <div className="h-1 w-full bg-gradient-to-r from-green-dark via-green to-green-dark" />
     </header>
   );
 }
