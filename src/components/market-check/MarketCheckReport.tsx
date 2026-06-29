@@ -3,6 +3,7 @@ import type { MarketCheckResponse } from "@/lib/sources/marketcheck/types";
 import { SampleBadge } from "@/components/funnels/primitives";
 import { money, MarketStatusBadge, MarketGauge, PriceTrendChart, StatTile } from "./parts";
 import { ComparableListingsTable } from "./ComparableListingsTable";
+import { SaveReportButton } from "./SaveReportButton";
 
 const CONF_LABEL = { low: "Low", medium: "Medium", high: "High" } as const;
 
@@ -27,7 +28,14 @@ function KV({ k, v }: { k: string; v: string }) {
   );
 }
 
-export function MarketCheckReport({ response }: { response: MarketCheckResponse }) {
+export function MarketCheckReport({
+  response,
+  enableSave = true,
+}: {
+  response: MarketCheckResponse;
+  /** Hidden on an already-saved shared report (/r/[id]). */
+  enableSave?: boolean;
+}) {
   const { vehicle: v, snapshot: s, comparableListings, trend, dealerInsight, takeaways, source } = response;
   const name = [v.year, v.make, v.model, v.trim].filter(Boolean).join(" ");
   const pulledAt = new Date(source.fetchedAt).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
@@ -156,6 +164,7 @@ export function MarketCheckReport({ response }: { response: MarketCheckResponse 
               <Link href="/quote-review" className="btn-green w-full text-sm">Review My Quote</Link>
               <Link href="/build-my-plan" className="btn-blue w-full text-sm">Build My Plan</Link>
               <Link href="/human-review" className="btn-secondary w-full justify-center text-sm">Request Human Review</Link>
+              {enableSave && <SaveReportButton response={response} />}
             </div>
             <p className="mt-3 text-center text-xs text-slate">
               Market data is one part of the deal — compare it to your actual paperwork.
