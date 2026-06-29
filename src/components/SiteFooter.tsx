@@ -81,6 +81,14 @@ export function SiteFooter() {
               </li>
               <li>
                 <Link
+                  href="/junk-fee-audit"
+                  className="text-sm text-cream/70 transition hover:text-gold-light"
+                >
+                  Free junk-fee audit
+                </Link>
+              </li>
+              <li>
+                <Link
                   href="/credit-to-keys"
                   className="text-sm text-cream/70 transition hover:text-gold-light"
                 >

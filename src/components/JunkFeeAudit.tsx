@@ -71,7 +71,7 @@ export function JunkFeeAudit() {
     <div className="grid gap-8 lg:grid-cols-2">
       {/* Input side */}
       <div className="card">
-        <h2 className="font-serif text-xl font-semibold text-navy">
+        <h2 className="text-xl font-semibold text-navy">
           Enter the fees from your worksheet
         </h2>
         <p className="mt-1 text-sm text-navy/60">
@@ -183,7 +183,7 @@ function AuditResult({
           <p className="text-[11px] font-semibold uppercase tracking-wide text-navy/55">
             Fee audit
           </p>
-          <p className="mt-1 font-serif text-2xl font-semibold text-navy">
+          <p className="mt-1 text-2xl font-semibold text-navy">
             {challengeCount === 0
               ? `Nothing to challenge in the ${reviewedCount} ${
                   reviewedCount === 1 ? "fee" : "fees"
@@ -203,7 +203,7 @@ function AuditResult({
             <p className="text-[11px] font-semibold uppercase tracking-wide text-navy/55">
               Potentially on the table
             </p>
-            <p className="mt-0.5 font-serif text-3xl font-bold text-gold-dark">
+            <p className="mt-0.5 text-3xl font-bold text-gold-dark">
               {money(estimatedSavings.low)}–{money(estimatedSavings.high)}
             </p>
             <p className="mt-1 text-sm text-navy/60">
@@ -231,7 +231,7 @@ function AuditResult({
 
       {/* Upgrade CTA */}
       <div className="rounded-xl border border-navy/10 bg-navy p-5 text-cream">
-        <p className="font-serif text-lg font-semibold text-white">
+        <p className="text-lg font-semibold text-white">
           Want the whole deal checked?
         </p>
         <p className="mt-1 text-sm text-cream/80">

@@ -340,6 +340,7 @@ export interface NavLink {
 export const NAV_LINKS: NavLink[] = [
   { label: "How it works", href: "/#how-it-works" },
   { label: "What we catch", href: "/#what-we-catch" },
+  { label: "Market Check", href: "/dashboard/market-check" },
   { label: "Concierge", href: "/concierge" },
   { label: "Already signed?", href: "/post-sale-triage" },
   { label: "Review my deal", href: "/quote-review", primary: true },

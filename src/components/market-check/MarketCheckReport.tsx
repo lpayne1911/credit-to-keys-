@@ -185,7 +185,29 @@ export function MarketCheckReport({ response }: { response: MarketCheckResponse 
               {trend.seasonality && <KV k="Seasonality impact" v={trend.seasonality} />}
               {trend.bestTimeToBuy && <KV k="Best time to buy" v={trend.bestTimeToBuy} />}
             </div>
-            <p className="mt-3 text-sm font-bold text-blue">How MarketCheck works →</p>
+            <details className="group mt-3">
+              <summary className="flex cursor-pointer list-none items-center gap-1 text-sm font-bold text-blue transition hover:text-blue-dark">
+                How MarketCheck works
+                <span className="transition group-open:rotate-90" aria-hidden>→</span>
+              </summary>
+              <div className="mt-2 space-y-2 text-xs leading-relaxed text-slate">
+                <p>
+                  We pull active dealer listings near your ZIP code, then filter them down to the
+                  vehicles most comparable to yours — matching on year, make, model, trim, mileage,
+                  and distance. Closer matches count more.
+                </p>
+                <p>
+                  From those comparable listings we calculate the local <strong>market range</strong>{" "}
+                  (low to high), the <strong>median</strong>, and a suggested{" "}
+                  <strong>target price</strong>. Confidence reflects how many strong matches we found —
+                  more comps means a tighter, more reliable benchmark.
+                </p>
+                <p>
+                  This is a market benchmark based on available listings, not an exact appraisal.
+                  Always verify details with the dealer. You make the final decision.
+                </p>
+              </div>
+            </details>
           </Section>
         </div>
       </div>

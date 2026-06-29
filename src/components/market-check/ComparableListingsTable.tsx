@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import type { ComparableListing, MatchQuality } from "@/lib/sources/marketcheck/types";
 import { money } from "./parts";
 
@@ -21,7 +24,9 @@ function MatchBadge({ q }: { q: MatchQuality }) {
 }
 
 export function ComparableListingsTable({ comps, limit = 5 }: { comps: ComparableListing[]; limit?: number }) {
-  const rows = comps.slice(0, limit);
+  const [expanded, setExpanded] = useState(false);
+  const hasMore = comps.length > limit;
+  const rows = expanded ? comps : comps.slice(0, limit);
   return (
     <div>
       {/* Desktop table */}
@@ -71,8 +76,15 @@ export function ComparableListingsTable({ comps, limit = 5 }: { comps: Comparabl
         ))}
       </div>
 
-      {comps.length > limit && (
-        <p className="mt-3 text-sm font-bold text-blue">View all {comps.length} comparable listings →</p>
+      {hasMore && (
+        <button
+          type="button"
+          onClick={() => setExpanded((e) => !e)}
+          className="mt-3 text-sm font-bold text-blue transition hover:text-blue-dark hover:underline"
+          aria-expanded={expanded}
+        >
+          {expanded ? "Show fewer listings ↑" : `View all ${comps.length} comparable listings →`}
+        </button>
       )}
     </div>
   );
