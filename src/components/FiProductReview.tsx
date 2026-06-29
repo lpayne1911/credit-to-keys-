@@ -232,9 +232,9 @@ export function FiProductReview() {
   return (
     <div className="space-y-6">
       {/* Pilot banner */}
-      <div className="rounded-xl border border-gold/30 bg-gold/[0.06] px-4 py-3">
+      <div className="rounded-xl border border-green/30 bg-green-soft px-4 py-3">
         <p className="text-sm leading-relaxed text-navy/75">
-          <span className="font-semibold text-gold-dark">Pilot preview.</span>{" "}
+          <span className="font-semibold text-green">Pilot preview.</span>{" "}
           This is a free, buyer-side decision-support tool — not a paid review,
           not legal, financial, tax, or insurance advice, and not a final report.
           It collects no payment, and nothing you enter is uploaded or saved —
@@ -386,7 +386,7 @@ export function FiProductReview() {
         <button
           type="button"
           onClick={addProduct}
-          className="mt-4 text-sm font-semibold text-gold-dark hover:underline"
+          className="mt-4 text-sm font-semibold text-green hover:underline"
         >
           + Add another product
         </button>
@@ -406,16 +406,16 @@ export function FiProductReview() {
                 type="button"
                 aria-pressed={on}
                 onClick={() => toggleConcern(c.value)}
-                className={`flex items-start gap-3 rounded-xl border-2 px-4 py-3 text-left text-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-1 ${
+                className={`flex items-start gap-3 rounded-xl border-2 px-4 py-3 text-left text-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-green focus-visible:ring-offset-1 ${
                   on
-                    ? "border-gold bg-gold/[0.07] text-navy"
-                    : "border-navy/10 bg-white text-navy/75 hover:border-gold/50"
+                    ? "border-green bg-green-soft text-navy"
+                    : "border-navy/10 bg-white text-navy/75 hover:border-green/50"
                 }`}
               >
                 <span
                   className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 text-xs font-bold ${
                     on
-                      ? "border-gold bg-gold text-white"
+                      ? "border-green bg-green text-white"
                       : "border-navy/25 text-transparent"
                   }`}
                   aria-hidden
@@ -447,7 +447,7 @@ export function FiProductReview() {
             <button
               type="button"
               onClick={generate}
-              className="font-semibold text-gold-dark underline underline-offset-2"
+              className="font-semibold text-green underline underline-offset-2"
             >
               Update the preview
             </button>{" "}
@@ -639,7 +639,7 @@ function ReviewPreview({ result }: { result: FiReviewResult }) {
         <ol className="space-y-2">
           {result.nextSteps.map((s, i) => (
             <li key={i} className="flex gap-3 text-sm text-navy/75">
-              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gold/15 text-xs font-semibold text-gold-dark">
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-green-soft text-xs font-semibold text-green">
                 {i + 1}
               </span>
               <span className="leading-relaxed">{s}</span>
@@ -744,7 +744,7 @@ function SectionCard({
   return (
     <section className="card">
       <div className="mb-4 flex items-center gap-3">
-        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gold/15 font-serif text-base font-semibold text-gold-dark">
+        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-green-soft text-base font-bold text-green">
           {step}
         </span>
         <h2 className="font-serif text-xl font-semibold text-navy">{title}</h2>
@@ -811,7 +811,7 @@ function Segmented<T extends string>({
                   aria-hidden
                   className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 text-xs font-bold ${
                     on
-                      ? "border-gold bg-gold text-white"
+                      ? "border-green bg-green text-white"
                       : "border-navy/25 text-transparent"
                   }`}
                 >
@@ -839,10 +839,10 @@ function Segmented<T extends string>({
               type="button"
               aria-pressed={on}
               onClick={() => onChange(o.value)}
-              className={`rounded-full border-2 px-4 py-2.5 text-sm font-semibold transition active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-1 ${
+              className={`rounded-full border-2 px-4 py-2.5 text-sm font-semibold transition active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-green focus-visible:ring-offset-1 ${
                 on
-                  ? "border-gold bg-gold text-white shadow-sm"
-                  : "border-navy/15 bg-white text-navy/75 hover:border-gold/50"
+                  ? "border-green bg-green text-white shadow-sm"
+                  : "border-navy/15 bg-white text-navy/75 hover:border-green/50"
               }`}
             >
               {o.label}
@@ -895,7 +895,7 @@ function Panel({
 function Bullet({ children }: { children: React.ReactNode }) {
   return (
     <li className="flex items-start gap-2 text-sm leading-relaxed text-navy/75">
-      <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-gold" />
+      <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-green" />
       <span>{children}</span>
     </li>
   );
