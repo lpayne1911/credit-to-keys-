@@ -32,7 +32,7 @@ export default function SampleReportPage() {
         {/* Hero */}
         <section className="mx-auto max-w-3xl px-4 pb-6 pt-12 sm:pt-16">
           <div className="flex flex-wrap items-center gap-3">
-            <span className="inline-block rounded-full bg-gold/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gold-dark">
+            <span className="inline-block rounded-full bg-blue-soft px-3 py-1 text-xs font-semibold uppercase tracking-wide text-blue">
               Used-Car Risk Report · sample
             </span>
             <span className="rounded-full bg-navy-50 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-navy/45">
@@ -48,13 +48,13 @@ export default function SampleReportPage() {
           <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             <Link
               href="/services/used-car-risk-report"
-              className="text-sm font-semibold text-gold-dark hover:underline"
+              className="text-sm font-semibold text-blue hover:underline"
             >
               ← Back to the Used-Car Risk Report overview
             </Link>
             <Link
               href="/services/used-car-risk-report/check"
-              className="text-sm font-semibold text-gold-dark hover:underline"
+              className="text-sm font-semibold text-blue hover:underline"
             >
               Preview the used-car risk flow →
             </Link>
@@ -63,9 +63,9 @@ export default function SampleReportPage() {
 
         {/* Fake-data warning */}
         <section className="mx-auto max-w-3xl px-4 pb-2">
-          <div className="rounded-xl border border-gold/30 bg-gold/[0.06] px-4 py-3">
+          <div className="rounded-xl border border-blue/30 bg-blue-soft px-4 py-3">
             <p className="text-sm leading-relaxed text-navy/75">
-              <span className="font-semibold text-gold-dark">Fake sample data.</span>{" "}
+              <span className="font-semibold text-blue">Fake sample data.</span>{" "}
               {R.header.fakeDataWarning} The full Used-Car Risk Report isn&apos;t
               purchasable yet — this page just shows what the deliverable looks
               like. The pilot preview it links to is free and collects no payment.
@@ -213,7 +213,7 @@ export default function SampleReportPage() {
               <ul className="space-y-2">
                 {R.documentChecklist.map((d, i) => (
                   <li key={i} className="flex items-start gap-2 text-sm leading-relaxed text-navy/75">
-                    <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-gold" />
+                    <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-blue" />
                     <span>{d}</span>
                   </li>
                 ))}
@@ -251,7 +251,7 @@ function Block({ title, children }: { title: string; children: React.ReactNode }
   return (
     <div>
       <div className="mb-3 flex items-baseline gap-3">
-        <h2 className="font-serif text-sm font-bold uppercase tracking-widest text-gold-dark">
+        <h2 className="text-sm font-semibold uppercase tracking-widest text-blue">
           {title}
         </h2>
         <span className="h-px flex-1 bg-navy/10" />
@@ -285,7 +285,7 @@ function SubCard({ title, items }: { title: string; items: string[] }) {
       <ul className="mt-2 space-y-2">
         {items.map((it, i) => (
           <li key={i} className="flex items-start gap-2 text-sm leading-relaxed text-navy/75">
-            <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-gold" />
+            <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-blue" />
             <span>{it}</span>
           </li>
         ))}
