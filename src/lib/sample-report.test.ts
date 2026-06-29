@@ -22,6 +22,15 @@ describe("public sample report", () => {
     expect(score).toBeLessThanOrEqual(70);
   });
 
+  it("surfaces verified state doc-fee intelligence on a flag (MD above cap)", () => {
+    const docFlag = SAMPLE_RESULT.flags.find((f) => f.docFee);
+    expect(docFlag?.docFee?.comparisonStatus).toBe("above_verified_cap");
+    expect(docFlag?.docFee?.verified).toBe(true);
+    expect(docFlag?.docFee?.stateCode).toBe("MD");
+    expect(docFlag?.docFee?.dealerControlled).toBe(true);
+    expect(docFlag?.docFee?.governmentFee).toBe(false);
+  });
+
   it("produces a specific, multi-point pushback script naming the rate and warranty", () => {
     const script = buildNegotiationScript(SAMPLE_RESULT, { offeredApr: 8.9 });
     expect(script.points).toHaveLength(5);
