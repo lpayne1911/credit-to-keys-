@@ -6,8 +6,14 @@
  */
 import {
   fetchActiveListings,
+  fetchListingByVin,
+  fetchRecentListings,
   decodeVin,
+  type RawListing,
+  type RawActiveResponse,
 } from "@/lib/sources/marketcheck/connector";
+import { demandFromDom, rankAmong } from "./signals";
+import { buildHistoryPoints, type DatedPrice } from "./priceHistory";
 import { decodeVinDetailed, looksLikeVin } from "@/lib/vin";
 import { normalizeListings, mergeSpecs, vehicleIdentityFromRequest, backfillIdentityFromListings, applyEquipment } from "@/lib/sources/marketcheck/normalize";
 import { buildMockMarket } from "@/lib/sources/marketcheck/mock";
@@ -46,8 +52,18 @@ function deriveTrendFromComps(comps: ComparableListing[], numFound: number): Mar
     bestNearbyDeal: prices.length ? Math.min(...prices) : null,
     bestNearbyDistanceMiles: cheapest?.distanceMiles ?? null,
     supplyLevel: supply >= 30 ? "high" : supply >= 12 ? "moderate" : "low",
-    demandLevel: "moderate",
+    demandLevel: demandFromDom(avgDom),
   };
+}
+
+/** Turn a recents/sold response into dated prices for the trend aggregator. */
+function recentToDated(recent: RawActiveResponse): DatedPrice[] {
+  return (recent.listings ?? [])
+    .map((l) => ({
+      price: typeof l.price === "number" ? l.price : 0,
+      date: l.last_seen_at ?? l.scraped_at ?? "",
+    }))
+    .filter((r) => r.price > 0 && r.date);
 }
 
 /** Market-level dealer/inventory context derived from the comp set. Dealer-
@@ -56,8 +72,9 @@ function deriveTrendFromComps(comps: ComparableListing[], numFound: number): Mar
 function deriveDealerInsight(
   comps: ComparableListing[],
   trend: MarketTrend,
+  extra: { matched?: RawListing | null; refPrice?: number | null } = {},
 ): DealerMarketInsight | null {
-  if (comps.length === 0) return null;
+  if (comps.length === 0 && !extra.matched) return null;
   const competition = trend.supplyLevel; // low | moderate | high
   const insight =
     competition === "high"
@@ -65,11 +82,22 @@ function deriveDealerInsight(
       : competition === "low"
         ? "Comparable inventory is thin nearby, which can reduce your negotiating leverage."
         : `${trend.activeListings} comparable listings are active nearby — a balanced local market.`;
+  // Real, listings-derived fields for the searched car (when a VIN matched an
+  // active listing). similarAtDealer / avgPriceAtDealer need the dealer-inventory
+  // API, so they stay null and the report hides those rows.
+  const dealerName = extra.matched?.dealer?.name?.trim() || null;
+  const thisListingDaysOnMarket =
+    typeof extra.matched?.dom === "number" ? extra.matched.dom : null;
+  const priceRankAtDealer =
+    extra.refPrice != null
+      ? rankAmong(extra.refPrice, comps.map((c) => c.listPrice))
+      : null;
   return {
+    dealerName,
     similarAtDealer: null,
     avgPriceAtDealer: null,
-    thisListingDaysOnMarket: null,
-    priceRankAtDealer: null,
+    thisListingDaysOnMarket,
+    priceRankAtDealer,
     localCompetition: competition,
     insight,
   };
@@ -159,7 +187,21 @@ export async function runMarketCheck(request: MarketCheckRequest): Promise<Marke
     identity = backfillIdentityFromListings(identity, raw.listings ?? []);
     comps = normalizeListings(raw, identity);
     trend = deriveTrendFromComps(comps, raw.num_found ?? comps.length);
-    dealerInsight = deriveDealerInsight(comps, trend);
+
+    // Real dealer intel for the searched car from its own active listing.
+    const matched = request2.vin ? await fetchListingByVin(request2.vin) : null;
+    const refPrice =
+      request2.dealerAskingPrice ??
+      (typeof matched?.price === "number" ? matched.price : null);
+    dealerInsight = deriveDealerInsight(comps, trend, { matched, refPrice });
+
+    // Real price history when the plan exposes recents/sold; otherwise the report
+    // falls back to the price-distribution. Best-effort, never fabricated.
+    const recent = await fetchRecentListings(request2);
+    const history = recent ? buildHistoryPoints(recentToDated(recent)) : null;
+    if (history) {
+      trend = { ...trend, points: history.points, trendDirection: history.trendDirection };
+    }
   } else {
     trend = deriveTrendFromComps([], 0); // placeholder; replaced below by mock
   }

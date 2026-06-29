@@ -1,4 +1,5 @@
 import type { MarketStatus, PriceTrendPoint } from "@/lib/sources/marketcheck/types";
+import { buildPriceDistribution } from "@/lib/market-engine/signals";
 
 export function money(n: number | null | undefined): string {
   if (n == null) return "—";
@@ -71,6 +72,65 @@ export function MarketGauge({
         <span>{money(low)}<br />Low</span>
         <span className="text-center">{money(median)}<br />Median</span>
         <span className="text-right">{money(high)}<br />High</span>
+      </div>
+    </div>
+  );
+}
+
+/** Histogram of nearby comparable-listing prices, with median + your-price
+ *  markers. Real data from the comps we already fetched — shown when no
+ *  time-series history is available, instead of a fabricated trend. */
+export function PriceDistributionChart({
+  prices,
+  median,
+  price,
+}: {
+  prices: number[];
+  median: number | null;
+  price: number | null;
+}) {
+  const buckets = buildPriceDistribution(prices, 6);
+  if (buckets.length === 0) {
+    return (
+      <div className="flex h-32 items-center justify-center rounded-xl border border-dashed border-edge bg-cream-50 text-sm text-slate">
+        Not enough comparable listings to chart a distribution.
+      </div>
+    );
+  }
+  const maxCount = Math.max(...buckets.map((b) => b.count), 1);
+  const lo = buckets[0].lowEdge;
+  const hi = buckets[buckets.length - 1].highEdge;
+  const pos = (v: number) => Math.max(0, Math.min(100, ((v - lo) / (hi - lo)) * 100));
+  return (
+    <div>
+      <div className="relative flex h-32 items-end gap-1">
+        {buckets.map((b, i) => (
+          <div key={i} className="flex flex-1 flex-col items-center justify-end">
+            {b.count > 0 && <span className="text-[10px] font-semibold text-slate">{b.count}</span>}
+            <div
+              className="w-full rounded-t bg-blue/70"
+              style={{ height: `${Math.round((b.count / maxCount) * 100)}%` }}
+            />
+          </div>
+        ))}
+        {median != null && (
+          <div className="absolute inset-y-0 w-[2px] -translate-x-1/2 bg-navy/70" style={{ left: `${pos(median)}%` }} aria-hidden />
+        )}
+        {price != null && (
+          <div className="absolute inset-y-0 w-[2px] -translate-x-1/2 bg-red" style={{ left: `${pos(price)}%` }} aria-hidden />
+        )}
+      </div>
+      <div className="mt-1 flex justify-between text-[10px] font-medium text-slate">
+        <span>{money(lo)}</span>
+        <span>{money(hi)}</span>
+      </div>
+      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate">
+        {median != null && (
+          <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm bg-navy/70" />Median {money(median)}</span>
+        )}
+        {price != null && (
+          <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm bg-red" />Your price {money(price)}</span>
+        )}
       </div>
     </div>
   );
