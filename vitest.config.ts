@@ -5,6 +5,9 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
+      // `import "server-only"` throws outside an RSC build; stub it so server
+      // modules (deals.ts, buyer-auth.ts, …) can be imported in unit tests.
+      "server-only": fileURLToPath(new URL("./src/test/server-only-stub.ts", import.meta.url)),
     },
   },
   // Match the app's automatic JSX runtime so components transform without a

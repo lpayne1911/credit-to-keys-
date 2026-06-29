@@ -15,6 +15,7 @@ import { getServiceClient } from "@/lib/supabase/server";
 import { runMarketCheck } from "@/lib/market-engine/runMarketCheck";
 import { isConfigured as isMarketCheckConfigured } from "@/lib/sources/marketcheck/connector";
 import { rateLimit, rateLimitHeaders } from "@/lib/rate-limit";
+import { getBuyer } from "@/lib/buyer-auth";
 
 export const runtime = "nodejs";
 
@@ -117,7 +118,9 @@ export async function POST(req: Request) {
       if (!leadErr && lead) leadId = lead.id as string;
     }
 
-    const row = toDealRow(body, input, result, leadId);
+    // Stamp ownership when the buyer is signed in, so it shows on their dashboard.
+    const buyer = await getBuyer();
+    const row = { ...toDealRow(body, input, result, leadId), user_id: buyer?.id ?? null };
     const { data: deal, error: dealErr } = await supabase
       .from("deals")
       .insert(row)

@@ -24,7 +24,12 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-/** Returns a cookie-wired Supabase client, or null when Supabase isn't configured. */
+/**
+ * Returns a cookie-wired Supabase client, or null when Supabase isn't
+ * configured. Used for ALL session-bearing auth (operator console AND buyer
+ * accounts) — it's just the SSR anon client; the caller decides authorization.
+ * `getServerSupabase` is the general-purpose alias.
+ */
 export function getConsoleClient(): SupabaseClient | null {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -51,3 +56,6 @@ export function getConsoleClient(): SupabaseClient | null {
     },
   });
 }
+
+/** General-purpose alias for the cookie-wired SSR client (see above). */
+export const getServerSupabase = getConsoleClient;
