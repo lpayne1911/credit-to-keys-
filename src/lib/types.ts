@@ -33,6 +33,9 @@ export interface LeadRow {
 export interface DealRow {
   id: string;
   lead_id: string | null;
+  // Owning buyer (Supabase auth user) when the deal was run while signed in.
+  // null for anonymous/legacy deals (capability-URL only).
+  user_id: string | null;
 
   // Where the buyer is purchasing (two-letter state code). Drives state-aware
   // copy and, later, state-specific fee caps.

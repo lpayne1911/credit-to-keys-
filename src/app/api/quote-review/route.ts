@@ -25,6 +25,7 @@ import { isConfigured as isMarketCheckConfigured } from "@/lib/sources/marketche
 import type { PriceRange } from "@/lib/fairness-engine";
 import { getServiceClient } from "@/lib/supabase/server";
 import { rateLimit, rateLimitHeaders } from "@/lib/rate-limit";
+import { getBuyer } from "@/lib/buyer-auth";
 
 export const runtime = "nodejs";
 
@@ -121,7 +122,10 @@ export async function POST(req: Request) {
   try {
     const inputPath: "manual" | "upload" =
       deal.sourceMetadata.documentUploaded ? "upload" : "manual";
+    // Stamp ownership when the buyer is signed in (shows on their dashboard).
+    const buyer = await getBuyer();
     const row = {
+      user_id: buyer?.id ?? null,
       buyer_state: deal.sourceMetadata.buyerState,
       vehicle_year: deal.vehicle.year,
       vehicle_make: deal.vehicle.make,

@@ -14,6 +14,7 @@ import { isConsoleConfigured } from "@/lib/console-auth";
 import { VerdictView } from "@/components/VerdictView";
 import { ReviewEditor } from "@/components/ReviewEditor";
 import { LogoutButton } from "@/components/LogoutButton";
+import { isDealReviewResult } from "@/lib/deal-engine/is-deal-review";
 import type { FairnessResult, Flag } from "@/lib/fairness-engine";
 
 export const dynamic = "force-dynamic";
@@ -72,9 +73,7 @@ export default async function ConsoleDealPage({
   // "deal-review-1"). The components below expect the fairness shape, so only
   // treat it as such when it isn't a Deal Review result — otherwise the page
   // would crash trying to render an incompatible object.
-  const isDealReview =
-    !!deal.auto_result &&
-    (deal.auto_result as { schemaVersion?: string }).schemaVersion === "deal-review-1";
+  const isDealReview = isDealReviewResult(deal.auto_result);
   const auto: FairnessResult | null = isDealReview
     ? null
     : ((deal.auto_result as FairnessResult) ?? null);

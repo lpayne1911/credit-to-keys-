@@ -217,6 +217,18 @@ export const loginSchema = z.object({
   password: z.string().min(1).max(400),
 });
 
+/** Buyer sign-in (email + password). */
+export const accountLoginSchema = z.object({
+  email: z.string().email().max(320),
+  password: z.string().min(1).max(400),
+});
+
+/** Buyer sign-up (email + password, with a minimum length). */
+export const accountSignupSchema = z.object({
+  email: z.string().email().max(320),
+  password: z.string().min(8).max(400),
+});
+
 /** Start an OAuth/social sign-in for the console. */
 export const oauthStartSchema = z.object({
   provider: z.enum(["google", "apple"]),

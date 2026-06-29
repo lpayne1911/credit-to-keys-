@@ -167,7 +167,7 @@ export function FocusedResult({
           <div className="mt-5 rounded-xl border border-gold/40 bg-gold/5 px-4 py-3 text-sm text-navy/75">
             Already signed? You may still have options to review or cancel some
             products — we can&apos;t promise a cancellation or refund, but{" "}
-            <Link href="/deal-rescue" className="font-semibold text-gold-dark hover:underline">
+            <Link href="/post-sale-triage" className="font-semibold text-gold-dark hover:underline">
               start a deal rescue
             </Link>{" "}
             and we&apos;ll help you organize it.
