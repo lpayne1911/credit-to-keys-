@@ -15,7 +15,10 @@ describe("product catalog routing", () => {
       "apr-check": "/apr-check",
       "add-on-check": "/add-on-check",
       "human-review": "/human-review",
-      "deal-rescue": "/deal-rescue",
+      // Post-signing help now lives at /post-sale-triage (the funnel page).
+      "deal-rescue": "/post-sale-triage",
+      "build-my-plan": "/build-my-plan",
+      concierge: "/concierge",
     };
     for (const [id, route] of Object.entries(expected)) {
       expect(getProduct(id)?.route, id).toBe(route);
@@ -47,14 +50,14 @@ describe("product catalog routing", () => {
     expect(getProduct("deal-rescue")?.usesAutomatedScoring).toBe(false);
   });
 
-  it("nav links route correctly and include the free check as primary", () => {
+  it("nav links route correctly with the quote-review funnel as primary", () => {
     const byLabel = Object.fromEntries(NAV_LINKS.map((l) => [l.label, l]));
     expect(byLabel["How it works"].href).toBe("/#how-it-works");
     expect(byLabel["What we catch"].href).toBe("/#what-we-catch");
-    expect(byLabel["Human review"].href).toBe("/human-review");
-    expect(byLabel["Already signed?"].href).toBe("/deal-rescue");
+    expect(byLabel["Concierge"].href).toBe("/concierge");
+    expect(byLabel["Already signed?"].href).toBe("/post-sale-triage");
     const primary = NAV_LINKS.find((l) => l.primary);
-    expect(primary?.href).toBe("/check");
+    expect(primary?.href).toBe("/quote-review");
   });
 
   it("getProductByRoute round-trips", () => {

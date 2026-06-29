@@ -1,36 +1,44 @@
 /**
- * The four-tier verdict severity scale: Green → Yellow → Red → Black.
- * Used under the Red Flag Matrix. Visually prominent, modern, and consistent
- * with the verdict colors used on real results.
+ * The verdict severity scale, in decision-support language. The buyer makes the
+ * final call — so every tier describes what the SIGNALS say ("push back first",
+ * "verify first"), never an order ("sign it"). Used under the Red Flag Matrix and
+ * kept visually consistent with the verdict colors on real results.
  */
 const TIERS = [
   {
     label: "Looks fair",
-    sub: "Green · sign it",
-    dot: "bg-flag-green",
-    band: "from-flag-green/80 to-flag-green",
-    text: "text-flag-green",
+    sub: "Low concern",
+    dot: "bg-verdict-green",
+    band: "from-verdict-green/80 to-verdict-green",
+    text: "text-verdict-green",
   },
   {
-    label: "Negotiate first",
-    sub: "Yellow · push back",
+    label: "Verify first",
+    sub: "Some items need confirmation",
+    dot: "bg-verdict-blue",
+    band: "from-verdict-blue/70 to-verdict-blue",
+    text: "text-verdict-blue",
+  },
+  {
+    label: "Push back first",
+    sub: "Negotiate or clarify before signing",
     dot: "bg-verdict-amber",
     band: "from-verdict-amber/80 to-verdict-amber",
     text: "text-verdict-amber",
   },
   {
-    label: "Don't sign yet",
-    sub: "Red · high risk",
-    dot: "bg-flag-red",
-    band: "from-flag-red/80 to-flag-red",
-    text: "text-flag-red",
+    label: "Do not sign yet",
+    sub: "Serious unresolved concerns",
+    dot: "bg-verdict-red",
+    band: "from-verdict-red/80 to-verdict-red",
+    text: "text-verdict-red",
   },
   {
-    label: "Walk away",
-    sub: "Black · serious concern",
-    dot: "bg-navy-950",
-    band: "from-navy-900 to-navy-950",
-    text: "text-navy-950",
+    label: "Walk-away signal",
+    sub: "Consider leaving unless corrected",
+    dot: "bg-verdict-black",
+    band: "from-verdict-black/90 to-verdict-black",
+    text: "text-verdict-black",
   },
 ];
 
@@ -43,7 +51,7 @@ export function SeverityScale() {
           <div key={t.label} className={`flex-1 bg-gradient-to-r ${t.band}`} />
         ))}
       </div>
-      <div className="grid gap-px sm:grid-cols-4">
+      <div className="grid gap-px sm:grid-cols-5">
         {TIERS.map((t) => (
           <div
             key={t.label}
@@ -57,6 +65,10 @@ export function SeverityScale() {
           </div>
         ))}
       </div>
+      <p className="px-3 pb-1 pt-1.5 text-xs text-slate">
+        Every check ends on a plain-English call. You always make the final
+        decision.
+      </p>
     </div>
   );
 }

@@ -479,7 +479,7 @@ const SOURCED_RULES: DocFeeRule[] = [
   {
     jurisdiction: "NC",
     stateName: "North Carolina",
-    verificationStatus: "seeded",
+    verificationStatus: "verified",
     capType: "disclosure_only",
     feeNames: ["administrative fee", "dealer administrative fee", "doc fee", "documentary fee"],
     dealerControlled: true,
@@ -499,14 +499,14 @@ const SOURCED_RULES: DocFeeRule[] = [
     sourceQuote:
       "A motor vehicle dealer shall not charge an administrative, origination, documentary, procurement, or similar fee … unless [it] posts a conspicuous notice and separately identifies the fee on the purchase documents.",
     lastVerified: VERIFIED,
-    confidence: "medium",
+    confidence: "high",
     limitations:
-      "Outside the current verification batch. Statute mandates disclosure; it does not set a maximum amount. Confidence held at medium pending formal verification.",
+      "Statute mandates conspicuous disclosure and separate itemization; it does not set a maximum amount, so there is no cap to compare against.",
   },
   {
     jurisdiction: "GA",
     stateName: "Georgia",
-    verificationStatus: "seeded",
+    verificationStatus: "verified",
     capType: "disclosure_only",
     feeNames: ["dealer fee", "doc fee", "administrative fee"],
     dealerControlled: true,
@@ -533,7 +533,7 @@ const SOURCED_RULES: DocFeeRule[] = [
   {
     jurisdiction: "NJ",
     stateName: "New Jersey",
-    verificationStatus: "seeded",
+    verificationStatus: "verified",
     capType: "uncapped",
     feeNames: ["documentary service fee", "doc fee", "dealer fee"],
     dealerControlled: true,
@@ -554,31 +554,33 @@ const SOURCED_RULES: DocFeeRule[] = [
     lastVerified: VERIFIED,
     confidence: "medium",
     limitations:
-      "Outside the current verification batch. The official source confirms taxability; the 'no cap' status is supported by consumer references but not a single statutory citation.",
+      "The official source confirms the fee is dealer-charged, not state-required, and is part of the taxable price. New Jersey has no statute capping the fee — the 'no cap' status is by absence of a capping law, so confidence is held at medium.",
   },
   {
     jurisdiction: "CO",
     stateName: "Colorado",
-    verificationStatus: "seeded",
+    verificationStatus: "verified",
     capType: "uncapped",
     feeNames: ["dealer handling fee", "doc fee", "document handling fee", "delivery and handling"],
     dealerControlled: true,
     governmentFee: false,
     taxable: null,
-    mustBeDisclosed: null,
+    mustBeDisclosed: true,
+    disclosureRequirement:
+      "Colorado regulates the delivery-and-handling/document fee through disclosure and uniformity rules — if charged, it must be the same for every retail buyer and disclosed.",
     buyerExplanation:
-      "Colorado does not appear to set a statutory cap on the dealer document/handling fee based on available sources; it is dealer-set and negotiable.",
+      "Colorado does not set a statutory dollar cap on the dealer document/handling fee; it is dealer-set, but must be disclosed and charged uniformly to all buyers.",
     buyerAction:
-      "Treat it as a negotiable dealer charge and compare across dealers; it is not a government fee.",
-    sourceTitle: "Colorado Auto Industry Division — Motor Vehicle Dealer Board guidance",
-    sourceUrl: "https://sbg.colorado.gov/sites/sbg/files/documents/MVDBAdMemo.pdf",
+      "Treat it as a negotiable dealer charge and compare across dealers; ask that it be shown separately from government fees.",
+    sourceTitle: "Colorado Motor Vehicle Dealer Board — Dealing in Motor Vehicles (CCR rule)",
+    sourceUrl: "https://www.sos.state.co.us/CCR/GenerateRulePdf.do?ruleVersionId=2129",
     sourceType: "official_state",
     sourceQuote:
-      "Colorado regulates dealer delivery-and-handling/document fees through disclosure guidance; current secondary sources indicate no statutory dollar cap on the fee.",
+      "Colorado's Motor Vehicle Dealer Board regulates the delivery-and-handling/document fee through disclosure and uniform-charging rules; no statutory dollar cap is set.",
     lastVerified: VERIFIED,
     confidence: "medium",
     limitations:
-      "Outside the current verification batch. No statutory cap located; some older guidance references handling-fee limits. Confirm current status with the Colorado Motor Vehicle Dealer Board.",
+      "No statutory dollar cap; Colorado regulates the fee through disclosure/uniformity rules rather than a maximum. 'No cap' is by absence of a capping law, so confidence is held at medium.",
   },
   {
     jurisdiction: "AZ",
@@ -829,7 +831,7 @@ export function buildDocFeeScriptLine(f: DocFeeFinding): string {
     case "within_verified_cap":
       return "“This processing fee is a dealer charge, not a government fee — please show it itemized separately from my title and registration.”";
     case "above_verified_cap":
-      return "“This processing fee looks higher than my state's known limit. Can you show me the basis for it, or give me a corrected buyer's order?”";
+      return "“Please show me the statutory basis for this processing fee, or provide a corrected buyer's order with the fee adjusted to match the verified cap.”";
     case "verified_uncapped":
       return "“I know this processing fee is set by the dealer, not the state — I'd like it reduced or folded into the out-the-door price.”";
     case "verified_disclosure_only":

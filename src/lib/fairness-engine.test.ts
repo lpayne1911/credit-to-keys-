@@ -703,3 +703,43 @@ describe("scoreDeal — state-aware doc-fee gating (replaces the flat $200 trigg
     }
   });
 });
+
+describe("scoreDeal — doc-fee uses resolved deal state", () => {
+  const docFlag = (input: Partial<FairnessInput>) =>
+    scoreDeal(
+      scoreDealBase({ ...input }),
+    ).flags.find((f) => f.docFee);
+  function scoreDealBase(input: Partial<FairnessInput>): FairnessInput {
+    return {
+      vehicle: { year: 2021, make: "Toyota", model: "Camry" },
+      deal: { vehiclePrice: 26_000, fees: [{ label: "Doc fee", amount: 190 }] },
+      ...input,
+    };
+  }
+
+  it("uses an explicit registration state and fires verified cap logic (NY $190)", () => {
+    const f = docFlag({ registrationState: "NY" });
+    expect(f!.docFee!.comparisonStatus).toBe("above_verified_cap");
+    expect(f!.docFee!.stateCode).toBe("NY");
+  });
+
+  it("falls back to dealer ZIP with a verify limitation when registration state is missing", () => {
+    const f = docFlag({ dealerZip: "10001" }); // NYC ZIP → NY
+    expect(f!.docFee!.comparisonStatus).toBe("above_verified_cap");
+    expect(f!.docFee!.stateCode).toBe("NY");
+    expect(f!.docFee!.confidence).toBe("medium"); // inferred state caps confidence
+    expect(f!.docFee!.limitations ?? "").toMatch(/dealer ZIP|verify/i);
+  });
+
+  it("still produces a missing-state advisory when no state signal exists", () => {
+    const f = docFlag({});
+    expect(f!.docFee!.comparisonStatus).toBe("missing_state");
+  });
+
+  it("registration ZIP resolves the rule and notes the source", () => {
+    const f = docFlag({ registrationZip: "20850", deal: { fees: [{ label: "Dealer processing fee", amount: 950 }] } });
+    expect(f!.docFee!.stateCode).toBe("MD");
+    expect(f!.docFee!.comparisonStatus).toBe("above_verified_cap");
+    expect(f!.docFee!.limitations ?? "").toMatch(/ZIP/i);
+  });
+});

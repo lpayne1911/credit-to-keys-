@@ -46,6 +46,11 @@ import {
   isDocFeeAlias,
   type DocFeeFinding,
 } from "./intelligence/docFeeRules";
+import {
+  resolveDealState,
+  stateSourceNote,
+  type StateResolution,
+} from "./intelligence/resolveDealState";
 
 // ---------------------------------------------------------------------------
 //  INPUT TYPES
@@ -153,6 +158,25 @@ export interface FairnessInput {
   /** Two-letter US jurisdiction code (state/DC) where the buyer is purchasing.
    * Drives state-aware doc-fee intelligence. Optional. */
   buyerState?: string | null;
+  /** Additional, lower-priority state signals. The engine resolves the best
+   * available jurisdiction from these via {@link resolveDealState}. All optional. */
+  registrationState?: string | null;
+  purchaseState?: string | null;
+  registrationZip?: string | null;
+  dealerZip?: string | null;
+  dealerState?: string | null;
+  dealerAddress?: string | null;
+  userProfileState?: string | null;
+  /**
+   * Market value range for the vehicle, injected server-side (e.g. from
+   * MarketCheck) before scoring. The engine stays pure/sync — it only consumes
+   * this if present. Absent → no vehicle-price fairness flag (unchanged behavior).
+   */
+  marketValue?: PriceRange | null;
+  /** Market median + a realistically-achievable target price from the MarketCheck
+   * snapshot. The median anchors price fairness; the target drives the pushback. */
+  marketMedian?: number | null;
+  marketTarget?: number | null;
   /** True when the figures came from an uploaded quote (raises confidence). */
   documentUploaded?: boolean;
   /**
@@ -180,6 +204,7 @@ export type WarrantyPriceRating =
 export type FlagType =
   | "junk_fee"
   | "government_fee"
+  | "overpriced_vehicle"
   | "apr_markup"
   | "overpriced_addon"
   | "redundant_addon"
@@ -238,6 +263,12 @@ export interface FairnessResult {
   assumptions: string[];
   /** Engine version — bump when the real engine replaces these placeholders. */
   engineVersion: string;
+  /** How the deal's jurisdiction was resolved (drives state-aware rules and the
+   * "Using MD from the dealer ZIP — verify" note). Optional for back-compat. */
+  stateResolution?: StateResolution | null;
+  /** The market value range used for price fairness (echoed for the UI so it can
+   * show the market band even when the price is in range). Optional. */
+  marketValue?: PriceRange | null;
 }
 
 // ===========================================================================
@@ -370,7 +401,8 @@ const WARRANTY_VERY_OVERPRICED_THRESHOLD = 1.6; // >60% over → "very_overprice
  * ASSUMPTION: reflects a generic used-car financing environment.
  */
 // PLACEHOLDER — replace with real engine value (owner's rate model / live data)
-const LIKELY_APR_BAND: Record<CreditBand, { low: number; high: number }> = {
+// Exported so the Build My Plan engine benchmarks financing off the same band.
+export const LIKELY_APR_BAND: Record<CreditBand, { low: number; high: number }> = {
   excellent: { low: 4.5, high: 7.5 },
   good: { low: 6.5, high: 10.5 },
   fair: { low: 9.5, high: 15.0 },
@@ -537,7 +569,31 @@ export function scoreDeal(input: FairnessInput): FairnessResult {
   }
 
   // --- Fees & add-ons ----------------------------------------------------
-  flags.push(...assessFees(input.deal.fees ?? [], assumptions, input.buyerState ?? null));
+  // Resolve the best available jurisdiction (registration > purchase > ZIP >
+  // dealer) so doc-fee rules fire on more than a single narrow state field.
+  const stateRes = resolveDealState({
+    registrationState: input.registrationState,
+    purchaseState: input.purchaseState,
+    buyerState: input.buyerState,
+    registrationZip: input.registrationZip,
+    dealerZip: input.dealerZip,
+    dealerState: input.dealerState,
+    dealerAddress: input.dealerAddress,
+    userProfileState: input.userProfileState,
+  });
+  flags.push(...assessFees(input.deal.fees ?? [], assumptions, stateRes));
+
+  // --- Vehicle price vs. market (from injected MarketCheck range) ---------
+  const priceFlag = assessVehiclePrice(
+    input.vehicle,
+    input.deal,
+    input.marketValue ?? null,
+    input.marketMedian ?? null,
+    input.marketTarget ?? null,
+    stateRes.confidence,
+    assumptions,
+  );
+  if (priceFlag) flags.push(priceFlag);
 
   // --- Interest paid on add-ons financed into the loan -------------------
   const financedFlag = assessFinancedAddOns(input, assumptions);
@@ -576,6 +632,60 @@ export function scoreDeal(input: FairnessInput): FairnessResult {
     warranty,
     assumptions: dedupe(assumptions),
     engineVersion: ENGINE_VERSION,
+    stateResolution: stateRes,
+    marketValue: input.marketValue ?? null,
+  };
+}
+
+/**
+ * Vehicle price vs. market — fed by the MarketCheck snapshot (median + target +
+ * range injected into the input). Pure. Anchors fairness on the market MEDIAN
+ * when available (flags an above-median price as a price-risk signal), falling
+ * back to the range high when no median is supplied. In-range/below emits no
+ * flag — the UI still shows the band from `FairnessResult.marketValue`.
+ * Confidence is the weaker of the market data and the resolved-state confidence.
+ */
+function assessVehiclePrice(
+  vehicle: VehicleInput,
+  deal: DealInput,
+  marketValue: PriceRange | null,
+  marketMedian: number | null,
+  marketTarget: number | null,
+  stateConfidence: Confidence,
+  assumptions: string[],
+): Flag | null {
+  const price = deal.vehiclePrice ?? null;
+  if (!marketValue || !price || price <= 0) return null;
+
+  assumptions.push(
+    `Vehicle price compared against a market range of ${money(marketValue.low)}–${money(marketValue.high)} (${marketValue.basis}).`,
+  );
+
+  // Median is the fairness anchor when we have it; else the range high.
+  const anchor = marketMedian ?? marketValue.high;
+  if (price <= anchor) return null; // at/below median (or within range) — no concern
+
+  const over = price - anchor;
+  const pctOver = over / anchor;
+  const severity: FlagSeverity = pctOver <= 0.02 ? "low" : pctOver <= 0.06 ? "medium" : "high";
+  const confidence = minConfidence(marketValue.confidence, stateConfidence);
+
+  const target = marketTarget ?? marketValue.low;
+  const vehName = [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(" ") || "this vehicle";
+  const towardAnchor = Math.max(0, price - anchor);
+  const towardTarget = Math.max(0, price - target);
+
+  return {
+    type: "overpriced_vehicle",
+    severity,
+    title: "Price above the local market",
+    explanation: `The asking price of ${money(price)} is about ${money(over)} above the local market ${marketMedian ? "median" : "range"} for ${vehName} (${money(marketValue.low)}–${money(marketValue.high)}). This is a price-risk signal and a negotiation point — ask for a revised selling price closer to ${money(target)}. You make the final decision.`,
+    estimatedImpact: {
+      low: towardAnchor,
+      high: Math.max(towardAnchor, towardTarget),
+      confidence,
+      basis: marketValue.basis,
+    },
   };
 }
 
@@ -1072,10 +1182,16 @@ export function auditFees(fees: ItemizedFee[]): FeeAuditResult {
   };
 }
 
+const UNKNOWN_STATE: StateResolution = {
+  stateCode: null,
+  source: "unknown",
+  confidence: "low",
+};
+
 function assessFees(
   fees: ItemizedFee[],
   assumptions: string[],
-  buyerState: string | null = null,
+  stateRes: StateResolution = UNKNOWN_STATE,
 ): Flag[] {
   const out: Flag[] = [];
   const govFees: ItemizedFee[] = [];
@@ -1086,7 +1202,7 @@ function assessFees(
     // not the flat dollar ceiling. This is what lets a $190 fee surface as over
     // a verified $175 cap even though it's below the old $200 trigger.
     if (isDocFeeAlias(fee.label)) {
-      out.push(buildDocFeeFlag(fee, buyerState, assumptions));
+      out.push(buildDocFeeFlag(fee, stateRes, assumptions));
       continue;
     }
 
@@ -1153,16 +1269,37 @@ function assessFees(
  * generic ceiling for a high fee, but always surface "add your state" guidance.
  * Compliance copy lives in the classifier; this only chooses severity/type.
  */
+/** The lower (more cautious) of two confidence levels. */
+function minConfidence(a: Confidence, b: Confidence): Confidence {
+  const rank: Record<Confidence, number> = { low: 0, medium: 1, high: 2 };
+  return rank[a] <= rank[b] ? a : b;
+}
+
 function buildDocFeeFlag(
   fee: ItemizedFee,
-  buyerState: string | null,
+  stateRes: StateResolution,
   assumptions: string[],
 ): Flag {
   const finding = classifyDocFeeAmount({
-    stateCode: buyerState,
+    stateCode: stateRes.stateCode,
     feeName: fee.label,
     amountCents: Math.round((fee.amount || 0) * 100),
   });
+
+  // Reflect how sure we are of the STATE, not just the rule: an inferred state
+  // (dealer ZIP, etc.) caps the finding's confidence and records where it came
+  // from, so the report can say "Using MD from the dealer ZIP — verify…".
+  finding.confidence = minConfidence(finding.confidence, stateRes.confidence);
+  const note = stateSourceNote(stateRes);
+  const stateCaveat = [note, stateRes.source !== "explicit_purchase_state" ? stateRes.limitations : ""]
+    .filter(Boolean)
+    .join(" ");
+  if (stateCaveat) {
+    finding.limitations = finding.limitations
+      ? `${stateCaveat} ${finding.limitations}`
+      : stateCaveat;
+  }
+
   const round25 = (n: number) => Math.round(n / 25) * 25;
 
   // Over a VERIFIED state cap → a real, scored risk flag at ANY dollar amount.

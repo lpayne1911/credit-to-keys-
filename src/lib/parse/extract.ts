@@ -28,6 +28,8 @@ export interface ExtractedFields {
   termMonths?: string;
   monthlyPayment?: string;
   warrantyPrice?: string;
+  /** The dealership's ZIP code, used as a fallback to resolve the deal's state. */
+  dealerZip?: string;
   fees?: { label: string; amount: number }[];
 }
 
@@ -103,6 +105,7 @@ Return a single JSON object (no prose, no code fences) with these keys, omitting
   "termMonths": number,
   "monthlyPayment": number,
   "warrantyPrice": number,           // price of any vehicle service contract / extended warranty, under ANY name: VSC, extended service plan/contract (ESP/ESC), mechanical breakdown insurance (MBI), a manufacturer plan (e.g. Honda Care, Ford Protect/PremiumCARE, GM Protection Plan, Mopar MaxCare, Nissan Security+Plus, Subaru Added Security), or a provider plan (e.g. Endurance, Zurich, Ally Premier Protection, Fidelity, Assurant, CarShield). NOT GAP, tire & wheel, key, or paint/fabric protection.
+  "dealerZip": string,               // the dealership's 5-digit ZIP code, from its address/letterhead, if shown
   "fees": [ { "label": string, "amount": number } ]  // every dealer fee & add-on line item: doc fee, nitrogen, VIN etch, paint/fabric protection, dealer prep, market adjustment, title/registration, etc.
 }
 Strip "$" and commas from all numbers. If the document is not a car quote, return {}.`;
@@ -175,6 +178,7 @@ export function normalize(raw: Record<string, unknown>): ExtractedFields {
     termMonths: s(raw.termMonths),
     monthlyPayment: s(raw.monthlyPayment),
     warrantyPrice: s(raw.warrantyPrice),
+    dealerZip: s(raw.dealerZip),
   };
   if (Array.isArray(raw.fees)) {
     let fees = raw.fees

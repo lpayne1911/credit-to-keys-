@@ -1,10 +1,9 @@
 import Link from "next/link";
 import { Disclaimer } from "./Disclaimer";
 import { Logo } from "./SiteHeader";
-import { PRODUCTS } from "@/lib/products/product-catalog";
+import { FUNNELS } from "@/lib/funnels";
 
 export function SiteFooter() {
-  const live = PRODUCTS.filter((p) => p.status !== "coming_soon");
   return (
     <footer className="relative mt-20 overflow-hidden border-t border-white/10 bg-navy-950 text-cream">
       {/* layered glow */}
@@ -18,7 +17,7 @@ export function SiteFooter() {
           <div>
             <Link href="/" className="group inline-flex items-center gap-2.5">
               <Logo className="h-9 w-9" />
-              <span className="font-serif text-xl font-bold text-white">
+              <span className="text-xl font-bold tracking-tight text-white">
                 Driveway Advocate
               </span>
             </Link>
@@ -26,32 +25,24 @@ export function SiteFooter() {
               A buyer-side advocate for the finance office. We check the math,
               flag the traps, and tell you what to push back on — before you sign.
             </p>
-            <p className="mt-4 text-sm font-semibold text-gold-light">
+            <p className="mt-4 text-sm font-semibold text-gold">
               They have a team. Now you do too.
             </p>
           </div>
 
-          {/* Product links */}
-          <nav aria-label="Products">
+          {/* Funnel paths */}
+          <nav aria-label="Paths">
             <h3 className="text-[11px] font-bold uppercase tracking-[0.18em] text-cream/45">
-              Checks
+              Paths
             </h3>
             <ul className="mt-4 space-y-2.5">
-              <li>
-                <Link
-                  href="/products"
-                  className="text-sm font-semibold text-cream/85 transition hover:text-gold-light"
-                >
-                  All products
-                </Link>
-              </li>
-              {live.map((p) => (
-                <li key={p.id}>
+              {FUNNELS.map((f) => (
+                <li key={f.id}>
                   <Link
-                    href={p.route}
+                    href={f.route}
                     className="text-sm text-cream/70 transition hover:text-gold-light"
                   >
-                    {p.label}
+                    {f.homeTitle}
                   </Link>
                 </li>
               ))}
@@ -86,6 +77,14 @@ export function SiteFooter() {
                   className="text-sm text-cream/70 transition hover:text-gold-light"
                 >
                   What we catch
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/junk-fee-audit"
+                  className="text-sm text-cream/70 transition hover:text-gold-light"
+                >
+                  Free junk-fee audit
                 </Link>
               </li>
               <li>

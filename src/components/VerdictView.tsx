@@ -34,6 +34,7 @@ import {
 import { AnimatedScore } from "@/components/ui/AnimatedScore";
 import { RiskBadge, type RiskTone } from "@/components/ui/RiskBadge";
 import type { DocFeeFinding } from "@/lib/intelligence/docFeeRules";
+import { stateSourceNote } from "@/lib/intelligence/resolveDealState";
 
 /** Map a flag severity to a RiskBadge tone for the summary chip row. */
 function severityTone(severity: string): RiskTone {
@@ -370,16 +371,11 @@ function DocFeeRulePanel({ finding }: { finding: DocFeeFinding }) {
         )}
       </div>
 
-      {/* Action + script */}
+      {/* Action — the exact desk sentence lives in the negotiation script card. */}
       <p className="mt-2 text-sm leading-relaxed text-navy/75">
         <span className="font-semibold text-gold-dark">Ask: </span>
         {finding.whatToAsk}
       </p>
-      {finding.scriptLine && (
-        <p className="mt-1.5 rounded-md bg-cream-100 px-3 py-2 text-sm italic leading-relaxed text-navy/75">
-          {finding.scriptLine}
-        </p>
-      )}
 
       {/* Details second: source + caveats */}
       {finding.source?.url ? (
@@ -659,6 +655,63 @@ export function FeeSection({
 }
 
 /**
+ * Vehicle price vs. market. Renders whenever a market range is available (from
+ * MarketCheck), showing the asking price against the market band — a reassuring
+ * "within range" when fair, or an "above market" callout when high. Pure
+ * presentation; the engine already emits the over-market flag + savings impact.
+ */
+export function VehiclePriceCard({
+  marketValue,
+  price,
+}: {
+  marketValue: PriceRange;
+  price: number | null;
+}) {
+  const over = price != null && price > marketValue.high;
+  const inRange =
+    price != null && price >= marketValue.low && price <= marketValue.high;
+  return (
+    <div className="card">
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="text-lg font-semibold text-navy">Vehicle price vs. market</h3>
+        <span
+          className={`rounded-full px-3 py-1 text-sm font-semibold ${
+            over
+              ? "bg-verdict-red/10 text-verdict-red"
+              : inRange
+                ? "bg-verdict-green/10 text-verdict-green"
+                : "bg-verdict-amber/10 text-verdict-amber"
+          }`}
+        >
+          {over ? "Above market" : inRange ? "Within range" : "Below market"}
+        </span>
+      </div>
+      <p className="mt-2 text-sm leading-relaxed text-navy/70">
+        {over
+          ? `The asking price is above the estimated market range — about ${money(price! - marketValue.high)} over the top. Use it as leverage to bring the price down. You make the final decision.`
+          : "The asking price sits within the estimated market range for this vehicle — a reasonable starting point. Confirm condition, history, and fees before you sign."}
+      </p>
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <div>
+          <p className="mb-1 text-xs font-medium text-navy/60">Estimated market range</p>
+          <RangePill range={marketValue} />
+        </div>
+        {price != null && (
+          <div>
+            <p className="mb-1 text-xs font-medium text-navy/60">Your deal price</p>
+            <div className="rounded-lg bg-cream-100 px-3 py-2">
+              <span className={`font-serif text-lg font-semibold ${over ? "text-verdict-red" : "text-navy"}`}>
+                {money(price)}
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
  * "What this loan really costs" — turns the deal's numbers into total interest
  * over the term, and shows the trade-off of a shorter loan. The finance office
  * leads with the monthly payment; this panel leads with the total, where long
@@ -887,6 +940,23 @@ export function VerdictView({
               {reviewedNote}
             </p>
           )}
+
+          {/* Where the state used for state-aware rules came from (only shown
+              when it was inferred, e.g. from a ZIP or the dealer location). */}
+          {result.stateResolution && stateSourceNote(result.stateResolution) && (
+            <p className="mt-3 flex items-start gap-1.5 text-xs text-slate">
+              <svg viewBox="0 0 20 20" className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gold-dark" aria-hidden>
+                <path
+                  d="M10 2.5c-3 0-5.5 2.4-5.5 5.4 0 3.9 5.5 9.6 5.5 9.6s5.5-5.7 5.5-9.6c0-3-2.5-5.4-5.5-5.4Z"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.4"
+                />
+                <circle cx="10" cy="8" r="1.6" fill="currentColor" />
+              </svg>
+              {stateSourceNote(result.stateResolution)}
+            </p>
+          )}
         </div>
         <SavingsHero result={result} />
       </div>
@@ -952,6 +1022,9 @@ export function VerdictView({
             )}
           </div>
 
+          {result.marketValue && (
+            <VehiclePriceCard marketValue={result.marketValue} price={loan?.vehiclePrice ?? null} />
+          )}
           <FeeSection
             feeRisk={feeRisk}
             feeFlags={feeFlags}

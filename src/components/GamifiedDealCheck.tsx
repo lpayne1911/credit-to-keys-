@@ -114,8 +114,11 @@ type State = {
   trim: string;
   vin: string;
   buyerState: string;
-  // Optional ZIP — internal location signal, never shown back to the buyer.
-  zip: string;
+  /** Buyer's registration ZIP — a high-value state signal when they skip the
+   * state picker. Also drives the internal ZIP->location analytics signal. */
+  registrationZip: string;
+  /** Dealer ZIP, captured from an uploaded quote — a state fallback. */
+  dealerZip: string;
   year: number;
   mileage: number;
   creditBand: string;
@@ -147,7 +150,8 @@ const INITIAL: State = {
   trim: "",
   vin: "",
   buyerState: "",
-  zip: "",
+  registrationZip: "",
+  dealerZip: "",
   year: NOW - 3,
   mileage: 40_000,
   creditBand: "",
@@ -231,7 +235,10 @@ export function GamifiedDealCheck({ focus = "full" }: { focus?: Focus } = {}) {
       return { label: def?.label ?? key, amount: v.amount };
     });
     // Internal-only location signal (ZIP-derived). Never shown back to the buyer.
-    const zc = s.zip ? deriveZipContext(s.zip) : null;
+    // Internal location signal derives from the registration ZIP (one ZIP field
+    // for the buyer, not two). Never scored, never shown back.
+    const regZip5 = (s.registrationZip || "").replace(/[^0-9]/g, "").slice(0, 5);
+    const zc = regZip5.length === 5 ? deriveZipContext(regZip5) : null;
     const vehicle = {
       year: s.year,
       make: s.make,
@@ -259,6 +266,8 @@ export function GamifiedDealCheck({ focus = "full" }: { focus?: Focus } = {}) {
       inputPath: (uploadedPath ? "upload" : "manual") as "upload" | "manual",
       uploadedFilePath: uploadedPath ?? undefined,
       buyerState: s.buyerState || undefined,
+      registrationZip: s.registrationZip || undefined,
+      dealerZip: s.dealerZip || undefined,
       // Internal-only location signal (ZIP-derived). Never scored, never shown.
       location: zc ? { zip: zc.zip, state: zc.state ?? undefined } : undefined,
     };
@@ -348,6 +357,7 @@ export function GamifiedDealCheck({ focus = "full" }: { focus?: Focus } = {}) {
         warrantyPrice: numOr(ex.warrantyPrice, prev.warrantyPrice),
         hasWarranty: ex.warrantyPrice ? true : prev.hasWarranty,
         warrantyFromUpload: ex.warrantyPrice ? true : prev.warrantyFromUpload,
+        dealerZip: strOr(ex.dealerZip, prev.dealerZip),
         addOns: Array.isArray(ex.fees) ? feesToAddOns(ex.fees) : prev.addOns,
       }));
       setUploadedPath(data.uploadedFilePath ?? null);
@@ -538,6 +548,26 @@ export function GamifiedDealCheck({ focus = "full" }: { focus?: Focus } = {}) {
                   ))}
                 </select>
               </label>
+              <label className="mt-4 block">
+                <span className="field-label">
+                  Registration ZIP{" "}
+                  <span className="font-normal text-navy/40">(optional)</span>
+                </span>
+                <input
+                  className="field-input"
+                  inputMode="numeric"
+                  maxLength={10}
+                  placeholder="Where you'll title & register the car"
+                  value={s.registrationZip}
+                  onChange={(e) =>
+                    set("registrationZip", e.target.value.replace(/[^0-9-]/g, ""))
+                  }
+                />
+                <span className="mt-1 block text-xs text-navy/45">
+                  Helps us pin the right state for doc-fee caps even if you skip the
+                  picker above.
+                </span>
+              </label>
               {s.buyerState && (
                 <p className="mt-3 text-sm text-navy/55">
                   We&apos;ll flag fees against {US_STATES.find((x) => x.code === s.buyerState)?.name ?? "your state"}
@@ -577,20 +607,6 @@ export function GamifiedDealCheck({ focus = "full" }: { focus?: Focus } = {}) {
                   onChange={(v) => set("vehiclePrice", v)} format={money} big />
                 <Slider label="Down payment" value={s.downPayment} min={0} max={25_000} step={250}
                   onChange={(v) => set("downPayment", v)} format={money} />
-                <div>
-                  <p className="field-label">ZIP code (optional)</p>
-                  <input
-                    className="field-input"
-                    inputMode="numeric"
-                    maxLength={5}
-                    value={s.zip}
-                    onChange={(e) => set("zip", e.target.value.replace(/[^0-9]/g, ""))}
-                    placeholder="e.g. 90210"
-                  />
-                  <p className="mt-1.5 text-xs text-navy/50">
-                    Helps us factor in local taxes and fees. Never shared with a dealer.
-                  </p>
-                </div>
               </div>
             </Step>
           )}

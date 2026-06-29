@@ -4,6 +4,38 @@
 
 :root {
   color-scheme: light;
+
+  /* Driveway Advocate design tokens (modern buyer-advocacy SaaS). */
+  --da-midnight: #061426;
+  --da-navy: #0b1f3a;
+  --da-navy-soft: #102a4c;
+
+  --da-green: #188038;
+  --da-green-dark: #11652b;
+  --da-green-soft: #eaf6ee;
+
+  --da-blue: #0e4d8a;
+  --da-blue-dark: #083968;
+  --da-blue-soft: #eaf2fb;
+
+  --da-gold: #c98a12;
+  --da-gold-dark: #a66f0b;
+  --da-gold-soft: #fff4dd;
+
+  --da-red: #c2412d;
+  --da-red-dark: #9f2f20;
+  --da-red-soft: #fdecea;
+  --da-orange: #e17b22;
+  --da-orange-soft: #fff0e3;
+
+  --da-bg: #f6f8fb;
+  --da-card: #ffffff;
+  --da-border: #d9e1ec;
+  --da-border-strong: #b8c5d4;
+
+  --da-text: #102033;
+  --da-muted: #5d6b7a;
+  --da-light-text: #ffffff;
 }
 
 @layer base {
@@ -12,12 +44,14 @@
     scroll-behavior: smooth;
   }
   body {
-    @apply bg-cream text-navy font-sans antialiased;
+    @apply bg-cream text-ink font-sans antialiased;
   }
+  /* SaaS-modern: headlines are bold sans, not serif. Use `font-serif`
+     explicitly only where a serif accent is intentional. */
   h1,
   h2,
   h3 {
-    @apply font-serif;
+    @apply font-sans font-bold tracking-tight;
   }
   /* Comfortable tap targets on mobile — people use this in the finance office. */
   button,
@@ -27,49 +61,85 @@
 }
 
 @layer components {
-  /* Primary CTA: reassuring GOLD, never alarming red. Now with a light sweep. */
+  /* Generic primary CTA — NAVY (app flows). Funnel CTAs use the colored
+     variants below so gold isn't on every button. */
   .btn-primary {
     @apply relative inline-flex items-center justify-center gap-2 overflow-hidden rounded-xl
-      bg-gradient-to-b from-gold to-gold-dark px-6 py-3 text-base font-semibold text-white
-      shadow-[0_8px_24px_-8px_rgba(168,120,31,0.7)] transition-all duration-200
-      hover:-translate-y-0.5 hover:shadow-[0_14px_34px_-8px_rgba(168,120,31,0.85)]
-      focus:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2
+      bg-navy px-6 py-3 text-base font-semibold text-white
+      shadow-[0_8px_24px_-8px_rgba(11,31,58,0.55)] transition-all duration-200
+      hover:-translate-y-0.5 hover:bg-navy-800 hover:shadow-[0_14px_34px_-8px_rgba(11,31,58,0.65)]
+      focus:outline-none focus-visible:ring-2 focus-visible:ring-navy focus-visible:ring-offset-2
       focus-visible:ring-offset-cream active:translate-y-0
       disabled:cursor-not-allowed disabled:opacity-60;
   }
-  /* The animated light sweep that crosses the button on hover. */
-  .btn-primary::after {
-    content: "";
-    @apply pointer-events-none absolute inset-y-0 left-0 w-1/3 -translate-x-[150%] skew-x-[-18deg]
-      bg-white/30 blur-md;
-    transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  /* Funnel CTAs — one color per path. GREEN quote-review/Deal Rescue,
+     BLUE shopping/Co-Pilot/Deal Maker, GOLD concierge/premium. */
+  .btn-green {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-green px-6 py-3
+      text-base font-semibold uppercase tracking-wide text-white shadow-[0_8px_24px_-8px_rgba(24,128,56,0.55)]
+      transition-all duration-200 hover:-translate-y-0.5 hover:bg-green-dark
+      focus:outline-none focus-visible:ring-2 focus-visible:ring-green focus-visible:ring-offset-2
+      focus-visible:ring-offset-cream disabled:cursor-not-allowed disabled:opacity-60;
   }
-  .btn-primary:hover::after {
-    transform: translateX(420%) skewX(-18deg);
+  .btn-blue {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-blue px-6 py-3
+      text-base font-semibold uppercase tracking-wide text-white shadow-[0_8px_24px_-8px_rgba(14,77,138,0.55)]
+      transition-all duration-200 hover:-translate-y-0.5 hover:bg-blue-dark
+      focus:outline-none focus-visible:ring-2 focus-visible:ring-blue focus-visible:ring-offset-2
+      focus-visible:ring-offset-cream disabled:cursor-not-allowed disabled:opacity-60;
+  }
+  .btn-gold {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-gold px-6 py-3
+      text-base font-semibold uppercase tracking-wide text-white shadow-[0_8px_24px_-8px_rgba(201,138,18,0.55)]
+      transition-all duration-200 hover:-translate-y-0.5 hover:bg-gold-dark
+      focus:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2
+      focus-visible:ring-offset-cream disabled:cursor-not-allowed disabled:opacity-60;
+  }
+  /* RED — post-sale triage path ONLY (never a generic CTA). */
+  .btn-red {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-red px-6 py-3
+      text-base font-semibold uppercase tracking-wide text-white shadow-[0_8px_24px_-8px_rgba(194,65,45,0.55)]
+      transition-all duration-200 hover:-translate-y-0.5 hover:bg-red-dark
+      focus:outline-none focus-visible:ring-2 focus-visible:ring-red focus-visible:ring-offset-2
+      focus-visible:ring-offset-cream disabled:cursor-not-allowed disabled:opacity-60;
   }
   .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-navy/15
-      bg-white/70 px-6 py-3 text-base font-semibold text-navy backdrop-blur transition-all duration-200
-      hover:-translate-y-0.5 hover:border-navy/30 hover:bg-white
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-edge-strong
+      bg-white px-6 py-3 text-base font-semibold text-navy transition-all duration-200
+      hover:-translate-y-0.5 hover:border-navy/40 hover:bg-cream-100
       focus:outline-none focus-visible:ring-2 focus-visible:ring-navy/30;
+  }
+  /* Navy outline button for header/nav. */
+  .btn-outline-navy {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-navy/25
+      bg-transparent px-4 py-2 text-sm font-semibold text-navy transition-all duration-200
+      hover:border-navy/50 hover:bg-navy/5
+      focus:outline-none focus-visible:ring-2 focus-visible:ring-navy/30;
+  }
+  /* Outline button on dark navy surfaces (header over hero). */
+  .btn-outline-light {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-white/30
+      bg-white/5 px-4 py-2 text-sm font-semibold text-white transition-all duration-200
+      hover:border-white/60 hover:bg-white/10
+      focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40;
   }
   /* Dark-surface secondary button (used on navy sections). */
   .btn-ghost-light {
     @apply inline-flex items-center justify-center gap-2 rounded-xl border border-white/20
-      bg-white/5 px-6 py-3 text-base font-semibold text-cream backdrop-blur transition-all duration-200
+      bg-white/5 px-6 py-3 text-base font-semibold text-white backdrop-blur transition-all duration-200
       hover:-translate-y-0.5 hover:border-white/40 hover:bg-white/10
-      focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60;
+      focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50;
   }
   .field-label {
     @apply mb-1 block text-sm font-medium text-navy/80;
   }
   .field-input {
-    @apply w-full rounded-lg border border-navy/15 bg-white px-3 py-2.5 text-navy
+    @apply w-full rounded-lg border border-edge-strong bg-white px-3 py-2.5 text-ink
       shadow-sm outline-none transition placeholder:text-navy/30
-      focus:border-gold focus:ring-2 focus:ring-gold/30;
+      focus:border-blue focus:ring-2 focus:ring-blue/25;
   }
   .card {
-    @apply rounded-2xl border border-navy/10 bg-white p-6 shadow-card;
+    @apply rounded-2xl border border-edge bg-white p-6 shadow-card;
   }
 
   /* Glassmorphism panel — the workhorse of the new visual language. */
@@ -85,30 +155,30 @@
     @apply transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-lift;
   }
 
-  /* Gradient hairline border (used on featured cards). */
+  /* Gradient hairline border (used on featured cards) — cool, app-like. */
   .ring-gradient {
     background:
       linear-gradient(var(--card-bg, #ffffff), var(--card-bg, #ffffff)) padding-box,
-      linear-gradient(135deg, rgba(200, 146, 58, 0.7), rgba(20, 37, 61, 0.12) 45%, rgba(234, 243, 255, 0.6)) border-box;
+      linear-gradient(135deg, rgba(11, 31, 58, 0.18), rgba(217, 225, 236, 0.6) 55%, rgba(184, 197, 212, 0.5)) border-box;
     border: 1.5px solid transparent;
   }
 
   /* Big tappable choice card for the gamified flow — generous mobile targets. */
   .choice {
-    @apply flex w-full items-center gap-4 rounded-2xl border-2 border-navy/10 bg-white
+    @apply flex w-full items-center gap-4 rounded-2xl border-2 border-edge bg-white
       px-5 py-4 text-left shadow-sm transition active:scale-[.99]
-      hover:border-gold/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold;
+      hover:border-navy/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-navy;
   }
   .choice--on {
-    @apply border-gold bg-gold/[.07] ring-1 ring-gold/30;
+    @apply border-navy bg-navy/[.05] ring-1 ring-navy/20;
   }
   /* Compact pill toggle (terms, coverage tiers). */
   .pill {
-    @apply rounded-full border-2 border-navy/15 bg-white px-4 py-2 text-sm font-semibold
-      text-navy/75 transition active:scale-95 hover:border-gold/50;
+    @apply rounded-full border-2 border-edge bg-white px-4 py-2 text-sm font-semibold
+      text-navy/75 transition active:scale-95 hover:border-navy/40;
   }
   .pill--on {
-    @apply border-gold bg-gold text-white shadow-sm;
+    @apply border-navy bg-navy text-white shadow-sm;
   }
 }
 
@@ -118,8 +188,8 @@
   /* Soft document grid texture (subtle). */
   .bg-grid {
     background-image:
-      linear-gradient(rgba(20, 37, 61, 0.045) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(20, 37, 61, 0.045) 1px, transparent 1px);
+      linear-gradient(rgba(11, 22, 40, 0.045) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(11, 22, 40, 0.045) 1px, transparent 1px);
     background-size: 44px 44px;
   }
   .bg-grid-dark {
@@ -158,7 +228,7 @@
   /* Tactile gold range slider — minimal typing, lots of dragging. */
   .range-gold {
     @apply h-2 w-full cursor-pointer appearance-none rounded-full bg-cream-200;
-    accent-color: #c8923a;
+    accent-color: #0B1F3A;
   }
   .range-gold::-webkit-slider-thumb {
     -webkit-appearance: none;
@@ -166,9 +236,9 @@
     width: 28px;
     height: 28px;
     border-radius: 9999px;
-    background: #c8923a;
+    background: #0B1F3A;
     border: 3px solid #fff;
-    box-shadow: 0 2px 6px rgba(20, 37, 61, 0.25);
+    box-shadow: 0 2px 6px rgba(11, 22, 40, 0.25);
     cursor: pointer;
   }
   .range-gold::-moz-range-thumb {
@@ -176,8 +246,8 @@
     height: 28px;
     border: 3px solid #fff;
     border-radius: 9999px;
-    background: #c8923a;
-    box-shadow: 0 2px 6px rgba(20, 37, 61, 0.25);
+    background: #0B1F3A;
+    box-shadow: 0 2px 6px rgba(11, 22, 40, 0.25);
     cursor: pointer;
   }
 

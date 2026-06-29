@@ -15,10 +15,10 @@ export default function JunkFeeAuditPage() {
       <SiteHeader />
       <main>
         <section className="mx-auto max-w-5xl px-4 pb-6 pt-12 sm:pt-16">
-          <span className="inline-block rounded-full bg-gold/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gold-dark">
+          <span className="inline-block rounded-full border border-edge bg-white px-3 py-1 text-xs font-bold uppercase tracking-wide text-navy">
             Free tool · instant
           </span>
-          <h1 className="mt-4 max-w-3xl font-serif text-4xl font-semibold leading-tight text-navy sm:text-5xl">
+          <h1 className="mt-4 max-w-3xl text-4xl font-extrabold tracking-tight text-navy sm:text-5xl">
             What can I actually challenge?
           </h1>
           <p className="mt-4 max-w-2xl text-lg leading-relaxed text-navy/70">

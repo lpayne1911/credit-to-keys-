@@ -62,6 +62,15 @@ function money(n: number): string {
   });
 }
 
+/** Strip the smart/straight quotes a docFee scriptLine is wrapped in, so it
+ *  reads as a plain numbered talking point alongside the other lines. */
+function plainScriptLine(s: string): string {
+  return s
+    .replace(/^[“”"'\s]+/, "")
+    .replace(/[“”"'\s]+$/, "")
+    .trim();
+}
+
 /** The specific item a fee/add-on flag is about, pulled from its title. */
 function itemName(flag: Flag): string {
   // Fee titles read like "Likely junk fee: Nitrogen tire fill" (prefix before a
@@ -96,6 +105,8 @@ function headingFor(flag: Flag): string {
       return "Trade-in payoff";
     case "government_fee":
       return "Government fees";
+    case "overpriced_vehicle":
+      return "Vehicle price";
     default:
       return itemName(flag);
   }
@@ -142,6 +153,8 @@ function sayFor(flag: Flag, ctx: SayContext): string {
           : "";
       return `I'm not paying${quoted} for the service contract${fair}. Bring it to a fair price or I'll pass — I can buy coverage elsewhere.`;
     }
+    case "overpriced_vehicle":
+      return `Based on comparable listings nearby, this price is above the local market${impact}. Can you bring the selling price down closer to the market median?`;
     case "trade_lowball":
       return `Your offer on my trade-in is low${impact}. Please come up to a fair number, or I'll get competing offers and sell it myself.`;
     case "negative_equity":
@@ -200,10 +213,22 @@ export function buildNegotiationScript(
     (f) => f.type !== "missing_info" && f.type !== "info",
   );
 
-  const points: ScriptPoint[] = realFlags.map((f) => ({
-    heading: headingFor(f),
-    say: sayFor(f, ctx),
-  }));
+  // A flag carrying a state-aware doc-fee finding contributes its specific
+  // scriptLine INSTEAD of the generic junk-fee line (no duplicate). Advisory
+  // doc-fee findings ride on info-severity flags, so they're folded in too.
+  const points: ScriptPoint[] = realFlags.map((f) =>
+    f.docFee?.scriptLine
+      ? { heading: "Doc / processing fee", say: plainScriptLine(f.docFee.scriptLine) }
+      : { heading: headingFor(f), say: sayFor(f, ctx) },
+  );
+  for (const f of result.flags) {
+    if (f.type === "info" && f.docFee?.scriptLine) {
+      points.push({
+        heading: "Doc / processing fee",
+        say: plainScriptLine(f.docFee.scriptLine),
+      });
+    }
+  }
 
   // A clean deal still gets a useful point — but never on a walk-away verdict,
   // where "nothing looks off" would contradict the disengage message.

@@ -71,7 +71,7 @@ export function JunkFeeAudit() {
     <div className="grid gap-8 lg:grid-cols-2">
       {/* Input side */}
       <div className="card">
-        <h2 className="font-serif text-xl font-semibold text-navy">
+        <h2 className="text-xl font-semibold text-navy">
           Enter the fees from your worksheet
         </h2>
         <p className="mt-1 text-sm text-navy/60">
@@ -86,7 +86,7 @@ export function JunkFeeAudit() {
                 value={row.label}
                 onChange={(e) => update(row.id, { label: e.target.value })}
                 placeholder="Fee name (e.g. Doc fee)"
-                className="min-w-0 flex-1 rounded-lg border border-navy/15 bg-white px-3 py-2 text-sm text-navy placeholder:text-navy/35 focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold"
+                className="min-w-0 flex-1 rounded-lg border border-navy/15 bg-white px-3 py-2 text-sm text-navy placeholder:text-navy/35 focus:border-green focus:outline-none focus:ring-1 focus:ring-green"
               />
               <div className="relative w-28 shrink-0">
                 <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-navy/40">
@@ -98,7 +98,7 @@ export function JunkFeeAudit() {
                   value={row.amount}
                   onChange={(e) => update(row.id, { amount: e.target.value })}
                   placeholder="0"
-                  className="w-full rounded-lg border border-navy/15 bg-white py-2 pl-6 pr-2 text-sm text-navy placeholder:text-navy/35 focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold"
+                  className="w-full rounded-lg border border-navy/15 bg-white py-2 pl-6 pr-2 text-sm text-navy placeholder:text-navy/35 focus:border-green focus:outline-none focus:ring-1 focus:ring-green"
                 />
               </div>
               <button
@@ -116,7 +116,7 @@ export function JunkFeeAudit() {
         <button
           type="button"
           onClick={() => addRow()}
-          className="mt-3 text-sm font-semibold text-gold-dark hover:underline"
+          className="mt-3 text-sm font-semibold text-green-dark hover:underline"
         >
           + Add another fee
         </button>
@@ -131,7 +131,7 @@ export function JunkFeeAudit() {
                 key={label}
                 type="button"
                 onClick={() => addRow(label)}
-                className="rounded-full border border-navy/15 bg-cream-100 px-3 py-1 text-xs font-medium text-navy/70 transition hover:border-gold hover:text-navy"
+                className="rounded-full border border-navy/15 bg-cream-100 px-3 py-1 text-xs font-medium text-navy/70 transition hover:border-green hover:text-navy"
               >
                 + {label}
               </button>
@@ -178,12 +178,12 @@ function AuditResult({
   return (
     <div className="space-y-5">
       {/* Headline */}
-      <div className="overflow-hidden rounded-2xl bg-gold/10 ring-1 ring-gold/30">
+      <div className="overflow-hidden rounded-2xl bg-navy/5 ring-1 ring-navy/10">
         <div className="p-6">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-navy/55">
             Fee audit
           </p>
-          <p className="mt-1 font-serif text-2xl font-semibold text-navy">
+          <p className="mt-1 text-2xl font-semibold text-navy">
             {challengeCount === 0
               ? `Nothing to challenge in the ${reviewedCount} ${
                   reviewedCount === 1 ? "fee" : "fees"
@@ -199,11 +199,11 @@ function AuditResult({
           </p>
         </div>
         {estimatedSavings && (
-          <div className="border-t border-gold/20 bg-white/60 px-6 py-5">
+          <div className="border-t border-navy/10 bg-white/60 px-6 py-5">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-navy/55">
               Potentially on the table
             </p>
-            <p className="mt-0.5 font-serif text-3xl font-bold text-gold-dark">
+            <p className="mt-0.5 text-3xl font-bold text-green-dark">
               {money(estimatedSavings.low)}–{money(estimatedSavings.high)}
             </p>
             <p className="mt-1 text-sm text-navy/60">
@@ -231,7 +231,7 @@ function AuditResult({
 
       {/* Upgrade CTA */}
       <div className="rounded-xl border border-navy/10 bg-navy p-5 text-cream">
-        <p className="font-serif text-lg font-semibold text-white">
+        <p className="text-lg font-semibold text-white">
           Want the whole deal checked?
         </p>
         <p className="mt-1 text-sm text-cream/80">
@@ -241,7 +241,7 @@ function AuditResult({
         </p>
         <Link
           href="/check"
-          className="mt-4 inline-flex items-center justify-center rounded-xl bg-gold px-5 py-2.5 text-sm font-semibold text-navy transition hover:bg-gold-light"
+          className="mt-4 inline-flex items-center justify-center rounded-xl bg-green px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-green-dark"
         >
           Run a full Deal Check
         </Link>

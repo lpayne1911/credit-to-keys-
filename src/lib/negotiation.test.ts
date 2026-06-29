@@ -26,6 +26,21 @@ function baseInput(overrides: Partial<FairnessInput> = {}): FairnessInput {
 }
 
 describe("buildNegotiationScript", () => {
+  it("turns an above-market price flag into a 'Vehicle price' desk script point", () => {
+    const result = scoreDeal(
+      baseInput({
+        deal: { vehiclePrice: 31_000, creditBand: "unknown", fees: [] },
+        marketValue: { low: 28_000, high: 32_000, confidence: "high", basis: "MarketCheck comps." },
+        marketMedian: 30_000,
+        marketTarget: 28_800,
+      }),
+    );
+    const script = buildNegotiationScript(result);
+    const point = script.points.find((p) => p.heading === "Vehicle price");
+    expect(point).toBeTruthy();
+    expect(point!.say).toMatch(/comparable listings|market/i);
+  });
+
   it("makes one talking point per real flag and ignores info notes", () => {
     const result = scoreDeal(
       baseInput({
@@ -58,17 +73,16 @@ describe("buildNegotiationScript", () => {
     expect(nitro!.say).toMatch(/\$/); // carries an impact figure
   });
 
-  it("names a fee-over-ceiling cleanly, without the 'looks high' suffix", () => {
+  it("names a doc/processing fee cleanly, without the 'looks high' suffix", () => {
     const result = scoreDeal(
       baseInput({
         deal: { apr: 7, creditBand: "good", fees: [{ label: "Documentation fee", amount: 900 }] },
       }),
     );
     const script = buildNegotiationScript(result);
-    const docPoint = script.points.find((p) => /documentation/i.test(p.say));
+    const docPoint = script.points.find((p) => p.heading === "Doc / processing fee");
     expect(docPoint).toBeTruthy();
     expect(docPoint!.say).not.toMatch(/looks high/i);
-    expect(docPoint!.heading).toBe("Documentation fee");
   });
 
   it("gives a clean deal a single confirm-the-price point", () => {
@@ -102,15 +116,15 @@ describe("buildNegotiationScript", () => {
     expect(govPoint!.say).toMatch(/itemized/i);
   });
 
-  it("doc-fee script asks for an offsetting price cut, not removal", () => {
+  it("a no-state doc fee asks for itemization, not removal", () => {
     const r = scoreDeal(
       baseInput({
         deal: { apr: 7, creditBand: "good", fees: [{ label: "Documentation fee", amount: 900 }] },
       }),
     );
-    const doc = buildNegotiationScript(r).points.find((p) => /documentation/i.test(p.say));
+    const doc = buildNegotiationScript(r).points.find((p) => p.heading === "Doc / processing fee");
     expect(doc).toBeTruthy();
-    expect(doc!.say).toMatch(/reduce the car's selling price|out-the-door/i);
+    expect(doc!.say).toMatch(/itemize/i);
     expect(doc!.say).not.toMatch(/take the .* charge off/i);
   });
 
@@ -305,6 +319,54 @@ describe("buildNegotiationScript — integrity across every flag type", () => {
         expect(p.say.trim().endsWith(".")).toBe(true);
         expect(p.heading.length).toBeGreaterThan(0);
       }
+    }
+  });
+});
+
+describe("buildNegotiationScript — doc-fee script lines (state-aware)", () => {
+  const FORBIDDEN =
+    /\b(illegal|fraud|scam|guaranteed|definitely|lied)\b|violates? law|broke the law|legal finding/i;
+  const docScript = (state: string | undefined, amount: number, label = "Doc fee") =>
+    buildNegotiationScript(
+      scoreDeal(baseInput({ buyerState: state, deal: { apr: 7, creditBand: "good", fees: [{ label, amount }] } })),
+    );
+  const docPoints = (s: ReturnType<typeof buildNegotiationScript>) =>
+    s.points.filter((p) => p.heading === "Doc / processing fee");
+
+  it("NY $190 above-cap doc fee appears in the main script (statutory-basis ask)", () => {
+    const s = docScript("NY", 190);
+    const pts = docPoints(s);
+    expect(pts).toHaveLength(1);
+    expect(pts[0].say).toMatch(/statutory basis|corrected buyer/i);
+  });
+
+  it("MD above-cap doc fee appears in the main script", () => {
+    const s = docScript("MD", 950, "Dealer processing fee");
+    expect(docPoints(s)[0].say).toMatch(/statutory basis|corrected buyer/i);
+  });
+
+  it("missing-state doc fee adds itemization language", () => {
+    const s = docScript(undefined, 150);
+    const pts = docPoints(s);
+    expect(pts.length).toBeGreaterThanOrEqual(1);
+    expect(pts[0].say).toMatch(/itemize/i);
+  });
+
+  it("Delaware special-case script line appears", () => {
+    const s = docScript("DE", 700);
+    expect(docPoints(s)[0].say).toMatch(/Delaware's state document fee/i);
+  });
+
+  it("does not also produce a generic 'take the charge off' line for the doc fee", () => {
+    const s = docScript("NY", 190);
+    expect(docPoints(s)).toHaveLength(1); // exactly one doc point, no duplicate
+    expect(s.points.some((p) => /take the .* charge off/i.test(p.say))).toBe(false);
+  });
+
+  it("doc-fee script copy stays compliance-clean across states", () => {
+    for (const [state, amt] of [["NY", 190], ["MD", 950], ["DE", 700], [undefined, 150]] as const) {
+      const s = docScript(state as string | undefined, amt as number);
+      expect(FORBIDDEN.test(s.asText), `${state}: ${s.asText}`).toBe(false);
     }
   });
 });

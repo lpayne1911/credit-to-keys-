@@ -38,7 +38,7 @@ export default function CreditToKeysPage() {
       <main>
         {/* Hero — the 3–9 month buyer */}
         <section className="mx-auto max-w-5xl px-4 pb-10 pt-12 sm:pt-16">
-          <span className="inline-block rounded-full bg-gold/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gold-dark">
+          <span className="inline-block rounded-full border border-edge bg-white px-3 py-1 text-xs font-semibold uppercase tracking-wide text-navy">
             Credit-to-Keys · the flagship pathway
           </span>
           <h1 className="mt-4 max-w-3xl font-serif text-4xl font-semibold leading-tight text-navy sm:text-5xl">
@@ -96,15 +96,15 @@ export default function CreditToKeysPage() {
                 className="flex flex-col gap-4 rounded-2xl border border-navy/10 bg-white p-6 shadow-card sm:flex-row"
               >
                 <div className="flex shrink-0 items-start gap-3">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gold/15 font-serif text-lg font-semibold text-gold-dark">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-navy/8 font-serif text-lg font-semibold text-navy">
                     {s.n}
                   </span>
-                  <span className="mt-2 font-serif text-sm font-bold uppercase tracking-widest text-gold-dark sm:hidden">
+                  <span className="mt-2 font-serif text-sm font-bold uppercase tracking-widest text-navy/70 sm:hidden">
                     {s.label}
                   </span>
                 </div>
                 <div className="flex-1">
-                  <p className="hidden font-serif text-xs font-bold uppercase tracking-widest text-gold-dark sm:block">
+                  <p className="hidden font-serif text-xs font-bold uppercase tracking-widest text-navy/70 sm:block">
                     {s.label}
                   </p>
                   <h3 className="font-serif text-xl font-semibold text-navy">

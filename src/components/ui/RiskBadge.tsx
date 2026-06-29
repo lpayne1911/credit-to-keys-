@@ -1,24 +1,36 @@
 import type { ReactNode } from "react";
 
-export type RiskTone = "warning" | "danger" | "safe" | "info" | "neutral";
+export type RiskTone =
+  | "warning"
+  | "danger"
+  | "safe"
+  | "info"
+  | "verify"
+  | "neutral";
 
 const TONES: Record<RiskTone, { wrap: string; dot: string }> = {
-  // Orange = caution/junk-fee, Red = serious, Green = safe/fair, gold = info.
+  // Diagnostic palette only — gold is reserved for brand action, never risk.
+  // Amber = caution/push-back, Red = serious, Green = fair, Blue = verify/info.
   warning: {
-    wrap: "bg-flag-orange/12 text-flag-orange ring-flag-orange/30",
-    dot: "bg-flag-orange",
+    wrap: "bg-verdict-amber/12 text-verdict-amber ring-verdict-amber/30",
+    dot: "bg-verdict-amber",
   },
   danger: {
-    wrap: "bg-flag-red/12 text-flag-red ring-flag-red/30",
-    dot: "bg-flag-red",
+    wrap: "bg-verdict-red/12 text-verdict-red ring-verdict-red/30",
+    dot: "bg-verdict-red",
   },
   safe: {
-    wrap: "bg-flag-green/12 text-flag-green ring-flag-green/30",
-    dot: "bg-flag-green",
+    wrap: "bg-verdict-green/12 text-verdict-green ring-verdict-green/30",
+    dot: "bg-verdict-green",
   },
+  // "Verify first" / informational — blue, NOT gold.
   info: {
-    wrap: "bg-gold/12 text-gold-dark ring-gold/30",
-    dot: "bg-gold",
+    wrap: "bg-verdict-blue/12 text-verdict-blue ring-verdict-blue/30",
+    dot: "bg-verdict-blue",
+  },
+  verify: {
+    wrap: "bg-verdict-blue/12 text-verdict-blue ring-verdict-blue/30",
+    dot: "bg-verdict-blue",
   },
   neutral: {
     wrap: "bg-navy/8 text-navy/70 ring-navy/15",
