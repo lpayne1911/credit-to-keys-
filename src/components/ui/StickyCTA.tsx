@@ -5,17 +5,35 @@ import { useEffect, useState } from "react";
 
 /**
  * Mobile-only sticky bottom CTA. The buyer may be sitting in the finance office,
- * so the primary action is always one thumb-tap away. Appears after the hero
- * scrolls past; hidden on sm+ where the header CTA is always visible.
+ * so the primary action is always one thumb-tap away.
+ *
+ * It must never cover content, so it:
+ *   • appears only AFTER the hero scrolls past (not over the fold), and
+ *   • hides again near the page bottom, where the final CTA + footer live, so it
+ *     never overlaps another primary button.
+ * Hidden on sm+ where the header CTA is always visible. The page reserves
+ * bottom padding equal to this bar's height (see the spacer in page.tsx).
  */
 export function StickyCTA() {
   const [show, setShow] = useState(false);
 
   useEffect(() => {
-    const onScroll = () => setShow(window.scrollY > 520);
+    const onScroll = () => {
+      const y = window.scrollY;
+      const pastHero = y > 520;
+      // Distance from the bottom of the document.
+      const fromBottom =
+        document.documentElement.scrollHeight - (y + window.innerHeight);
+      const nearBottom = fromBottom < 240; // final CTA / footer zone
+      setShow(pastHero && !nearBottom);
+    };
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    window.addEventListener("resize", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
   }, []);
 
   return (

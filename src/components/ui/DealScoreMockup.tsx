@@ -148,9 +148,10 @@ export function DealScoreMockup() {
             </div>
           </div>
 
-          {/* In-mockup CTA */}
-          <Link href="/check" className="btn-primary mt-5 w-full text-sm">
-            Generate pushback script
+          {/* In-mockup CTA — this is a SAMPLE, so it opens the sample report
+              rather than implying it will generate the visitor's own script. */}
+          <Link href="/sample" className="btn-secondary mt-5 w-full text-sm">
+            See a sample pushback script
           </Link>
         </div>
       </div>

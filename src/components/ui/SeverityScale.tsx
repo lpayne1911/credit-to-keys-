@@ -1,33 +1,41 @@
 /**
- * The four-tier verdict severity scale: Green → Yellow → Red → Black.
- * Used under the Red Flag Matrix. Visually prominent, modern, and consistent
- * with the verdict colors used on real results.
+ * The verdict severity scale, in decision-support language. The buyer makes the
+ * final call — so every tier describes what the SIGNALS say ("push back first",
+ * "verify first"), never an order ("sign it"). Used under the Red Flag Matrix and
+ * kept visually consistent with the verdict colors on real results.
  */
 const TIERS = [
   {
     label: "Looks fair",
-    sub: "Green · sign it",
+    sub: "Low concern",
     dot: "bg-flag-green",
     band: "from-flag-green/80 to-flag-green",
     text: "text-flag-green",
   },
   {
-    label: "Negotiate first",
-    sub: "Yellow · push back",
+    label: "Verify first",
+    sub: "Some items need confirmation",
     dot: "bg-verdict-amber",
-    band: "from-verdict-amber/80 to-verdict-amber",
+    band: "from-verdict-amber/70 to-verdict-amber",
     text: "text-verdict-amber",
   },
   {
-    label: "Don't sign yet",
-    sub: "Red · high risk",
+    label: "Push back first",
+    sub: "Negotiate or clarify before signing",
+    dot: "bg-flag-orange",
+    band: "from-flag-orange/80 to-flag-orange",
+    text: "text-flag-orange",
+  },
+  {
+    label: "Do not sign yet",
+    sub: "Serious unresolved concerns",
     dot: "bg-flag-red",
     band: "from-flag-red/80 to-flag-red",
     text: "text-flag-red",
   },
   {
-    label: "Walk away",
-    sub: "Black · serious concern",
+    label: "Walk-away signal",
+    sub: "Consider leaving unless corrected",
     dot: "bg-navy-950",
     band: "from-navy-900 to-navy-950",
     text: "text-navy-950",
@@ -43,7 +51,7 @@ export function SeverityScale() {
           <div key={t.label} className={`flex-1 bg-gradient-to-r ${t.band}`} />
         ))}
       </div>
-      <div className="grid gap-px sm:grid-cols-4">
+      <div className="grid gap-px sm:grid-cols-5">
         {TIERS.map((t) => (
           <div
             key={t.label}
@@ -57,6 +65,10 @@ export function SeverityScale() {
           </div>
         ))}
       </div>
+      <p className="px-3 pb-1 pt-1.5 text-xs text-slate">
+        Every check ends on a plain-English call. You always make the final
+        decision.
+      </p>
     </div>
   );
 }

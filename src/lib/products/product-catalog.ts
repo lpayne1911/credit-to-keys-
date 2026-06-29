@@ -44,7 +44,8 @@ export interface Product {
   whoFor: string;
   /** Rough time to complete, e.g. "~30 sec". */
   estTime: string;
-  /** Short fulfillment label for cards: "Instant" | "Human" | "Instant + human". */
+  /** Short fulfillment label for cards: "Instant scan" | "Human". We never
+   * promise instant HUMAN review — human review is available AFTER a scan. */
   intakeLabel: string;
   type: ProductType;
   status: ProductStatus;
@@ -89,7 +90,7 @@ export const PRODUCTS: Product[] = [
     problem: "I have the whole deal in front of me and don't know if it's fair.",
     whoFor: "You have a quote, buyer's order, or payment worksheet.",
     estTime: "~1 min",
-    intakeLabel: "Instant + human",
+    intakeLabel: "Instant scan",
     type: "automated",
     status: "live",
     usesAutomatedScoring: true,
@@ -118,7 +119,7 @@ export const PRODUCTS: Product[] = [
     problem: "They offered me a warranty and I don't know if the price is fair.",
     whoFor: "You were offered an extended warranty / service contract.",
     estTime: "~30 sec",
-    intakeLabel: "Instant + human",
+    intakeLabel: "Instant scan",
     type: "automated",
     status: "beta",
     usesAutomatedScoring: true,
@@ -148,7 +149,7 @@ export const PRODUCTS: Product[] = [
     problem: "The payment or interest rate feels high.",
     whoFor: "You're financing and want a rate/payment gut-check.",
     estTime: "~30 sec",
-    intakeLabel: "Instant + human",
+    intakeLabel: "Instant scan",
     type: "automated",
     status: "beta",
     usesAutomatedScoring: true,
@@ -178,7 +179,7 @@ export const PRODUCTS: Product[] = [
     problem: "They added a bunch of things and I don't know what's optional.",
     whoFor: "Your paperwork has add-ons and fees you didn't ask for.",
     estTime: "~30 sec",
-    intakeLabel: "Instant + human",
+    intakeLabel: "Instant scan",
     type: "automated",
     status: "beta",
     usesAutomatedScoring: true,
