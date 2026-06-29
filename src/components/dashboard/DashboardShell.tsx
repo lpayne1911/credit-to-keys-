@@ -5,18 +5,21 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Logo } from "@/components/SiteHeader";
 
-type NavItem = { label: string; href: string; icon: keyof typeof ICONS };
+type NavItem = { label: string; href: string; icon: keyof typeof ICONS; soon?: boolean };
 
+// `soon: true` marks sections that aren't built yet — the shell stays navigable
+// (the section route renders an honest "coming soon" placeholder), but the badge
+// sets expectations before the click instead of pretending the section is live.
 const NAV: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: "grid" },
   { label: "Market Check", href: "/dashboard/market-check", icon: "chart" },
-  { label: "Deal Review", href: "/dashboard/deal-review", icon: "doc" },
-  { label: "Game Plan", href: "/dashboard/game-plan", icon: "target" },
-  { label: "Documents", href: "/dashboard/documents", icon: "folder" },
-  { label: "Scripts", href: "/dashboard/scripts", icon: "chat" },
-  { label: "Saved Vehicles", href: "/dashboard/saved-vehicles", icon: "car" },
-  { label: "Alerts", href: "/dashboard/alerts", icon: "bell" },
-  { label: "Settings", href: "/dashboard/settings", icon: "gear" },
+  { label: "Deal Review", href: "/dashboard/deal-review", icon: "doc", soon: true },
+  { label: "Game Plan", href: "/dashboard/game-plan", icon: "target", soon: true },
+  { label: "Documents", href: "/dashboard/documents", icon: "folder", soon: true },
+  { label: "Scripts", href: "/dashboard/scripts", icon: "chat", soon: true },
+  { label: "Saved Vehicles", href: "/dashboard/saved-vehicles", icon: "car", soon: true },
+  { label: "Alerts", href: "/dashboard/alerts", icon: "bell", soon: true },
+  { label: "Settings", href: "/dashboard/settings", icon: "gear", soon: true },
 ];
 
 const ICONS = {
@@ -65,17 +68,25 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
               }`}
             >
               <span className={active ? "text-gold" : "text-white/60"}><NavIcon name={item.icon} /></span>
-              {item.label}
+              <span className="flex-1">{item.label}</span>
+              {item.soon && (
+                <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white/55">
+                  Soon
+                </span>
+              )}
             </Link>
           );
         })}
       </nav>
       <div className="m-3 rounded-xl border border-white/10 bg-white/5 p-4">
         <p className="text-sm font-bold text-white">Need help?</p>
-        <p className="mt-0.5 text-xs text-white/60">Chat with our team.</p>
-        <button type="button" className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-white/10 px-3 py-2 text-sm font-semibold text-white hover:bg-white/15">
-          Start Chat
-        </button>
+        <p className="mt-0.5 text-xs text-white/60">Have a person review your deal.</p>
+        <Link
+          href="/human-review"
+          className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-white/10 px-3 py-2 text-sm font-semibold text-white hover:bg-white/15"
+        >
+          Request Human Review
+        </Link>
       </div>
     </div>
   );
@@ -100,21 +111,14 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
             <button type="button" onClick={() => setOpen(true)} className="rounded-lg p-2 text-navy hover:bg-cream-100 lg:hidden" aria-label="Open menu">
               <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
             </button>
-            <span className="text-sm font-semibold text-navy">Welcome back, Alex <span className="text-navy/40">▾</span></span>
-          </div>
-          <div className="flex items-center gap-2">
-            <button type="button" className="rounded-full p-2 text-navy/60 hover:bg-cream-100" aria-label="Messages">
-              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M5 5h14a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H9l-4 4v-4H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z" /></svg>
-            </button>
-            <button type="button" className="relative rounded-full p-2 text-navy/60 hover:bg-cream-100" aria-label="Notifications">
-              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6M10 20a2 2 0 0 0 4 0" /></svg>
-              <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-gold" />
-            </button>
-            <span className="ml-1 flex items-center gap-1.5">
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-navy text-xs font-bold text-white">AM</span>
-              <span className="text-navy/40">▾</span>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-edge bg-cream-100 px-2.5 py-1 text-xs font-bold uppercase tracking-wide text-slate">
+              <span className="h-1.5 w-1.5 rounded-full bg-gold" />
+              Demo · sample data
             </span>
           </div>
+          <Link href="/" className="text-sm font-semibold text-navy/70 transition hover:text-navy">
+            ← Back to site
+          </Link>
         </header>
 
         <main className="flex-1">{children}</main>
