@@ -203,6 +203,29 @@ export const publishSchema = z.object({
     .default([]),
 });
 
+/** Console operator sign-in with email + password (Supabase Auth). */
 export const loginSchema = z.object({
+  email: z.string().email().max(320),
   password: z.string().min(1).max(400),
 });
+
+/** Start an OAuth/social sign-in for the console. */
+export const oauthStartSchema = z.object({
+  provider: z.enum(["google", "apple"]),
+});
+
+/** Admin: invite/allowlist an operator by email. */
+export const addOperatorSchema = z.object({
+  email: z.string().email().max(320),
+  role: z.enum(["reviewer", "admin"]).default("reviewer"),
+});
+
+/** Admin: update an operator's status/role. At least one field required. */
+export const updateOperatorSchema = z
+  .object({
+    active: z.boolean().optional(),
+    role: z.enum(["reviewer", "admin"]).optional(),
+  })
+  .refine((v) => v.active !== undefined || v.role !== undefined, {
+    message: "Provide active and/or role.",
+  });

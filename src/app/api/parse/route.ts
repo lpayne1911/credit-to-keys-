@@ -16,6 +16,8 @@
 import { NextResponse } from "next/server";
 import { getServiceClient } from "@/lib/supabase/server";
 import { extractFields } from "@/lib/parse/extract";
+import { rateLimit, rateLimitHeaders } from "@/lib/rate-limit";
+import { sniffUpload } from "@/lib/parse/sniff-upload";
 
 // The extractor calls a Claude model — needs the Node runtime (not edge) and a
 // longer budget than the default serverless timeout.
@@ -23,9 +25,18 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 const MAX_BYTES = 15 * 1024 * 1024; // 15 MB
-const ALLOWED_PREFIXES = ["image/", "application/pdf"];
 
 export async function POST(req: Request) {
+  // Uploads cost storage and an LLM extraction call — throttle per IP so the
+  // endpoint can't be looped to fill the bucket or run up extraction cost.
+  const limit = await rateLimit(req, { key: "parse-upload", limit: 10, windowMs: 10 * 60_000 });
+  if (!limit.ok) {
+    return NextResponse.json(
+      { error: "Too many uploads. Please wait a bit and try again." },
+      { status: 429, headers: rateLimitHeaders(limit) },
+    );
+  }
+
   let form: FormData;
   try {
     form = await req.formData();
@@ -43,24 +54,32 @@ export async function POST(req: Request) {
       { status: 413 },
     );
   }
-  const contentType = file.type || "application/octet-stream";
-  if (!ALLOWED_PREFIXES.some((p) => contentType.startsWith(p))) {
+
+  // Read the file once; reuse the bytes for both storage and extraction.
+  const bytes = new Uint8Array(await file.arrayBuffer());
+
+  // Verify the actual file CONTENT, not the client-declared MIME type or the
+  // user-supplied filename — both are attacker-controlled. sniffUpload reads the
+  // magic bytes and returns a canonical content type + a safe extension, or null
+  // if the bytes aren't an allowed image/PDF. This both rejects spoofed uploads
+  // and removes any path-traversal/odd characters from the storage key.
+  const sniffed = sniffUpload(bytes);
+  if (!sniffed) {
     return NextResponse.json(
       { error: "Please upload an image or a PDF of your quote." },
       { status: 415 },
     );
   }
-
-  // Read the file once; reuse the bytes for both storage and extraction.
-  const bytes = new Uint8Array(await file.arrayBuffer());
+  const contentType = sniffed.contentType;
 
   // Store the original upload in private storage (service role, server-only).
   let uploadedFilePath: string | null = null;
   const supabase = getServiceClient();
   if (supabase) {
     try {
-      const ext = file.name.split(".").pop() || "bin";
-      const path = `quotes/${crypto.randomUUID()}.${ext}`;
+      // Path is built only from a server-generated UUID + a sanitized extension
+      // derived from the sniffed type — never from file.name.
+      const path = `quotes/${crypto.randomUUID()}.${sniffed.ext}`;
       const { error } = await supabase.storage
         .from("deal-uploads")
         .upload(path, bytes, { contentType, upsert: false });
