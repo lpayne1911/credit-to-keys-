@@ -136,6 +136,14 @@ export const SAMPLE_RESULT: FairnessResult = {
       },
     },
   ],
+  // Market range for the vehicle price (here the asking price sits in range, so
+  // it surfaces a reassuring "within market" card rather than a flag).
+  marketValue: {
+    low: 26_900,
+    high: 28_200,
+    confidence: "medium",
+    basis: "MarketCheck active listings for a 2021 Toyota Camry (28 comparables).",
+  },
   assumptions: [
     "Fair-price ranges are estimates for a 2021 Camry in average condition for your area — not an exact quote.",
     "The rate comparison assumes a typical 'good' credit tier; your real buy rate depends on the lender's approval.",

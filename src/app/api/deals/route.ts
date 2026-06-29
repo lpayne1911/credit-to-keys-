@@ -12,6 +12,9 @@ import { scoreDeal } from "@/lib/fairness-engine";
 import { toFairnessInput, toDealRow } from "@/lib/deal-mapper";
 import { dealSubmissionSchema } from "@/lib/schemas";
 import { getServiceClient } from "@/lib/supabase/server";
+import { getMarketRange } from "@/lib/marketcheck/client";
+
+export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   let raw: unknown;
@@ -53,6 +56,17 @@ export async function POST(req: Request) {
       { status: 422 },
     );
   }
+
+  // Inject a real market price range (MarketCheck) before scoring. The engine
+  // stays pure/sync; a failure or missing key just leaves price fairness off.
+  input.marketValue = await getMarketRange({
+    year: input.vehicle.year,
+    make: input.vehicle.make,
+    model: input.vehicle.model,
+    trim: input.vehicle.trim,
+    mileage: input.vehicle.mileage,
+    zip: input.registrationZip ?? input.dealerZip ?? null,
+  }).catch(() => null);
 
   const result = scoreDeal(input);
 

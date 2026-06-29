@@ -167,6 +167,12 @@ export interface FairnessInput {
   dealerState?: string | null;
   dealerAddress?: string | null;
   userProfileState?: string | null;
+  /**
+   * Market value range for the vehicle, injected server-side (e.g. from
+   * MarketCheck) before scoring. The engine stays pure/sync — it only consumes
+   * this if present. Absent → no vehicle-price fairness flag (unchanged behavior).
+   */
+  marketValue?: PriceRange | null;
   /** True when the figures came from an uploaded quote (raises confidence). */
   documentUploaded?: boolean;
   /**
@@ -194,6 +200,7 @@ export type WarrantyPriceRating =
 export type FlagType =
   | "junk_fee"
   | "government_fee"
+  | "overpriced_vehicle"
   | "apr_markup"
   | "overpriced_addon"
   | "redundant_addon"
@@ -255,6 +262,9 @@ export interface FairnessResult {
   /** How the deal's jurisdiction was resolved (drives state-aware rules and the
    * "Using MD from the dealer ZIP — verify" note). Optional for back-compat. */
   stateResolution?: StateResolution | null;
+  /** The market value range used for price fairness (echoed for the UI so it can
+   * show the market band even when the price is in range). Optional. */
+  marketValue?: PriceRange | null;
 }
 
 // ===========================================================================
@@ -568,6 +578,15 @@ export function scoreDeal(input: FairnessInput): FairnessResult {
   });
   flags.push(...assessFees(input.deal.fees ?? [], assumptions, stateRes));
 
+  // --- Vehicle price vs. market (from injected MarketCheck range) ---------
+  const priceFlag = assessVehiclePrice(
+    input.deal,
+    input.marketValue ?? null,
+    stateRes.confidence,
+    assumptions,
+  );
+  if (priceFlag) flags.push(priceFlag);
+
   // --- Interest paid on add-ons financed into the loan -------------------
   const financedFlag = assessFinancedAddOns(input, assumptions);
   if (financedFlag) flags.push(financedFlag);
@@ -606,6 +625,49 @@ export function scoreDeal(input: FairnessInput): FairnessResult {
     assumptions: dedupe(assumptions),
     engineVersion: ENGINE_VERSION,
     stateResolution: stateRes,
+    marketValue: input.marketValue ?? null,
+  };
+}
+
+/**
+ * Vehicle price vs. market. Pure: consumes an injected market range (e.g. from
+ * MarketCheck) and flags only when the asking price is above the market high.
+ * In-range / below market emits no flag — the UI still shows the market band
+ * from `FairnessResult.marketValue`. Confidence is downgraded to the weaker of
+ * the market data and the resolved-state confidence.
+ */
+function assessVehiclePrice(
+  deal: DealInput,
+  marketValue: PriceRange | null,
+  stateConfidence: Confidence,
+  assumptions: string[],
+): Flag | null {
+  const price = deal.vehiclePrice ?? null;
+  if (!marketValue || !price || price <= 0) return null;
+
+  assumptions.push(
+    `Vehicle price compared against a market range of $${marketValue.low.toLocaleString()}–$${marketValue.high.toLocaleString()} (${marketValue.basis}).`,
+  );
+
+  if (price <= marketValue.high) return null; // in range or below — no concern
+
+  const overHigh = price - marketValue.high;
+  const pctOver = overHigh / marketValue.high;
+  const severity: FlagSeverity =
+    pctOver >= 0.08 ? "high" : pctOver >= 0.03 ? "medium" : "low";
+  const confidence = minConfidence(marketValue.confidence, stateConfidence);
+
+  return {
+    type: "overpriced_vehicle",
+    severity,
+    title: "Vehicle price looks above market",
+    explanation: `The asking price of ${money(price)} is above the estimated market range of ${money(marketValue.low)}–${money(marketValue.high)} for this vehicle — about ${money(overHigh)} over the top of the range. Ask the dealer to bring the price into range, or use it as leverage. You make the final decision.`,
+    estimatedImpact: {
+      low: Math.max(0, price - marketValue.high),
+      high: Math.max(0, price - marketValue.low),
+      confidence,
+      basis: marketValue.basis,
+    },
   };
 }
 

@@ -72,11 +72,12 @@ export interface Funnel {
 /* ---- editable price constants ---------------------------------------------- */
 export const PRICES = {
   quoteReview: "$199",
-  humanReview: "+$99",
+  humanReview: "+$199",
   buildMyPlan: "From $349",
   dealMaker: "From $749",
   liveSupport: "From $199",
-  concierge: "From $1,499",
+  concierge: "From $1,999",
+  postSale: "$249–$499",
 } as const;
 
 export const FUNNELS: Funnel[] = [
@@ -268,8 +269,8 @@ export const FUNNELS: Funnel[] = [
     ],
     pricing: {
       label: "Post-Sale Options Review",
-      amount: "Options review",
-      sub: "A document and options review — not a Deal Score. Pricing shared after triage.",
+      amount: PRICES.postSale,
+      sub: "A document and options review — not a Deal Score. Final price depends on scope.",
       bullets: ["Cancellation options report", "Who-to-contact map", "Documentation checklist & escalation plan"],
     },
     primaryCta: { label: "Upload Signed Paperwork", href: "#start" },

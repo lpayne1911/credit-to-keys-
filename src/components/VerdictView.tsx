@@ -441,6 +441,63 @@ export function WarrantyCard({ warranty }: { warranty: WarrantyAssessment }) {
 }
 
 /**
+ * Vehicle price vs. market. Renders whenever a market range is available (from
+ * MarketCheck), showing the asking price against the market band — a reassuring
+ * "within range" when fair, or an "above market" callout when high. Pure
+ * presentation; the engine already emits the over-market flag + savings impact.
+ */
+export function VehiclePriceCard({
+  marketValue,
+  price,
+}: {
+  marketValue: PriceRange;
+  price: number | null;
+}) {
+  const over = price != null && price > marketValue.high;
+  const inRange =
+    price != null && price >= marketValue.low && price <= marketValue.high;
+  return (
+    <div className="card">
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="text-lg font-semibold text-navy">Vehicle price vs. market</h3>
+        <span
+          className={`rounded-full px-3 py-1 text-sm font-semibold ${
+            over
+              ? "bg-verdict-red/10 text-verdict-red"
+              : inRange
+                ? "bg-verdict-green/10 text-verdict-green"
+                : "bg-verdict-amber/10 text-verdict-amber"
+          }`}
+        >
+          {over ? "Above market" : inRange ? "Within range" : "Below market"}
+        </span>
+      </div>
+      <p className="mt-2 text-sm leading-relaxed text-navy/70">
+        {over
+          ? `The asking price is above the estimated market range — about ${money(price! - marketValue.high)} over the top. Use it as leverage to bring the price down. You make the final decision.`
+          : "The asking price sits within the estimated market range for this vehicle — a reasonable starting point. Confirm condition, history, and fees before you sign."}
+      </p>
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <div>
+          <p className="mb-1 text-xs font-medium text-navy/60">Estimated market range</p>
+          <RangePill range={marketValue} />
+        </div>
+        {price != null && (
+          <div>
+            <p className="mb-1 text-xs font-medium text-navy/60">Your deal price</p>
+            <div className="rounded-lg bg-cream-100 px-3 py-2">
+              <span className={`font-serif text-lg font-semibold ${over ? "text-verdict-red" : "text-navy"}`}>
+                {money(price)}
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
  * "What this loan really costs" — turns the deal's numbers into total interest
  * over the term, and shows the trade-off of a shorter loan. The finance office
  * leads with the monthly payment; this panel leads with the total, where long
@@ -741,6 +798,9 @@ export function VerdictView({
             )}
           </div>
 
+          {result.marketValue && (
+            <VehiclePriceCard marketValue={result.marketValue} price={loan?.vehiclePrice ?? null} />
+          )}
           {result.warranty && <WarrantyCard warranty={result.warranty} />}
           {loan && <LoanCostPanel loan={loan} />}
 
