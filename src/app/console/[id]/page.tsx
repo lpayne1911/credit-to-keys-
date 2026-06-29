@@ -67,7 +67,17 @@ export default async function ConsoleDealPage({
     }
   }
 
-  const auto = (deal.auto_result as FairnessResult) ?? null;
+  // `auto_result` holds EITHER a fairness-engine result (Deal Check flow) OR a
+  // branded Deal Review reconstruction (Quote Review flow, schemaVersion
+  // "deal-review-1"). The components below expect the fairness shape, so only
+  // treat it as such when it isn't a Deal Review result — otherwise the page
+  // would crash trying to render an incompatible object.
+  const isDealReview =
+    !!deal.auto_result &&
+    (deal.auto_result as { schemaVersion?: string }).schemaVersion === "deal-review-1";
+  const auto: FairnessResult | null = isDealReview
+    ? null
+    : ((deal.auto_result as FairnessResult) ?? null);
   const initialFlags: Flag[] =
     (deal.reviewed_flags as Flag[] | null) ?? auto?.flags ?? [];
 
@@ -183,6 +193,25 @@ export default async function ConsoleDealPage({
                   warrantyPrice: deal.warranty_price,
                 }}
               />
+            </section>
+          )}
+
+          {isDealReview && (
+            <section className="card">
+              <p className="text-sm text-navy/70">
+                This deal was submitted through <strong>Quote Review</strong>, so its
+                full reconstruction lives on the buyer&apos;s report rather than the
+                automatic Deal Check verdict. You can still publish a reviewed verdict
+                from the editor.
+              </p>
+              <a
+                href={`/deal-review/${deal.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-secondary mt-3 w-full text-sm"
+              >
+                Open the Deal Review report ↗
+              </a>
             </section>
           )}
         </div>
