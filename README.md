@@ -46,7 +46,11 @@ no shareable link, console disabled). Configure Supabase for the full flow.
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL (public) |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Public anon key — RLS-constrained, can read nothing directly |
 | `SUPABASE_SERVICE_ROLE_KEY` | **Server only.** Bypasses RLS; used by server routes + console |
-| `CONSOLE_PASSWORD` | v1 stopgap password gating the review console |
+| `UPSTASH_REDIS_REST_URL` / `_TOKEN` | **Server only.** Optional. Shared store for the API rate limiter (hard cluster-wide cap); falls back to in-memory when unset |
+| `NEXT_PUBLIC_SITE_URL` | Optional. Stable public origin for console OAuth redirects |
+
+The review console uses **Supabase Auth** (email+password or social/OAuth)
+gated by an `operators` allowlist — there is no shared console password.
 
 ### Database
 
@@ -63,7 +67,7 @@ private `deal-uploads` storage bucket.
 | `src/app/page.tsx` | Landing page (value, 3 steps, disclaimer) |
 | `src/app/check` | Deal Check form — manual entry **and** upload→confirm path |
 | `src/app/verdict/[id]` | Buyer verdict (auto, or human-reviewed if published) |
-| `src/app/console` | Private review console (list) — gated by `CONSOLE_PASSWORD` |
+| `src/app/console` | Private review console (list) — gated by Supabase Auth + `operators` allowlist |
 | `src/app/console/[id]` | Console deal detail + reviewed-verdict editor |
 | `src/lib/fairness-engine.ts` | **The fairness brain.** All pricing math lives here |
 | `src/lib/deal-mapper.ts` | Form payload ⇄ engine input ⇄ DB row |
@@ -93,6 +97,9 @@ UI and database need zero changes.
 
 ## Deferred (do not build yet)
 
-User accounts, payments, email automation, live third-party pricing APIs, and
-**proper console auth** (the password gate is a marked stopgap — search
-`REPLACE WITH PROPER AUTH`).
+Buyer-facing user accounts, payments, email automation, and live third-party
+pricing APIs.
+
+Console operator auth is **done** — Supabase Auth (email+password or
+social/OAuth) gated by the `operators` allowlist, with a `review_audit` trail.
+See `docs/console-auth-plan.md` and `supabase/migrations/0005_operators.sql`.

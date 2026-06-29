@@ -1,7 +1,8 @@
 /**
  * Review console — deal detail. Operator opens a deal, reviews everything the
  * buyer submitted (and any uploaded file), then writes/adjusts and publishes a
- * reviewed verdict. Private; gated by the v1 stopgap password.
+ * reviewed verdict. Private; gated by operator auth (Supabase Auth + operator
+ * allowlist, see lib/console-auth.ts).
  */
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -32,7 +33,7 @@ export default async function ConsoleDealPage({
 }: {
   params: { id: string };
 }) {
-  if (!isConsoleAuthed()) {
+  if (!(await isConsoleAuthed())) {
     return (
       <main className="min-h-screen bg-navy/5 px-4 py-16">
         <ConsoleLogin configured={isConsoleConfigured()} />

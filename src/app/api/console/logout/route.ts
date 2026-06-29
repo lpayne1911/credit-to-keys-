@@ -1,8 +1,16 @@
+/**
+ * POST /api/console/logout — end the operator session.
+ * Supabase clears the auth cookies through the cookie-wired SSR client.
+ */
 import { NextResponse } from "next/server";
-import { CONSOLE_COOKIE } from "@/lib/console-auth";
+import { getConsoleClient } from "@/lib/supabase/ssr";
+
+export const runtime = "nodejs";
 
 export async function POST() {
-  const res = NextResponse.json({ ok: true });
-  res.cookies.set(CONSOLE_COOKIE, "", { path: "/", maxAge: 0 });
-  return res;
+  const supabase = getConsoleClient();
+  if (supabase) {
+    await supabase.auth.signOut();
+  }
+  return NextResponse.json({ ok: true });
 }
