@@ -1,10 +1,18 @@
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import { scoreComparableListing, selectBestComps } from "@/lib/sources/marketcheck/filters";
 import { getMarketConfidence } from "@/lib/sources/marketcheck/confidence";
 import { backfillIdentityFromListings, mergeSpecs, vehicleIdentityFromRequest } from "@/lib/sources/marketcheck/normalize";
+import { fetchActiveListings } from "@/lib/sources/marketcheck/connector";
 import { buildMarketSnapshot } from "./buildMarketSnapshot";
 import { runMarketCheck } from "./runMarketCheck";
-import type { ComparableListing } from "@/lib/sources/marketcheck/types";
+import type { ComparableListing, MarketCheckRequest } from "@/lib/sources/marketcheck/types";
+
+function req(p: Partial<MarketCheckRequest> = {}): MarketCheckRequest {
+  return {
+    vin: null, year: null, make: null, model: null, trim: null, mileage: null,
+    condition: "used", zipCode: null, radiusMiles: 75, dealerAskingPrice: null, ...p,
+  };
+}
 
 const TARGET = { year: 2024, make: "Toyota", model: "RAV4", trim: "XLE", mileage: 18_000 };
 
@@ -116,5 +124,48 @@ describe("runMarketCheck (mock fallback, no key)", () => {
     expect(r.comparableListings.length).toBeGreaterThan(10);
     expect(r.snapshot.marketMedian).toBeGreaterThan(0);
     expect(r.takeaways.length).toBeGreaterThan(0);
+  });
+
+  // Regression: a VIN search used to yield the SAME generic price for every
+  // vehicle because the mock fell back without the vehicle's year. With the
+  // year/make/model resolved, the mock price must vary by vehicle.
+  it("mock price varies by vehicle (no constant-price regression)", async () => {
+    delete process.env[KEY];
+    const newer = await runMarketCheck(req({ year: 2024, make: "Toyota", model: "RAV4", zipCode: "80202" }));
+    const older = await runMarketCheck(req({ year: 2016, make: "Toyota", model: "RAV4", zipCode: "80202" }));
+    expect(newer.snapshot.marketMedian).not.toBe(older.snapshot.marketMedian);
+    expect(newer.vehicle.year).toBe(2024);
+    expect(older.vehicle.year).toBe(2016);
+  });
+});
+
+describe("fetchActiveListings query (comparables, not the single VIN)", () => {
+  const KEY = "MARKETCHECK_API_KEY";
+  const original = process.env[KEY];
+  let lastUrl = "";
+  beforeEach(() => {
+    process.env[KEY] = "test-key";
+    lastUrl = "";
+    vi.stubGlobal("fetch", async (url: unknown) => {
+      lastUrl = String(url);
+      return { ok: true, json: async () => ({ num_found: 0, listings: [] }) } as unknown as Response;
+    });
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    if (original === undefined) delete process.env[KEY];
+    else process.env[KEY] = original;
+  });
+
+  it("queries by ymmt when year+make+model are known (even if a VIN is given)", async () => {
+    await fetchActiveListings(req({ vin: "JTEBU5JRXK5656862", year: 2019, make: "Toyota", model: "4Runner", trim: "Limited", zipCode: "80202" }));
+    expect(lastUrl).toContain("ymmt=");
+    expect(lastUrl).not.toContain("vins=");
+  });
+
+  it("falls back to vins= only when the vehicle is otherwise unknown", async () => {
+    await fetchActiveListings(req({ vin: "JTEBU5JRXK5656862" }));
+    expect(lastUrl).toContain("vins=");
+    expect(lastUrl).not.toContain("ymmt=");
   });
 });

@@ -8,6 +8,7 @@ import {
   fetchActiveListings,
   decodeVin,
 } from "@/lib/sources/marketcheck/connector";
+import { decodeVin as decodeVinNhtsa, looksLikeVin } from "@/lib/vin";
 import { normalizeListings, mergeSpecs, vehicleIdentityFromRequest, backfillIdentityFromListings } from "@/lib/sources/marketcheck/normalize";
 import { buildMockMarket } from "@/lib/sources/marketcheck/mock";
 import type {
@@ -110,19 +111,43 @@ export async function runMarketCheck(request: MarketCheckRequest): Promise<Marke
   const expiresAt = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString();
   const id = `mc_${crypto.randomUUID()}`;
 
-  let identity: VehicleIdentity = vehicleIdentityFromRequest(request);
+  // Resolve the vehicle from the VIN FIRST, with the free key-less NHTSA decoder,
+  // when the request didn't already carry year/make/model. This is what makes a
+  // VIN search actually reflect the vehicle: the resolved year/make/model then
+  // feed both the live comparables query (by ymm, not the single VIN) and the
+  // deterministic mock fallback — so the price and identity vary per VIN even
+  // when MarketCheck isn't configured. Best-effort: degrades to null silently.
+  let request2: MarketCheckRequest = request;
+  if (
+    request.vin &&
+    looksLikeVin(request.vin) &&
+    !(request.year && request.make && request.model)
+  ) {
+    const decoded = await decodeVinNhtsa(request.vin);
+    if (decoded) {
+      request2 = {
+        ...request,
+        year: request.year ?? decoded.year,
+        make: request.make ?? decoded.make,
+        model: request.model ?? decoded.model,
+        trim: request.trim ?? decoded.trim,
+      };
+    }
+  }
+
+  let identity: VehicleIdentity = vehicleIdentityFromRequest(request2);
   let comps: ComparableListing[] = [];
   let trend: MarketTrend;
   let dealerInsight: DealerMarketInsight | null = null;
   let isMock = false;
 
-  const raw = await fetchActiveListings(request);
+  const raw = await fetchActiveListings(request2);
   if (raw && (raw.listings?.length ?? 0) > 0) {
     // Resolve the target identity BEFORE scoring comps. A VIN-only request has
     // no year/make/model, so decode the VIN and backfill from the listings —
     // otherwise every comp is scored against an empty target and reads "poor".
-    if (request.vin) {
-      const specs = await decodeVin(request.vin);
+    if (request2.vin) {
+      const specs = await decodeVin(request2.vin);
       identity = mergeSpecs(identity, specs);
     }
     identity = backfillIdentityFromListings(identity, raw.listings ?? []);
@@ -134,7 +159,7 @@ export async function runMarketCheck(request: MarketCheckRequest): Promise<Marke
   }
 
   if (comps.length < 3) {
-    const m = buildMockMarket(request);
+    const m = buildMockMarket(request2);
     identity = m.identity;
     comps = m.comps;
     trend = m.trend;
@@ -143,7 +168,7 @@ export async function runMarketCheck(request: MarketCheckRequest): Promise<Marke
   }
 
   comps = [...comps].sort((a, b) => b.matchScore - a.matchScore);
-  const snapshot = buildMarketSnapshot(comps, request, { id, fetchedAt, expiresAt });
+  const snapshot = buildMarketSnapshot(comps, request2, { id, fetchedAt, expiresAt });
   const takeaways = buildTakeaways(snapshot, trend, dealerInsight);
 
   return {

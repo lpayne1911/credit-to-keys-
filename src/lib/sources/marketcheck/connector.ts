@@ -60,10 +60,14 @@ export async function fetchActiveListings(
   if (!key) return null;
   const { vin, year, make, model, trim, zipCode, radiusMiles, condition } = request;
   const params = new URLSearchParams({ api_key: key, rows: "50", stats: "price" });
-  if (vin) {
-    params.set("vins", vin);
-  } else if (year && make && model) {
+  // Prefer a year/make/model query so we get true COMPARABLES. A `vins=` query
+  // matches only that one exact car, which yields too few comps to price against
+  // — so use it only as a last resort when the vehicle is otherwise unknown
+  // (e.g. the VIN decode failed upstream).
+  if (year && make && model) {
     params.set("ymmt", [year, make, model, trim].filter(Boolean).join("|"));
+  } else if (vin) {
+    params.set("vins", vin);
   } else {
     return null; // too thin to query
   }
