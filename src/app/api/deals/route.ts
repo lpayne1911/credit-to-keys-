@@ -9,6 +9,7 @@
  */
 import { NextResponse } from "next/server";
 import { scoreDeal } from "@/lib/fairness-engine";
+import { reviewFees } from "@/lib/fee-classifier";
 import { toFairnessInput, toDealRow } from "@/lib/deal-mapper";
 import { dealSubmissionSchema } from "@/lib/schemas";
 import { getServiceClient } from "@/lib/supabase/server";
@@ -96,11 +97,16 @@ export async function POST(req: Request) {
   }
 
   const result = scoreDeal(input);
+  // Parallel, state-aware fee-risk channel (never feeds the score). Prefer the
+  // buyer's explicit state, falling back to the ZIP-derived location signal —
+  // matching how `buyer_state` is resolved for persistence in toDealRow.
+  const feeRiskState = body.buyerState || body.location?.state || null;
+  const feeRisk = reviewFees(input.deal.fees ?? [], feeRiskState);
 
   const supabase = getServiceClient();
   if (!supabase) {
     // Not configured — return the verdict for inline display, no persistence.
-    return NextResponse.json({ id: null, result, persisted: false });
+    return NextResponse.json({ id: null, result, feeRisk, persisted: false });
   }
 
   try {
@@ -126,7 +132,7 @@ export async function POST(req: Request) {
 
     if (dealErr || !deal) {
       // Persistence failed — degrade gracefully, still return the verdict.
-      return NextResponse.json({ id: null, result, persisted: false });
+      return NextResponse.json({ id: null, result, feeRisk, persisted: false });
     }
 
     // Mirror flags into the normalized findings table for the console.
@@ -142,8 +148,8 @@ export async function POST(req: Request) {
       await supabase.from("findings").insert(findings);
     }
 
-    return NextResponse.json({ id: deal.id, result, persisted: true });
+    return NextResponse.json({ id: deal.id, result, feeRisk, persisted: true });
   } catch {
-    return NextResponse.json({ id: null, result, persisted: false });
+    return NextResponse.json({ id: null, result, feeRisk, persisted: false });
   }
 }

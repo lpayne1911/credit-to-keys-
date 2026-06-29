@@ -8,6 +8,7 @@ import type {
   WarrantyCoverageTier,
   CreditBand,
 } from "./fairness-engine";
+import { reviewFees } from "./fee-classifier";
 
 /** Wire format sent by the Deal Check form (all optional/nullable strings). */
 export interface DealSubmission {
@@ -61,6 +62,11 @@ export interface DealSubmission {
   dealerAddress?: string;
   /** Buyer has already signed / spot-delivered. Surfaces a review/cancel note. */
   alreadySigned?: boolean;
+  /** Internal-only location signal (ZIP-derived). Not used for scoring. */
+  location?: {
+    zip?: string;
+    state?: string;
+  };
   inputPath?: "manual" | "upload";
   uploadedFilePath?: string;
 }
@@ -94,6 +100,8 @@ const CREDIT_BANDS: CreditBand[] = [
 ];
 
 export function toFairnessInput(s: DealSubmission): FairnessInput {
+  // NOTE: `s.location` (ZIP/state) is intentionally NOT mapped here — it's an
+  // internal analytics signal only and never feeds the fairness score.
   const fees = (s.deal?.fees ?? [])
     .map((f) => ({ label: str(f.label) ?? "", amount: num(f.amount) ?? 0 }))
     .filter((f) => f.label || f.amount);
@@ -161,7 +169,12 @@ export function toDealRow(
   result: import("./fairness-engine").FairnessResult,
   leadId: string | null,
 ) {
-  const buyerState = str(s.buyerState)?.toUpperCase().slice(0, 2) ?? null;
+  // The buyer's explicit state selection wins; fall back to the ZIP-derived
+  // (internal) location signal so fee rules still resolve when only a ZIP is set.
+  const buyerState =
+    str(s.buyerState)?.toUpperCase().slice(0, 2) ??
+    str(s.location?.state)?.toUpperCase().slice(0, 2) ??
+    null;
   return {
     lead_id: leadId,
     buyer_state: buyerState,
@@ -173,6 +186,8 @@ export function toDealRow(
     vehicle_vin: input.vehicle.vin,
     vehicle_price: input.deal.vehiclePrice,
     fees: input.deal.fees ?? [],
+    // Normalized fee categories (state-aware) — durable record for analytics.
+    fee_categories: reviewFees(input.deal.fees ?? [], buyerState).lineItems,
     down_payment: input.deal.downPayment,
     apr: input.deal.apr,
     term_months: input.deal.termMonths,
@@ -185,6 +200,12 @@ export function toDealRow(
     warranty_price: input.warranty?.priceQuoted ?? null,
     uploaded_file_path: s.uploadedFilePath ?? null,
     input_path: s.inputPath ?? "manual",
+
+    // Internal-only location signal (ZIP-derived). Never scored, never shown to
+    // the buyer. `buyer_income_band` is a reserved seam, populated later.
+    // `buyer_state` is set above (explicit selection, ZIP fallback).
+    buyer_zip: str(s.location?.zip),
+    buyer_income_band: null,
     auto_verdict: result.overallVerdict,
     auto_result: result,
     status: "new" as const,

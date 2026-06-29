@@ -67,6 +67,14 @@ export const dealSubmissionSchema = z.object({
     .optional(),
   buyerState: z.string().max(8).optional(),
   alreadySigned: z.boolean().optional(),
+  // Internal location signal (not a scoring input). ZIP-derived; never shown to
+  // the buyer. Optional so it never blocks a submission.
+  location: z
+    .object({
+      zip: z.string().max(10).optional(),
+      state: z.string().max(2).optional(),
+    })
+    .optional(),
   inputPath: z.enum(["manual", "upload"]).optional(),
   uploadedFilePath: z.string().max(400).optional(),
 });

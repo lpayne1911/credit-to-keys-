@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseVpicResult, looksLikeVin } from "./vin";
+import { parseVpicResult, looksLikeVin, vinCheckDigitValid } from "./vin";
 
 describe("parseVpicResult", () => {
   it("maps a vPIC record into a clean vehicle shape", () => {
@@ -36,5 +36,18 @@ describe("looksLikeVin", () => {
   it("rejects wrong length or illegal letters (I/O/Q)", () => {
     expect(looksLikeVin("12345")).toBe(false);
     expect(looksLikeVin("4T1BZ1HK5KU01987I")).toBe(false);
+  });
+});
+
+describe("vinCheckDigitValid", () => {
+  it("accepts a VIN with a valid check digit (ISO 3779 example)", () => {
+    expect(vinCheckDigitValid("1HGCM82633A004352")).toBe(true);
+  });
+  it("rejects a VIN whose character was altered (typo)", () => {
+    expect(vinCheckDigitValid("1HGCM82633A004351")).toBe(false);
+  });
+  it("rejects anything that isn't a 17-char VIN shape", () => {
+    expect(vinCheckDigitValid("ABC")).toBe(false);
+    expect(vinCheckDigitValid("1HGCM82633A00435I")).toBe(false); // contains I
   });
 });

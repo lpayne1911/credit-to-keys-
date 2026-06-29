@@ -20,6 +20,17 @@ import {
 import { compareTerm, paymentBreakdown } from "@/lib/loan-math";
 import { savingsRange, savingsBreakdown } from "@/lib/verdict-summary";
 import { NegotiationScriptCard } from "@/components/NegotiationScriptCard";
+import type {
+  FeeRiskAssessment,
+  FeeRiskSeverity,
+  FeeCategory,
+} from "@/lib/fee-classifier";
+import {
+  categorizeDeal,
+  partitionVerdictFlags,
+  type DealCategory,
+  type CategoryLevel,
+} from "@/lib/deal-categories";
 import { AnimatedScore } from "@/components/ui/AnimatedScore";
 import { RiskBadge, type RiskTone } from "@/components/ui/RiskBadge";
 import type { DocFeeFinding } from "@/lib/intelligence/docFeeRules";
@@ -440,6 +451,209 @@ export function WarrantyCard({ warranty }: { warranty: WarrantyAssessment }) {
   );
 }
 
+const FEE_SEVERITY_STYLES: Record<
+  FeeRiskSeverity,
+  { wrap: string; badge: string; label: string }
+> = {
+  critical: {
+    wrap: "border-verdict-red/25 bg-verdict-red/5",
+    badge: "bg-verdict-red/15 text-verdict-red",
+    label: "Review",
+  },
+  warning: {
+    wrap: "border-verdict-amber/25 bg-verdict-amber/5",
+    badge: "bg-verdict-amber/15 text-verdict-amber",
+    label: "Question",
+  },
+  info: {
+    wrap: "border-navy/15 bg-white",
+    badge: "bg-navy-50 text-navy/60",
+    label: "Check",
+  },
+};
+
+const FEE_CATEGORY_LABEL: Record<FeeCategory, string> = {
+  doc_fee: "Doc fee",
+  dealer_addon: "Dealer add-on",
+  government_fee: "Government",
+  tax: "Tax",
+  registration: "Registration",
+  title: "Title",
+  junk_fee: "Junk fee",
+  unknown: "Unclassified",
+};
+
+/**
+ * Buyer-side fee-risk panel — state-aware classification of the fee lines, with
+ * compliance-safe guidance (consumer guidance, not legal advice). Presentation
+ * only; it never affects the verdict/score. Mirrors the other detail cards.
+ */
+const CATEGORY_LEVEL_STYLES: Record<
+  CategoryLevel,
+  { dot: string; pill: string; label: string }
+> = {
+  looks_clear: {
+    dot: "bg-verdict-green",
+    pill: "bg-verdict-green/10 text-verdict-green",
+    label: "Looks clear",
+  },
+  worth_a_look: {
+    dot: "bg-verdict-amber",
+    pill: "bg-verdict-amber/10 text-verdict-amber",
+    label: "Worth a look",
+  },
+  high_risk: {
+    dot: "bg-verdict-red",
+    pill: "bg-verdict-red/10 text-verdict-red",
+    label: "High risk",
+  },
+  needs_info: {
+    dot: "bg-navy/30",
+    pill: "bg-navy-50 text-navy/55",
+    label: "Needs info",
+  },
+};
+
+/**
+ * At-a-glance "Deal Score" breakdown — five buyer-facing categories derived
+ * (presentation only) from the engine flags + fee-risk channel. It summarizes
+ * what's below; it never changes the verdict or score.
+ */
+export function CategoryScorecard({
+  result,
+  feeRisk,
+}: {
+  result: FairnessResult;
+  feeRisk?: FeeRiskAssessment | null;
+}) {
+  const categories: DealCategory[] = categorizeDeal(result, feeRisk);
+  return (
+    <div className="card">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-lg font-semibold text-navy">Deal breakdown</h3>
+        <ConfidenceBadge level={result.confidence} />
+      </div>
+      <p className="mt-1 text-sm text-navy/55">
+        Based on what you entered — a buyer-side read, not legal advice.
+      </p>
+      <ul className="mt-4 divide-y divide-navy/5">
+        {categories.map((c) => {
+          const st = CATEGORY_LEVEL_STYLES[c.level];
+          return (
+            <li key={c.key} className="flex items-start gap-3 py-3">
+              <span className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${st.dot}`} aria-hidden />
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-semibold text-navy">{c.label}</span>
+                  <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${st.pill}`}>
+                    {st.label}
+                  </span>
+                </div>
+                <p className="mt-0.5 text-sm leading-relaxed text-navy/65">{c.note}</p>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+export function FeeSection({
+  feeRisk,
+  feeFlags,
+  docFeePanelShown = false,
+}: {
+  feeRisk?: FeeRiskAssessment | null;
+  feeFlags: Flag[];
+  /** True when a sourced DocFeeRulePanel renders elsewhere (a scored fee flag or
+   *  the advisory doc-fee section), so we don't repeat the doc-fee note here. */
+  docFeePanelShown?: boolean;
+}) {
+  const hasFlags = feeFlags.length > 0;
+  // When the engine's SOURCED state doc-fee rule (DocFeeRulePanel) renders — on a
+  // fee flag here or in the advisory doc-fee section — that verified finding
+  // supersedes the registry's parallel doc-fee note, so it never shows twice.
+  const hasSourcedDocFee = docFeePanelShown || feeFlags.some((f) => f.docFee);
+  // The engine's fee/add-on flags already say "this looks padded." Keep the
+  // state-cap critical and the tax/title sanity note (unique context), but drop
+  // the generic "padded fee" warnings when a flag already covers it — so fees
+  // live in ONE place without repeating themselves.
+  const messages = (feeRisk?.messages ?? []).filter((m) => {
+    if (hasSourcedDocFee && /doc fee|processing fee/i.test(m.title)) return false;
+    return (
+      m.severity === "critical" ||
+      m.severity === "info" ||
+      (m.severity === "warning" && !hasFlags)
+    );
+  });
+  const lineItems = feeRisk?.lineItems ?? [];
+  if (!hasFlags && messages.length === 0 && lineItems.length === 0) return null;
+
+  return (
+    <div className="card">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-lg font-semibold text-navy">Fees &amp; add-ons</h3>
+        {feeRisk && <ConfidenceBadge level={feeRisk.ruleConfidence} />}
+      </div>
+      <p className="mt-1 text-sm text-navy/60">
+        Every fee and add-on on your worksheet, in one place
+        {feeRisk?.state ? ` — checked against ${feeRisk.state}'s known rules` : ""}. A
+        buyer-side read, not legal advice.
+      </p>
+      {(feeRisk?.ruleStatus === "needs_research" || feeRisk?.ruleStatus === "unknown") && (
+        <p className="mt-2 text-xs text-navy/50">
+          We haven&apos;t verified this state&apos;s doc-fee cap yet — treat the fees
+          here as review items to confirm in writing, not a legal conclusion.
+        </p>
+      )}
+
+      {lineItems.length > 0 && (
+        <div className="mt-4 flex flex-wrap gap-2">
+          {lineItems.map((li, i) => (
+            <span
+              key={i}
+              className="inline-flex items-center gap-1.5 rounded-full bg-cream-100 px-3 py-1 text-xs text-navy/70"
+            >
+              <span className="font-medium text-navy/80">{li.label}</span>
+              <span className="text-navy/45">· {FEE_CATEGORY_LABEL[li.category]}</span>
+            </span>
+          ))}
+        </div>
+      )}
+
+      {hasFlags && (
+        <ul className="mt-4 space-y-3">
+          {feeFlags.map((f, i) => (
+            <FlagCard key={i} flag={f} />
+          ))}
+        </ul>
+      )}
+
+      {messages.length > 0 && (
+        <ul className="mt-4 space-y-2.5">
+          {messages.map((m, i) => {
+            const st = FEE_SEVERITY_STYLES[m.severity];
+            return (
+              <li key={i} className={`rounded-xl border p-4 ${st.wrap}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <h4 className="font-semibold text-navy">{m.title}</h4>
+                  <span
+                    className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${st.badge}`}
+                  >
+                    {st.label}
+                  </span>
+                </div>
+                <p className="mt-1.5 text-sm leading-relaxed text-navy/70">{m.message}</p>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 /**
  * Vehicle price vs. market. Renders whenever a market range is available (from
  * MarketCheck), showing the asking price against the market band — a reassuring
@@ -618,12 +832,14 @@ export function VerdictView({
   reviewedNote,
   vehicle,
   loan,
+  feeRisk,
   expandDetails = false,
 }: {
   result: FairnessResult;
   reviewedNote?: string | null;
   vehicle?: { year?: number | null; make?: string | null; model?: string | null };
   loan?: LoanInputs | null;
+  feeRisk?: FeeRiskAssessment | null;
   /** When true, the red-flags / breakdown disclosure renders open (used by the
    *  public sample report so the full evidence is visible without a tap). */
   expandDetails?: boolean;
@@ -639,14 +855,18 @@ export function VerdictView({
     (a, b) =>
       (SEVERITY_ORDER[a.severity] ?? 9) - (SEVERITY_ORDER[b.severity] ?? 9),
   );
-  // Partition by SEVERITY, not type: info-severity flags (missing-info notes and
-  // legitimate government fees) are never shown as red flags.
-  const realFlags = sortedFlags.filter((f) => f.severity !== "info");
-  // Advisory doc-fee findings ride on info-severity flags but get their own
-  // panel section (the decision-first doc-fee panel), separate from the plain
-  // "missing info" notes.
+  // Partition price/payment vs fee flags by TYPE so fees live in their own
+  // "Fees & add-ons" section; price/payment flags stay in the main list.
+  // (`missing_info`/`info` types are excluded by partitionVerdictFlags.)
+  const { general: realFlags, fees: feeFlags } = partitionVerdictFlags(sortedFlags);
+  const issueCount = realFlags.length + feeFlags.length;
+  // Advisory doc-fee findings ride on info-severity flags and get their own
+  // decision-first DocFeeRulePanel section, separate from the plain missing-info
+  // notes. (Scored, over-cap doc fees are non-info and live in feeFlags above.)
   const docInfoFlags = sortedFlags.filter((f) => f.severity === "info" && f.docFee);
-  const infoFlags = sortedFlags.filter((f) => f.severity === "info" && !f.docFee);
+  const infoFlags = sortedFlags.filter(
+    (f) => (f.type === "missing_info" || f.type === "info") && !f.docFee,
+  );
 
   return (
     <div className="space-y-6">
@@ -742,6 +962,9 @@ export function VerdictView({
       </div>
 
       {/* Primary action — the words to use, right under the verdict. */}
+      {/* At-a-glance category breakdown, above the detailed disclosure. */}
+      <CategoryScorecard result={result} feeRisk={feeRisk} />
+
       <NegotiationScriptCard result={result} offeredApr={loan?.apr ?? null} />
 
       {/* Depth on demand — the detailed red flags, warranty, loan cost, gaps,
@@ -754,8 +977,8 @@ export function VerdictView({
       >
         <summary className="flex cursor-pointer list-none items-center justify-between px-5 py-4 text-sm font-semibold text-navy hover:bg-cream-100">
           <span>
-            {realFlags.length > 0
-              ? `See all ${realFlags.length} red flag${realFlags.length > 1 ? "s" : ""} & the full breakdown`
+            {issueCount > 0
+              ? `See all ${issueCount} flag${issueCount > 1 ? "s" : ""} & the full breakdown`
               : "See the full breakdown"}
           </span>
           <svg
@@ -780,8 +1003,8 @@ export function VerdictView({
           <div>
             <h3 className="mb-3 text-lg font-semibold text-navy">
               {realFlags.length > 0
-                ? `Red flags we found (${realFlags.length})`
-                : "Red flags"}
+                ? `Price & payment flags (${realFlags.length})`
+                : "Price & payment"}
             </h3>
             {realFlags.length > 0 ? (
               <ul className="space-y-3">
@@ -791,9 +1014,10 @@ export function VerdictView({
               </ul>
             ) : (
               <p className="rounded-xl border border-verdict-green/20 bg-verdict-green/5 p-4 text-sm text-navy/70">
-                Nothing in what you entered tripped a red flag. That doesn&apos;t
-                guarantee the deal is perfect — it means the numbers you gave us
-                look reasonable against our estimates.
+                Nothing in your price, payment, or trade tripped a flag. That
+                doesn&apos;t guarantee the deal is perfect — it means those
+                numbers look reasonable against our estimates. Fees and add-ons
+                are covered below.
               </p>
             )}
           </div>
@@ -801,6 +1025,11 @@ export function VerdictView({
           {result.marketValue && (
             <VehiclePriceCard marketValue={result.marketValue} price={loan?.vehiclePrice ?? null} />
           )}
+          <FeeSection
+            feeRisk={feeRisk}
+            feeFlags={feeFlags}
+            docFeePanelShown={docInfoFlags.length > 0}
+          />
           {result.warranty && <WarrantyCard warranty={result.warranty} />}
           {loan && <LoanCostPanel loan={loan} />}
 
