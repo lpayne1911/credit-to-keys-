@@ -40,4 +40,31 @@ describe("vehicle price vs. market", () => {
     expect(score(29_000, MARKET).marketValue).toEqual(MARKET);
     expect(score(29_000, null).marketValue).toBeNull();
   });
+
+  it("anchors on the market median when supplied (flags above-median, in-range price)", () => {
+    const r = scoreDeal({
+      vehicle: { make: "Toyota", model: "RAV4", year: 2024 },
+      deal: { creditBand: "unknown", fees: [], vehiclePrice: 31_000 },
+      marketValue: { low: 28_000, high: 32_000, confidence: "high", basis: "MarketCheck comps." },
+      marketMedian: 30_000,
+      marketTarget: 28_800,
+    });
+    const flag = r.flags.find((f) => f.type === "overpriced_vehicle");
+    expect(flag).toBeTruthy(); // 31,000 is within range but ABOVE the median
+    expect(flag!.severity).toBe("medium"); // ~3.3% over median
+    expect(flag!.estimatedImpact?.low).toBe(1_000); // price - median
+    expect(flag!.estimatedImpact?.high).toBe(2_200); // price - target
+    expect(flag!.explanation).toMatch(/median/);
+  });
+
+  it("does not flag a price at or below the median", () => {
+    const r = scoreDeal({
+      vehicle: { make: "Toyota", model: "RAV4", year: 2024 },
+      deal: { creditBand: "unknown", fees: [], vehiclePrice: 29_500 },
+      marketValue: { low: 28_000, high: 32_000, confidence: "high", basis: "x" },
+      marketMedian: 30_000,
+      marketTarget: 28_800,
+    });
+    expect(r.flags.some((f) => f.type === "overpriced_vehicle")).toBe(false);
+  });
 });

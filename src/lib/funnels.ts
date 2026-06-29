@@ -78,6 +78,7 @@ export const PRICES = {
   liveSupport: "From $199",
   concierge: "From $1,999",
   postSale: "$249–$499",
+  marketCheck: "From $99",
 } as const;
 
 export const FUNNELS: Funnel[] = [
@@ -180,7 +181,7 @@ export const FUNNELS: Funnel[] = [
       addOn: { label: "Add: Live Support at the Dealership", amount: PRICES.liveSupport, sub: "Chat or call support when you're at the desk." },
     },
     primaryCta: { label: "Build My Plan", href: "#start" },
-    secondaryCta: { label: "See a sample report", href: "/sample" },
+    secondaryCta: { label: "Check the market first", href: "/market-check" },
     intakeProductId: "build-my-plan",
   },
 

@@ -173,6 +173,10 @@ export interface FairnessInput {
    * this if present. Absent → no vehicle-price fairness flag (unchanged behavior).
    */
   marketValue?: PriceRange | null;
+  /** Market median + a realistically-achievable target price from the MarketCheck
+   * snapshot. The median anchors price fairness; the target drives the pushback. */
+  marketMedian?: number | null;
+  marketTarget?: number | null;
   /** True when the figures came from an uploaded quote (raises confidence). */
   documentUploaded?: boolean;
   /**
@@ -580,8 +584,11 @@ export function scoreDeal(input: FairnessInput): FairnessResult {
 
   // --- Vehicle price vs. market (from injected MarketCheck range) ---------
   const priceFlag = assessVehiclePrice(
+    input.vehicle,
     input.deal,
     input.marketValue ?? null,
+    input.marketMedian ?? null,
+    input.marketTarget ?? null,
     stateRes.confidence,
     assumptions,
   );
@@ -630,15 +637,19 @@ export function scoreDeal(input: FairnessInput): FairnessResult {
 }
 
 /**
- * Vehicle price vs. market. Pure: consumes an injected market range (e.g. from
- * MarketCheck) and flags only when the asking price is above the market high.
- * In-range / below market emits no flag — the UI still shows the market band
- * from `FairnessResult.marketValue`. Confidence is downgraded to the weaker of
- * the market data and the resolved-state confidence.
+ * Vehicle price vs. market — fed by the MarketCheck snapshot (median + target +
+ * range injected into the input). Pure. Anchors fairness on the market MEDIAN
+ * when available (flags an above-median price as a price-risk signal), falling
+ * back to the range high when no median is supplied. In-range/below emits no
+ * flag — the UI still shows the band from `FairnessResult.marketValue`.
+ * Confidence is the weaker of the market data and the resolved-state confidence.
  */
 function assessVehiclePrice(
+  vehicle: VehicleInput,
   deal: DealInput,
   marketValue: PriceRange | null,
+  marketMedian: number | null,
+  marketTarget: number | null,
   stateConfidence: Confidence,
   assumptions: string[],
 ): Flag | null {
@@ -646,25 +657,31 @@ function assessVehiclePrice(
   if (!marketValue || !price || price <= 0) return null;
 
   assumptions.push(
-    `Vehicle price compared against a market range of $${marketValue.low.toLocaleString()}–$${marketValue.high.toLocaleString()} (${marketValue.basis}).`,
+    `Vehicle price compared against a market range of ${money(marketValue.low)}–${money(marketValue.high)} (${marketValue.basis}).`,
   );
 
-  if (price <= marketValue.high) return null; // in range or below — no concern
+  // Median is the fairness anchor when we have it; else the range high.
+  const anchor = marketMedian ?? marketValue.high;
+  if (price <= anchor) return null; // at/below median (or within range) — no concern
 
-  const overHigh = price - marketValue.high;
-  const pctOver = overHigh / marketValue.high;
-  const severity: FlagSeverity =
-    pctOver >= 0.08 ? "high" : pctOver >= 0.03 ? "medium" : "low";
+  const over = price - anchor;
+  const pctOver = over / anchor;
+  const severity: FlagSeverity = pctOver <= 0.02 ? "low" : pctOver <= 0.06 ? "medium" : "high";
   const confidence = minConfidence(marketValue.confidence, stateConfidence);
+
+  const target = marketTarget ?? marketValue.low;
+  const vehName = [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(" ") || "this vehicle";
+  const towardAnchor = Math.max(0, price - anchor);
+  const towardTarget = Math.max(0, price - target);
 
   return {
     type: "overpriced_vehicle",
     severity,
-    title: "Vehicle price looks above market",
-    explanation: `The asking price of ${money(price)} is above the estimated market range of ${money(marketValue.low)}–${money(marketValue.high)} for this vehicle — about ${money(overHigh)} over the top of the range. Ask the dealer to bring the price into range, or use it as leverage. You make the final decision.`,
+    title: "Price above the local market",
+    explanation: `The asking price of ${money(price)} is about ${money(over)} above the local market ${marketMedian ? "median" : "range"} for ${vehName} (${money(marketValue.low)}–${money(marketValue.high)}). This is a price-risk signal and a negotiation point — ask for a revised selling price closer to ${money(target)}. You make the final decision.`,
     estimatedImpact: {
-      low: Math.max(0, price - marketValue.high),
-      high: Math.max(0, price - marketValue.low),
+      low: towardAnchor,
+      high: Math.max(towardAnchor, towardTarget),
       confidence,
       basis: marketValue.basis,
     },

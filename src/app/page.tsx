@@ -73,6 +73,14 @@ function Hero() {
               Choose your path and we&apos;ll guide you to the best next step.
             </p>
           </Reveal>
+          <Reveal delay={180}>
+            <p className="mt-4 text-sm text-white/65">
+              Just want market pricing?{" "}
+              <Link href="/market-check" className="font-semibold text-blue-soft hover:underline">
+                Check the Market →
+              </Link>
+            </p>
+          </Reveal>
         </div>
 
         <div className="mt-12 grid gap-5 pb-14 sm:grid-cols-2 lg:grid-cols-4">

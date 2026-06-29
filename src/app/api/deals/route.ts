@@ -12,7 +12,8 @@ import { scoreDeal } from "@/lib/fairness-engine";
 import { toFairnessInput, toDealRow } from "@/lib/deal-mapper";
 import { dealSubmissionSchema } from "@/lib/schemas";
 import { getServiceClient } from "@/lib/supabase/server";
-import { getMarketRange } from "@/lib/marketcheck/client";
+import { runMarketCheck } from "@/lib/market-engine/runMarketCheck";
+import { isConfigured as isMarketCheckConfigured } from "@/lib/sources/marketcheck/connector";
 
 export const runtime = "nodejs";
 
@@ -57,16 +58,32 @@ export async function POST(req: Request) {
     );
   }
 
-  // Inject a real market price range (MarketCheck) before scoring. The engine
-  // stays pure/sync; a failure or missing key just leaves price fairness off.
-  input.marketValue = await getMarketRange({
-    year: input.vehicle.year,
-    make: input.vehicle.make,
-    model: input.vehicle.model,
-    trim: input.vehicle.trim,
-    mileage: input.vehicle.mileage,
-    zip: input.registrationZip ?? input.dealerZip ?? null,
-  }).catch(() => null);
+  // Feed a REAL MarketCheck snapshot into the score when configured. We only
+  // inject live data (never the demo mock) so a real buyer's score is never
+  // based on fabricated market numbers; with no key, price fairness stays off.
+  if (isMarketCheckConfigured()) {
+    const mc = await runMarketCheck({
+      vin: input.vehicle.vin ?? null,
+      year: input.vehicle.year,
+      make: input.vehicle.make,
+      model: input.vehicle.model,
+      trim: input.vehicle.trim,
+      mileage: input.vehicle.mileage,
+      zipCode: input.registrationZip ?? input.dealerZip ?? null,
+      radiusMiles: 75,
+      dealerAskingPrice: input.deal.vehiclePrice ?? null,
+    }).catch(() => null);
+    if (mc && !mc.source.isMock && mc.snapshot.marketLow != null && mc.snapshot.marketHigh != null) {
+      input.marketValue = {
+        low: mc.snapshot.marketLow,
+        high: mc.snapshot.marketHigh,
+        confidence: mc.snapshot.confidence.level,
+        basis: mc.snapshot.confidence.reasons[0] ?? "MarketCheck comparable listings.",
+      };
+      input.marketMedian = mc.snapshot.marketMedian;
+      input.marketTarget = mc.snapshot.targetPrice;
+    }
+  }
 
   const result = scoreDeal(input);
 
