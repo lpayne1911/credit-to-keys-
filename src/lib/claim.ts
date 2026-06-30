@@ -132,3 +132,48 @@ export async function claimIntakeForUser(
 
   return { ok: true, id: intakeId, alreadyOwned };
 }
+
+/**
+ * Idempotently claim a saved artifact (Plan / Triage) for a user. Only an
+ * UNOWNED artifact is claimable; one owned by another user is never reassigned.
+ * Setting user_id is what surfaces it on the buyer's dashboard.
+ */
+export async function claimArtifactForUser(
+  artifactId: string,
+  userId: string,
+): Promise<ClaimResult> {
+  const supabase = getServiceClient();
+  if (!supabase) return { ok: false, reason: "unconfigured" };
+
+  const { data: row, error } = await supabase
+    .from("saved_artifacts")
+    .select("id, user_id")
+    .eq("id", artifactId)
+    .maybeSingle();
+  if (error || !row) return { ok: false, reason: "not_found" };
+
+  const owner = (row as { user_id: string | null }).user_id;
+  if (owner && owner !== userId) return { ok: false, reason: "owned_by_other" };
+  const alreadyOwned = owner === userId;
+
+  if (!owner) {
+    const { data: upd } = await supabase
+      .from("saved_artifacts")
+      .update({ user_id: userId })
+      .eq("id", artifactId)
+      .is("user_id", null)
+      .select("id")
+      .maybeSingle();
+    if (!upd) {
+      const { data: re } = await supabase
+        .from("saved_artifacts")
+        .select("user_id")
+        .eq("id", artifactId)
+        .maybeSingle();
+      const reOwner = (re as { user_id: string | null } | null)?.user_id;
+      if (reOwner && reOwner !== userId) return { ok: false, reason: "owned_by_other" };
+    }
+  }
+
+  return { ok: true, id: artifactId, alreadyOwned };
+}

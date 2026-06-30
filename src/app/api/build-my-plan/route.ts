@@ -12,6 +12,8 @@
  */
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
+import { getBuyer } from "@/lib/buyer-auth";
+import { saveArtifact } from "@/lib/artifacts";
 import { buildPlanSchema } from "@/lib/schemas";
 import { buildTargetDealSheet } from "@/lib/plan-engine/buildTargetDealSheet";
 import type { PlanMarket, TargetPlanInput } from "@/lib/plan-engine/types";
@@ -122,5 +124,18 @@ export async function POST(req: Request) {
 
   const result = buildTargetDealSheet(input, { market, docFeeRule });
 
-  return NextResponse.json({ planId: randomUUID(), result, persisted: false });
+  // Persist server-side so the plan is reachable from any device and can be
+  // claimed to a dashboard; fall back to a client-only id when storage is off.
+  const buyer = await getBuyer();
+  const title =
+    [input.vehicle.year, input.vehicle.make, input.vehicle.model].filter(Boolean).join(" ") ||
+    "Target Deal Sheet";
+  const id = await saveArtifact({ kind: "plan", payload: result, title, userId: buyer?.id ?? null });
+
+  return NextResponse.json({
+    planId: id ?? randomUUID(),
+    result,
+    persisted: Boolean(id),
+    owned: Boolean(id && buyer),
+  });
 }

@@ -5,7 +5,7 @@
  */
 import { NextResponse } from "next/server";
 import { getBuyer } from "@/lib/buyer-auth";
-import { claimDealForUser, claimIntakeForUser } from "@/lib/claim";
+import { claimDealForUser, claimIntakeForUser, claimArtifactForUser } from "@/lib/claim";
 import { claimSchema } from "@/lib/schemas";
 import { rateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 
@@ -32,7 +32,9 @@ export async function POST(req: Request) {
 
   const result = parsed.data.dealId
     ? await claimDealForUser(parsed.data.dealId, buyer.id)
-    : await claimIntakeForUser(parsed.data.intakeId!, buyer.id);
+    : parsed.data.intakeId
+      ? await claimIntakeForUser(parsed.data.intakeId, buyer.id)
+      : await claimArtifactForUser(parsed.data.artifactId!, buyer.id);
 
   if (!result.ok) {
     const status =

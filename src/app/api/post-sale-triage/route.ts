@@ -9,6 +9,8 @@
  */
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
+import { getBuyer } from "@/lib/buyer-auth";
+import { saveArtifact } from "@/lib/artifacts";
 import { postSaleSchema } from "@/lib/schemas";
 import { buildPostSaleTriage } from "@/lib/post-sale-engine/buildPostSaleTriage";
 import type { PostSaleInput } from "@/lib/post-sale-engine/types";
@@ -58,5 +60,16 @@ export async function POST(req: Request) {
 
   const result = buildPostSaleTriage(input);
 
-  return NextResponse.json({ triageId: randomUUID(), result, persisted: false });
+  // Persist server-side so the triage is reachable from any device and can be
+  // claimed to a dashboard; fall back to a client-only id when storage is off.
+  const buyer = await getBuyer();
+  const title = input.dealerName ? `Post-sale · ${input.dealerName}` : "Post-sale review";
+  const id = await saveArtifact({ kind: "triage", payload: result, title, userId: buyer?.id ?? null });
+
+  return NextResponse.json({
+    triageId: id ?? randomUUID(),
+    result,
+    persisted: Boolean(id),
+    owned: Boolean(id && buyer),
+  });
 }

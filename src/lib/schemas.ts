@@ -252,15 +252,17 @@ export const claimDealSchema = z.object({
   dealId: z.string().uuid(),
 });
 
-/** Claim an anonymous deal OR intake application for the signed-in buyer. */
+/** Claim an anonymous deal, intake, or saved artifact for the signed-in buyer. */
 export const claimSchema = z
   .object({
     dealId: z.string().uuid().optional(),
     intakeId: z.string().uuid().optional(),
+    artifactId: z.string().uuid().optional(),
   })
-  .refine((d) => Boolean(d.dealId) !== Boolean(d.intakeId), {
-    message: "Provide exactly one of dealId or intakeId.",
-  });
+  .refine(
+    (d) => [d.dealId, d.intakeId, d.artifactId].filter(Boolean).length === 1,
+    { message: "Provide exactly one of dealId, intakeId, or artifactId." },
+  );
 
 /** Admin: invite/allowlist an operator by email. */
 export const addOperatorSchema = z.object({

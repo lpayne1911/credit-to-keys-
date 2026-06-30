@@ -7,7 +7,7 @@
 import { NextResponse } from "next/server";
 import { getServerSupabase } from "@/lib/supabase/ssr";
 import { getBuyer } from "@/lib/buyer-auth";
-import { claimDealForUser, claimIntakeForUser } from "@/lib/claim";
+import { claimDealForUser, claimIntakeForUser, claimArtifactForUser } from "@/lib/claim";
 import { safeRedirectPath, isUuid } from "@/lib/safe-redirect";
 
 export const runtime = "nodejs";
@@ -18,6 +18,7 @@ export async function GET(req: Request) {
   const redirectTo = safeRedirectPath(url.searchParams.get("redirectTo"));
   const claimDealId = url.searchParams.get("claimDealId");
   const claimIntakeId = url.searchParams.get("claimIntakeId");
+  const claimArtifactId = url.searchParams.get("claimArtifactId");
 
   const fail = () => {
     const dest = new URL("/login", url.origin);
@@ -32,11 +33,12 @@ export async function GET(req: Request) {
   const { error } = await supabase.auth.exchangeCodeForSession(code);
   if (error) return fail();
 
-  // Best-effort claim of an anonymous deal/intake now that the buyer has a session.
-  if (isUuid(claimDealId) || isUuid(claimIntakeId)) {
+  // Best-effort claim of an anonymous deal/intake/artifact now that there's a session.
+  if (isUuid(claimDealId) || isUuid(claimIntakeId) || isUuid(claimArtifactId)) {
     const buyer = await getBuyer();
     if (buyer && isUuid(claimDealId)) await claimDealForUser(claimDealId, buyer.id);
     if (buyer && isUuid(claimIntakeId)) await claimIntakeForUser(claimIntakeId, buyer.id);
+    if (buyer && isUuid(claimArtifactId)) await claimArtifactForUser(claimArtifactId, buyer.id);
   }
 
   return NextResponse.redirect(new URL(redirectTo, url.origin));

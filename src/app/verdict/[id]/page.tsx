@@ -92,8 +92,9 @@ export default async function VerdictPage({
               />
 
               <SaveToAccountPrompt
-                dealId={deal.id}
-                dealUserId={deal.user_id ?? null}
+                id={deal.id}
+                ownerId={deal.user_id ?? null}
+                claimParam="claimDealId"
                 redirectTo={`/verdict/${deal.id}`}
               />
 

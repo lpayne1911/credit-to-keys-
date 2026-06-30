@@ -17,12 +17,14 @@ export function AccountAuth({
   redirectTo,
   claimDealId,
   claimIntakeId,
+  claimArtifactId,
 }: {
   configured: boolean;
   initialMode?: "signin" | "signup";
   redirectTo?: string;
   claimDealId?: string;
   claimIntakeId?: string;
+  claimArtifactId?: string;
 }) {
   const router = useRouter();
   const [mode, setMode] = useState<"signin" | "signup">(initialMode);
@@ -38,7 +40,9 @@ export function AccountAuth({
       ? { dealId: claimDealId }
       : claimIntakeId
         ? { intakeId: claimIntakeId }
-        : null;
+        : claimArtifactId
+          ? { artifactId: claimArtifactId }
+          : null;
     if (!body) return;
     await fetch("/api/account/claim", {
       method: "POST",
@@ -63,7 +67,7 @@ export function AccountAuth({
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, redirectTo, claimDealId, claimIntakeId }),
+        body: JSON.stringify({ email, password, redirectTo, claimDealId, claimIntakeId, claimArtifactId }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -91,7 +95,7 @@ export function AccountAuth({
       const res = await fetch("/api/account/oauth", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ provider: "google", redirectTo, claimDealId, claimIntakeId }),
+        body: JSON.stringify({ provider: "google", redirectTo, claimDealId, claimIntakeId, claimArtifactId }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.url) {

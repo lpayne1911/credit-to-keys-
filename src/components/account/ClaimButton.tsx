@@ -4,10 +4,17 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 /**
- * One-click claim for a buyer who's already signed in: POST the deal id and go
- * to their dashboard. Used on result pages for anonymous deals.
+ * One-click claim for a buyer who's already signed in: POST the claim body
+ * ({dealId} | {intakeId} | {artifactId}) and go to their dashboard. Used on
+ * result pages for anonymous objects.
  */
-export function ClaimButton({ dealId, redirectTo = "/dashboard" }: { dealId: string; redirectTo?: string }) {
+export function ClaimButton({
+  claimBody,
+  redirectTo = "/dashboard",
+}: {
+  claimBody: Record<string, string>;
+  redirectTo?: string;
+}) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -19,7 +26,7 @@ export function ClaimButton({ dealId, redirectTo = "/dashboard" }: { dealId: str
       const res = await fetch("/api/account/claim", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ dealId }),
+        body: JSON.stringify(claimBody),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {

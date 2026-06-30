@@ -26,6 +26,7 @@ function confirmationUrl(req: Request, body: Record<string, unknown>): string {
   if (redirectTo) url.searchParams.set("redirectTo", redirectTo);
   if (isUuid(body.claimDealId)) url.searchParams.set("claimDealId", body.claimDealId);
   if (isUuid(body.claimIntakeId)) url.searchParams.set("claimIntakeId", body.claimIntakeId);
+  if (isUuid(body.claimArtifactId)) url.searchParams.set("claimArtifactId", body.claimArtifactId);
   return url.toString();
 }
 

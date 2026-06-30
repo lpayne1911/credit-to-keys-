@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getBuyer, isBuyerAuthConfigured } from "@/lib/buyer-auth";
 import { listDealsForUser } from "@/lib/deals";
 import { listCasesForUser, listEngagementsForUser } from "@/lib/cases";
+import { listArtifactsForUser, type ArtifactRow } from "@/lib/artifacts";
 import { entitlementsFor } from "@/lib/entitlements";
 import { recommendationsFor, isRecurringService } from "@/lib/dashboard/recommendations";
 import { SERVICE_LABEL, SERVICE_HREF } from "@/lib/dashboard/labels";
@@ -101,10 +102,11 @@ export default async function DashboardHome() {
     );
   }
 
-  const [cases, engagements, deals] = await Promise.all([
+  const [cases, engagements, deals, artifacts] = await Promise.all([
     listCasesForUser(buyer.id),
     listEngagementsForUser(buyer.id),
     listDealsForUser(buyer.id),
+    listArtifactsForUser(buyer.id),
   ]);
   // entitlements are derived from engagements + cases (never a tier).
   const ent = entitlementsFor(engagements, cases);
@@ -231,6 +233,26 @@ export default async function DashboardHome() {
         </div>
       )}
 
+      {/* Saved plans & post-sale reviews — persisted forward-flow artifacts. */}
+      {artifacts.length > 0 && (
+        <div className="mt-10">
+          <SectionTitle>Saved plans &amp; reviews</SectionTitle>
+          <div className="mt-3 divide-y divide-edge overflow-hidden rounded-2xl border border-edge bg-white shadow-card">
+            {artifacts.map((art) => (
+              <Link key={art.id} href={artifactHref(art)} className="flex items-center justify-between gap-4 px-5 py-4 transition hover:bg-cream/50">
+                <div className="min-w-0">
+                  <p className="truncate font-semibold text-navy">{art.title ?? ARTIFACT_LABEL[art.kind]}</p>
+                  <p className="text-xs text-slate">
+                    {ARTIFACT_LABEL[art.kind]} · {new Date(art.created_at).toLocaleDateString()}
+                  </p>
+                </div>
+                <span className="shrink-0 text-xs font-semibold text-blue">Open →</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Completed cases — delivered/closed work, kept for the record. */}
       {completed.length > 0 && (
         <div className="mt-10">
@@ -252,6 +274,15 @@ const IN_PROGRESS = new Set<CaseStatus>([
   "active",
 ]);
 const COMPLETED = new Set<CaseStatus>(["delivered", "payment_pending", "closed"]);
+
+const ARTIFACT_LABEL: Record<ArtifactRow["kind"], string> = {
+  plan: "Target Deal Sheet",
+  triage: "Post-sale review",
+};
+
+function artifactHref(a: ArtifactRow): string {
+  return a.kind === "plan" ? `/plan/${a.id}` : `/triage/${a.id}`;
+}
 
 /** Reusable list of case rows with status pills. */
 function CaseList({ cases }: { cases: CaseRow[] }) {

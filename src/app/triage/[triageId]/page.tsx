@@ -6,12 +6,26 @@
  */
 import Link from "next/link";
 import { PostSaleClientFallback } from "./PostSaleClientFallback";
+import { PostSaleTriageView } from "@/components/post-sale/PostSaleTriageView";
+import { Disclaimer } from "@/components/Disclaimer";
+import { SaveToAccountPrompt } from "@/components/account/SaveToAccountPrompt";
+import { getArtifactById } from "@/lib/artifacts";
+import type { PostSaleTriageResult } from "@/lib/post-sale-engine/types";
 
 export const metadata = {
   title: "Your Post-Sale Options — Driveway Advocate",
 };
 
-export default function TriagePage({ params }: { params: { triageId: string } }) {
+function asTriage(payload: unknown): PostSaleTriageResult | null {
+  return payload && typeof payload === "object" &&
+    (payload as { schemaVersion?: string }).schemaVersion === "post-sale-1"
+    ? (payload as PostSaleTriageResult)
+    : null;
+}
+
+export default async function TriagePage({ params }: { params: { triageId: string } }) {
+  const artifact = await getArtifactById(params.triageId);
+  const triage = artifact?.kind === "triage" ? asTriage(artifact.payload) : null;
   return (
     <div className="relative flex min-h-[100dvh] flex-col bg-cream">
       <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
@@ -49,7 +63,27 @@ export default function TriagePage({ params }: { params: { triageId: string } })
 
       <main className="relative flex-1 overflow-y-auto px-5 pb-12">
         <div className="mx-auto w-full max-w-xl pt-6">
-          <PostSaleClientFallback triageId={params.triageId} />
+          {triage ? (
+            <div className="space-y-6">
+              <PostSaleTriageView result={triage} />
+              <SaveToAccountPrompt
+                id={params.triageId}
+                ownerId={artifact?.user_id ?? null}
+                claimParam="claimArtifactId"
+                redirectTo={`/triage/${params.triageId}`}
+                label="Save this review"
+              />
+              <Disclaimer />
+              <Link
+                href="/post-sale-triage/intake"
+                className="block py-2 text-center text-sm font-semibold text-red-dark hover:underline"
+              >
+                ← Start another triage
+              </Link>
+            </div>
+          ) : (
+            <PostSaleClientFallback triageId={params.triageId} />
+          )}
         </div>
       </main>
     </div>

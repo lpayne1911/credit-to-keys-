@@ -50,8 +50,9 @@ export default async function DealReviewPage({
             <div className="space-y-6">
               <DealReviewView result={persisted} />
               <SaveToAccountPrompt
-                dealId={params.dealId}
-                dealUserId={deal?.user_id ?? null}
+                id={params.dealId}
+                ownerId={deal?.user_id ?? null}
+                claimParam="claimDealId"
                 redirectTo={`/deal-review/${params.dealId}`}
               />
               <RequestReviewButton dealId={params.dealId} alreadyRequested={alreadyRequested} />

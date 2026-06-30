@@ -7,12 +7,26 @@
  */
 import Link from "next/link";
 import { PlanClientFallback } from "./PlanClientFallback";
+import { PlanView } from "@/components/plan/PlanView";
+import { Disclaimer } from "@/components/Disclaimer";
+import { SaveToAccountPrompt } from "@/components/account/SaveToAccountPrompt";
+import { getArtifactById } from "@/lib/artifacts";
+import type { TargetDealSheet } from "@/lib/plan-engine/types";
 
 export const metadata = {
   title: "Your Target Deal Sheet — Driveway Advocate",
 };
 
-export default function PlanPage({ params }: { params: { planId: string } }) {
+function asPlan(payload: unknown): TargetDealSheet | null {
+  return payload && typeof payload === "object" &&
+    (payload as { schemaVersion?: string }).schemaVersion === "target-plan-1"
+    ? (payload as TargetDealSheet)
+    : null;
+}
+
+export default async function PlanPage({ params }: { params: { planId: string } }) {
+  const artifact = await getArtifactById(params.planId);
+  const plan = artifact?.kind === "plan" ? asPlan(artifact.payload) : null;
   return (
     <div className="relative flex min-h-[100dvh] flex-col bg-cream">
       <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
@@ -50,7 +64,27 @@ export default function PlanPage({ params }: { params: { planId: string } }) {
 
       <main className="relative flex-1 overflow-y-auto px-5 pb-12">
         <div className="mx-auto w-full max-w-xl pt-6">
-          <PlanClientFallback planId={params.planId} />
+          {plan ? (
+            <div className="space-y-6">
+              <PlanView result={plan} />
+              <SaveToAccountPrompt
+                id={params.planId}
+                ownerId={artifact?.user_id ?? null}
+                claimParam="claimArtifactId"
+                redirectTo={`/plan/${params.planId}`}
+                label="Save this plan"
+              />
+              <Disclaimer />
+              <Link
+                href="/build-my-plan/intake"
+                className="block py-2 text-center text-sm font-semibold text-blue-dark hover:underline"
+              >
+                ← Build another plan
+              </Link>
+            </div>
+          ) : (
+            <PlanClientFallback planId={params.planId} />
+          )}
         </div>
       </main>
     </div>

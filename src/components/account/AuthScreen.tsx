@@ -29,6 +29,8 @@ export function AuthScreen({
   const claimDealId = isUuid(claimDealRaw) ? claimDealRaw : undefined;
   const claimIntakeRaw = str(searchParams.claimIntakeId);
   const claimIntakeId = isUuid(claimIntakeRaw) ? claimIntakeRaw : undefined;
+  const claimArtifactRaw = str(searchParams.claimArtifactId);
+  const claimArtifactId = isUuid(claimArtifactRaw) ? claimArtifactRaw : undefined;
   const authError = str(searchParams.auth_error) === "1";
 
   // Preserve the claim params when linking to the other mode.
@@ -36,7 +38,8 @@ export function AuthScreen({
   if (redirectTo !== "/dashboard") qs.set("redirectTo", redirectTo);
   if (claimDealId) qs.set("claimDealId", claimDealId);
   if (claimIntakeId) qs.set("claimIntakeId", claimIntakeId);
-  const claiming = Boolean(claimDealId || claimIntakeId);
+  if (claimArtifactId) qs.set("claimArtifactId", claimArtifactId);
+  const claiming = Boolean(claimDealId || claimIntakeId || claimArtifactId);
   const otherHref = `${mode === "signin" ? "/signup" : "/login"}${qs.toString() ? `?${qs}` : ""}`;
 
   return (
@@ -69,6 +72,7 @@ export function AuthScreen({
             redirectTo={redirectTo}
             claimDealId={claimDealId}
             claimIntakeId={claimIntakeId}
+            claimArtifactId={claimArtifactId}
           />
 
           <p className="mt-6 text-center text-sm text-slate">
