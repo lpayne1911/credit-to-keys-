@@ -46,6 +46,15 @@ describe("parseRecalls", () => {
     expect(parseRecalls({ Count: 0, results: [] })).toEqual([]);
     expect(parseRecalls({})).toEqual([]);
   });
+
+  it("tolerates an uppercase `Results` key (casing guard)", () => {
+    const recalls = parseRecalls({
+      Count: 1,
+      Results: [{ NHTSACampaignNumber: "24V001000", Component: "AIR BAGS" }],
+    });
+    expect(recalls).toHaveLength(1);
+    expect(recalls[0].component).toBe("AIR BAGS");
+  });
 });
 
 describe("parseRating", () => {

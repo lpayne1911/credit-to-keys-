@@ -36,8 +36,9 @@ function parseRecall(raw: RawRecall): Recall {
 /** Map the recalls response to a clean list. Empty array when none/failed —
  *  an honest "no open recalls reported", never fabricated. */
 export function parseRecalls(raw: RawRecallsResponse | null): Recall[] {
-  if (!raw?.results?.length) return [];
-  return raw.results
+  const rows = raw?.results ?? raw?.Results ?? [];
+  if (!rows.length) return [];
+  return rows
     .map(parseRecall)
     .filter((r) => r.campaignId || r.component || r.summary);
 }

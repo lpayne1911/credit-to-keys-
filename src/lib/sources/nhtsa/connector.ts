@@ -27,8 +27,11 @@ export interface RawRecall {
 
 export interface RawRecallsResponse {
   Count?: number;
-  /** NHTSA returns the recall rows under a lowercase `results` key. */
+  /** This endpoint returns rows under lowercase `results`; we also accept the
+   *  uppercase `Results` other NHTSA endpoints use, so a casing surprise can't
+   *  silently zero out the feature. */
   results?: RawRecall[];
+  Results?: RawRecall[];
 }
 
 export interface RawRatingVariant {
@@ -39,6 +42,7 @@ export interface RawRatingVariant {
 export interface RawRatingVariantsResponse {
   Count?: number;
   Results?: RawRatingVariant[];
+  results?: RawRatingVariant[];
 }
 
 export interface RawRatingDetail {
@@ -51,6 +55,7 @@ export interface RawRatingDetail {
 export interface RawRatingDetailResponse {
   Count?: number;
   Results?: RawRatingDetail[];
+  results?: RawRatingDetail[];
 }
 
 /** Fetch + parse JSON with a timeout. Null on any non-OK/network/timeout. */
@@ -93,7 +98,7 @@ export async function fetchSafetyVariants(
     make,
   )}/model/${encodeURIComponent(model)}`;
   const data = await getJson<RawRatingVariantsResponse>(url);
-  return data?.Results ?? null;
+  return data?.Results ?? data?.results ?? null;
 }
 
 /** Full crash-test ratings for a specific NCAP VehicleId (step 2). Null on failure. */
@@ -103,5 +108,5 @@ export async function fetchRatingDetail(
   const data = await getJson<RawRatingDetailResponse>(
     `${RATINGS_BASE}/VehicleId/${vehicleId}`,
   );
-  return data?.Results?.[0] ?? null;
+  return data?.Results?.[0] ?? data?.results?.[0] ?? null;
 }
