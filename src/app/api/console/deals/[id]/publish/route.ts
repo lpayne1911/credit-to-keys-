@@ -10,11 +10,11 @@
  * This route is the enforcement seam for that rule, and the audit row is the
  * timestamped proof of when delivery happened.
  */
-import { NextResponse } from "next/server";
 import { getConsoleOperator } from "@/lib/console-auth";
 import { getServiceClient } from "@/lib/supabase/server";
 import type { Flag } from "@/lib/fairness-engine";
 import { publishSchema } from "@/lib/schemas";
+import { apiError, apiOk } from "@/lib/api-response";
 
 export const runtime = "nodejs";
 
@@ -24,22 +24,16 @@ export async function POST(
 ) {
   const operator = await getConsoleOperator();
   if (!operator) {
-    return NextResponse.json({ ok: false, error: "Not authorized." }, { status: 401 });
+    return apiError("unauthorized", "Not authorized.");
   }
   const supabase = getServiceClient();
   if (!supabase) {
-    return NextResponse.json(
-      { ok: false, error: "Database not configured." },
-      { status: 503 },
-    );
+    return apiError("unavailable", "Database not configured.");
   }
 
   const parsed = publishSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
-    return NextResponse.json(
-      { ok: false, error: "Invalid review payload." },
-      { status: 422 },
-    );
+    return apiError("validation", "Invalid review payload.");
   }
   const body = parsed.data;
   const flags = body.flags as Flag[];
@@ -56,10 +50,7 @@ export async function POST(
     .eq("id", params.id);
 
   if (error) {
-    return NextResponse.json(
-      { ok: false, error: "Could not publish the review." },
-      { status: 500 },
-    );
+    return apiError("server_error", "Could not publish the review.");
   }
 
   // Refresh normalized findings: drop prior reviewed rows, insert the new set.
@@ -90,5 +81,5 @@ export async function POST(
     verdict: body.verdict,
   });
 
-  return NextResponse.json({ ok: true });
+  return apiOk({});
 }

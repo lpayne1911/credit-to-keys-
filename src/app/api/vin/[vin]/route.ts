@@ -5,9 +5,9 @@
  * 200 with `{ vehicle: DecodedVehicle | null }` so the client can prefill what
  * it gets and the buyer fills the rest — never a hard dependency.
  */
-import { NextResponse } from "next/server";
 import { decodeVin } from "@/lib/vin";
 import { rateLimit, rateLimitHeaders } from "@/lib/rate-limit";
+import { apiOk } from "@/lib/api-response";
 
 export async function GET(
   req: Request,
@@ -17,12 +17,10 @@ export async function GET(
   // limit is generous; it just stops the endpoint being used as a flood relay.
   const limit = await rateLimit(req, { key: "vin-decode", limit: 60, windowMs: 5 * 60_000 });
   if (!limit.ok) {
-    return NextResponse.json(
-      { vehicle: null },
-      { status: 429, headers: rateLimitHeaders(limit) },
-    );
+    // Soft-fail: keep the { vehicle } shape so the client always reads it.
+    return apiOk({ vehicle: null }, { status: 429, headers: rateLimitHeaders(limit) });
   }
 
   const vehicle = await decodeVin(params.vin ?? "");
-  return NextResponse.json({ vehicle });
+  return apiOk({ vehicle });
 }

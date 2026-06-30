@@ -10,10 +10,10 @@
  *   before. Do not add any pre-charge step to this flow. This is the seam where
  *   that "charge only after delivery" rule will be enforced.
  */
-import { NextResponse } from "next/server";
 import { getServiceClient } from "@/lib/supabase/server";
 import { reviewRequestSchema } from "@/lib/schemas";
 import { rateLimit, rateLimitHeaders } from "@/lib/rate-limit";
+import { apiError, apiOk } from "@/lib/api-response";
 
 export async function POST(
   req: Request,
@@ -23,18 +23,14 @@ export async function POST(
   // capability UUID — throttle per IP to prevent lead-spam / status churn.
   const limit = await rateLimit(req, { key: "review-request", limit: 20, windowMs: 10 * 60_000 });
   if (!limit.ok) {
-    return NextResponse.json(
-      { ok: false, error: "Too many requests. Please wait and try again." },
-      { status: 429, headers: rateLimitHeaders(limit) },
-    );
+    return apiError("rate_limited", "Too many requests. Please wait and try again.", {
+      headers: rateLimitHeaders(limit),
+    });
   }
 
   const supabase = getServiceClient();
   if (!supabase) {
-    return NextResponse.json(
-      { ok: false, error: "Reviews aren't available in this environment yet." },
-      { status: 503 },
-    );
+    return apiError("unavailable", "Reviews aren't available in this environment yet.");
   }
 
   let contact: { name?: string; email?: string } = {};
@@ -67,10 +63,7 @@ export async function POST(
     .eq("id", params.id);
 
   if (error) {
-    return NextResponse.json(
-      { ok: false, error: "Could not submit your review request." },
-      { status: 500 },
-    );
+    return apiError("server_error", "Could not submit your review request.");
   }
-  return NextResponse.json({ ok: true });
+  return apiOk({});
 }
