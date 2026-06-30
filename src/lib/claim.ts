@@ -14,10 +14,11 @@
 import "server-only";
 import { getServiceClient } from "./supabase/server";
 import { getDealById } from "./deals";
-import { ensureCaseForDeal } from "./cases";
+import { ensureCaseForDeal, ensureCaseForIntake } from "./cases";
+import { serviceForIntakeProduct, titleForIntake } from "./intake-service-map";
 
 export type ClaimResult =
-  | { ok: true; dealId: string; alreadyOwned: boolean }
+  | { ok: true; id: string; alreadyOwned: boolean }
   | { ok: false; reason: "unconfigured" | "not_found" | "owned_by_other" };
 
 /**
@@ -71,5 +72,63 @@ export async function claimDealForUser(
     vehicle_model: existing.vehicle_model,
   });
 
-  return { ok: true, dealId, alreadyOwned };
+  return { ok: true, id: dealId, alreadyOwned };
+}
+
+/**
+ * Idempotently claim an intake application for a user. Only an UNOWNED intake is
+ * claimable; one already owned by another user is never reassigned. When the
+ * intake maps to a service line, opens its engagement + case so it shows on the
+ * dashboard.
+ */
+export async function claimIntakeForUser(
+  intakeId: string,
+  userId: string,
+): Promise<ClaimResult> {
+  const supabase = getServiceClient();
+  if (!supabase) return { ok: false, reason: "unconfigured" };
+
+  const { data: row, error } = await supabase
+    .from("product_intakes")
+    .select("id, user_id, product_id, payload")
+    .eq("id", intakeId)
+    .maybeSingle();
+  if (error || !row) return { ok: false, reason: "not_found" };
+
+  const owner = (row as { user_id: string | null }).user_id;
+  if (owner && owner !== userId) return { ok: false, reason: "owned_by_other" };
+  const alreadyOwned = owner === userId;
+
+  if (!owner) {
+    const { data: upd } = await supabase
+      .from("product_intakes")
+      .update({ user_id: userId })
+      .eq("id", intakeId)
+      .is("user_id", null)
+      .select("id")
+      .maybeSingle();
+    if (!upd) {
+      // Lost the race — re-check the owner.
+      const { data: re } = await supabase
+        .from("product_intakes")
+        .select("user_id")
+        .eq("id", intakeId)
+        .maybeSingle();
+      const reOwner = (re as { user_id: string | null } | null)?.user_id;
+      if (reOwner && reOwner !== userId) return { ok: false, reason: "owned_by_other" };
+    }
+  }
+
+  const productId = (row as { product_id: string }).product_id;
+  const service = serviceForIntakeProduct(productId);
+  if (service) {
+    await ensureCaseForIntake({
+      userId,
+      service,
+      intakeId,
+      title: titleForIntake(productId, (row as { payload: unknown }).payload),
+    });
+  }
+
+  return { ok: true, id: intakeId, alreadyOwned };
 }

@@ -25,14 +25,18 @@ export function AuthScreen({
   searchParams: SearchParams;
 }) {
   const redirectTo = safeRedirectPath(str(searchParams.redirectTo));
-  const claimRaw = str(searchParams.claimDealId);
-  const claimDealId = isUuid(claimRaw) ? claimRaw : undefined;
+  const claimDealRaw = str(searchParams.claimDealId);
+  const claimDealId = isUuid(claimDealRaw) ? claimDealRaw : undefined;
+  const claimIntakeRaw = str(searchParams.claimIntakeId);
+  const claimIntakeId = isUuid(claimIntakeRaw) ? claimIntakeRaw : undefined;
   const authError = str(searchParams.auth_error) === "1";
 
   // Preserve the claim params when linking to the other mode.
   const qs = new URLSearchParams();
   if (redirectTo !== "/dashboard") qs.set("redirectTo", redirectTo);
   if (claimDealId) qs.set("claimDealId", claimDealId);
+  if (claimIntakeId) qs.set("claimIntakeId", claimIntakeId);
+  const claiming = Boolean(claimDealId || claimIntakeId);
   const otherHref = `${mode === "signin" ? "/signup" : "/login"}${qs.toString() ? `?${qs}` : ""}`;
 
   return (
@@ -40,13 +44,13 @@ export function AuthScreen({
       <SiteHeader />
       <main className="bg-cream">
         <div className="mx-auto flex max-w-md flex-col items-center px-4 py-16 sm:py-20">
-          {claimDealId && (
+          {claiming && (
             <div className="mb-5 w-full rounded-xl border border-green/30 bg-green-soft px-4 py-3 text-center">
               <p className="text-sm font-semibold text-green-dark">
-                Create a free account to save this report
+                Create a free account to save this
               </p>
               <p className="mt-0.5 text-xs text-green-dark/80">
-                We&apos;ll keep your deal in your dashboard so you can pick up where you left off.
+                We&apos;ll keep it in your dashboard so you can pick up where you left off.
               </p>
             </div>
           )}
@@ -64,6 +68,7 @@ export function AuthScreen({
             initialMode={mode}
             redirectTo={redirectTo}
             claimDealId={claimDealId}
+            claimIntakeId={claimIntakeId}
           />
 
           <p className="mt-6 text-center text-sm text-slate">

@@ -16,11 +16,13 @@ export function AccountAuth({
   initialMode = "signin",
   redirectTo,
   claimDealId,
+  claimIntakeId,
 }: {
   configured: boolean;
   initialMode?: "signin" | "signup";
   redirectTo?: string;
   claimDealId?: string;
+  claimIntakeId?: string;
 }) {
   const router = useRouter();
   const [mode, setMode] = useState<"signin" | "signup">(initialMode);
@@ -30,13 +32,18 @@ export function AccountAuth({
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  // Attach an anonymous deal to the just-authenticated buyer (best-effort).
+  // Attach an anonymous deal/intake to the just-authenticated buyer (best-effort).
   async function claimIfNeeded() {
-    if (!claimDealId) return;
+    const body = claimDealId
+      ? { dealId: claimDealId }
+      : claimIntakeId
+        ? { intakeId: claimIntakeId }
+        : null;
+    if (!body) return;
     await fetch("/api/account/claim", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ dealId: claimDealId }),
+      body: JSON.stringify(body),
     }).catch(() => {});
   }
 
@@ -56,7 +63,7 @@ export function AccountAuth({
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, redirectTo, claimDealId }),
+        body: JSON.stringify({ email, password, redirectTo, claimDealId, claimIntakeId }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -84,7 +91,7 @@ export function AccountAuth({
       const res = await fetch("/api/account/oauth", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ provider: "google", redirectTo, claimDealId }),
+        body: JSON.stringify({ provider: "google", redirectTo, claimDealId, claimIntakeId }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.url) {

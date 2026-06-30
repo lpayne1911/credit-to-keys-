@@ -10,6 +10,9 @@
 import { NextResponse } from "next/server";
 import { getServiceClient } from "@/lib/supabase/server";
 import { getProduct } from "@/lib/products/product-catalog";
+import { getBuyer } from "@/lib/buyer-auth";
+import { ensureCaseForIntake } from "@/lib/cases";
+import { serviceForIntakeProduct, titleForIntake } from "@/lib/intake-service-map";
 import { rateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
@@ -43,12 +46,21 @@ export async function POST(req: Request) {
   const supabase = getServiceClient();
   if (!supabase) {
     // Not configured in this environment — acknowledge so the UX still works.
-    return NextResponse.json({ ok: true, stored: false });
+    return NextResponse.json({ ok: true, stored: false, linked: false });
   }
+
+  // If a buyer is signed in, the intake is owned immediately so it can open a
+  // dashboard case; otherwise it's an anonymous lead they can claim post-signup.
+  const buyer = await getBuyer();
 
   const { data, error } = await supabase
     .from("product_intakes")
-    .insert({ product_id: productId, payload: fields, status: "review_requested" })
+    .insert({
+      product_id: productId,
+      payload: fields,
+      status: "review_requested",
+      user_id: buyer?.id ?? null,
+    })
     .select("id")
     .single();
 
@@ -58,5 +70,19 @@ export async function POST(req: Request) {
       { status: 500 },
     );
   }
-  return NextResponse.json({ ok: true, stored: true, id: data.id });
+
+  // Open the engagement + case for a signed-in applicant on a service-line intake.
+  const service = serviceForIntakeProduct(productId);
+  let linked = false;
+  if (buyer && service) {
+    await ensureCaseForIntake({
+      userId: buyer.id,
+      service,
+      intakeId: data.id as string,
+      title: titleForIntake(productId, fields),
+    });
+    linked = true;
+  }
+
+  return NextResponse.json({ ok: true, stored: true, id: data.id, linked });
 }

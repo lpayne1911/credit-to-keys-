@@ -112,3 +112,37 @@ export async function ensureCaseForDeal(deal: DealForCase): Promise<void> {
     { onConflict: "deal_id" },
   );
 }
+
+/**
+ * Idempotently open an engagement + a `submitted` case for a buyer's intake
+ * application (Concierge, Credit-to-Keys, Deal Rescue). One case per intake
+ * (unique index on cases.intake_id). Safe to call repeatedly.
+ */
+export async function ensureCaseForIntake(params: {
+  userId: string;
+  service: EngagementService;
+  intakeId: string;
+  title: string;
+}): Promise<void> {
+  const supabase = getServiceClient();
+  if (!supabase) return;
+
+  const { data: engagement } = await supabase
+    .from("engagements")
+    .upsert({ user_id: params.userId, service: params.service }, { onConflict: "user_id,service" })
+    .select("id")
+    .single();
+  if (!engagement) return;
+
+  await supabase.from("cases").upsert(
+    {
+      engagement_id: engagement.id,
+      user_id: params.userId,
+      type: params.service,
+      status: "submitted",
+      intake_id: params.intakeId,
+      title: params.title,
+    },
+    { onConflict: "intake_id" },
+  );
+}

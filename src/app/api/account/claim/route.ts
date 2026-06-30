@@ -1,13 +1,12 @@
 /**
- * POST /api/account/claim — attach an anonymous deal to the signed-in buyer.
- *
- * Body: { dealId }. Requires a buyer session. Only claims an unowned deal; a
- * deal owned by another user returns 409 (an id guess can't steal it).
+ * POST /api/account/claim — attach an anonymous deal OR intake to the signed-in
+ * buyer. Body: { dealId } or { intakeId }. Requires a buyer session. Only claims
+ * an unowned object; one owned by another user returns 409.
  */
 import { NextResponse } from "next/server";
 import { getBuyer } from "@/lib/buyer-auth";
-import { claimDealForUser } from "@/lib/claim";
-import { claimDealSchema } from "@/lib/schemas";
+import { claimDealForUser, claimIntakeForUser } from "@/lib/claim";
+import { claimSchema } from "@/lib/schemas";
 import { rateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
@@ -26,23 +25,26 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "Sign in to save this." }, { status: 401 });
   }
 
-  const parsed = claimDealSchema.safeParse(await req.json().catch(() => null));
+  const parsed = claimSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json({ ok: false, error: "Nothing to claim." }, { status: 400 });
   }
 
-  const result = await claimDealForUser(parsed.data.dealId, buyer.id);
+  const result = parsed.data.dealId
+    ? await claimDealForUser(parsed.data.dealId, buyer.id)
+    : await claimIntakeForUser(parsed.data.intakeId!, buyer.id);
+
   if (!result.ok) {
     const status =
       result.reason === "owned_by_other" ? 409 : result.reason === "not_found" ? 404 : 503;
     const error =
       result.reason === "owned_by_other"
-        ? "This deal is already saved to another account."
+        ? "This is already saved to another account."
         : result.reason === "not_found"
-          ? "We couldn't find that deal."
+          ? "We couldn't find that."
           : "Saving isn't available right now.";
     return NextResponse.json({ ok: false, error }, { status });
   }
 
-  return NextResponse.json({ ok: true, dealId: result.dealId });
+  return NextResponse.json({ ok: true, id: result.id });
 }

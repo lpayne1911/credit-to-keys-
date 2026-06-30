@@ -68,6 +68,8 @@ export function FunnelIntake({
   const [values, setValues] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
+  const [intakeId, setIntakeId] = useState<string | null>(null);
+  const [linked, setLinked] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const missing = fields.filter((f) => f.required && (values[f.name] ?? "").trim().length === 0);
@@ -88,6 +90,8 @@ export function FunnelIntake({
         setSubmitting(false);
         return;
       }
+      setIntakeId(typeof data.id === "string" ? data.id : null);
+      setLinked(Boolean(data.linked));
       setDone(true);
     } catch {
       setError("Network error. Please try again.");
@@ -104,17 +108,39 @@ export function FunnelIntake({
             A buyer-side advocate will follow up by email. This is decision support, not
             legal or financial advice — and there&apos;s no charge today.
           </p>
-          <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-            <Link href="/signup?redirectTo=/dashboard" className={`${a.btn} text-sm`}>
-              Create a free account
-            </Link>
-            <Link href="/dashboard" className="btn-secondary text-sm">
-              Go to your dashboard
-            </Link>
-          </div>
-          <p className="mt-3 text-xs text-slate">
-            An account keeps your services and reports in one place as they open.
-          </p>
+          {linked ? (
+            <>
+              <div className="mt-4">
+                <Link href="/dashboard" className={`${a.btn} text-sm`}>
+                  View it in your dashboard
+                </Link>
+              </div>
+              <p className="mt-3 text-xs text-slate">
+                We&apos;ve added this to your dashboard so you can track it.
+              </p>
+            </>
+          ) : (
+            <>
+              <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                <Link
+                  href={
+                    intakeId
+                      ? `/signup?claimIntakeId=${intakeId}&redirectTo=/dashboard`
+                      : "/signup?redirectTo=/dashboard"
+                  }
+                  className={`${a.btn} text-sm`}
+                >
+                  Create a free account
+                </Link>
+                <Link href="/dashboard" className="btn-secondary text-sm">
+                  Go to your dashboard
+                </Link>
+              </div>
+              <p className="mt-3 text-xs text-slate">
+                Create an account and we&apos;ll add this to your dashboard to track.
+              </p>
+            </>
+          )}
         </div>
       ) : (
         <>

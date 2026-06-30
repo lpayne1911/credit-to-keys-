@@ -22,6 +22,7 @@ function callbackUrl(req: Request, body: Record<string, unknown>): string {
   const redirectTo = safeRedirectPath(body.redirectTo, "");
   if (redirectTo) url.searchParams.set("redirectTo", redirectTo);
   if (isUuid(body.claimDealId)) url.searchParams.set("claimDealId", body.claimDealId);
+  if (isUuid(body.claimIntakeId)) url.searchParams.set("claimIntakeId", body.claimIntakeId);
   return url.toString();
 }
 

@@ -252,6 +252,16 @@ export const claimDealSchema = z.object({
   dealId: z.string().uuid(),
 });
 
+/** Claim an anonymous deal OR intake application for the signed-in buyer. */
+export const claimSchema = z
+  .object({
+    dealId: z.string().uuid().optional(),
+    intakeId: z.string().uuid().optional(),
+  })
+  .refine((d) => Boolean(d.dealId) !== Boolean(d.intakeId), {
+    message: "Provide exactly one of dealId or intakeId.",
+  });
+
 /** Admin: invite/allowlist an operator by email. */
 export const addOperatorSchema = z.object({
   email: z.string().email().max(320),
