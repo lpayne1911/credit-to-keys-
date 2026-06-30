@@ -5,6 +5,7 @@
  */
 import { NextResponse } from "next/server";
 import { runMarketCheck } from "@/lib/market-engine/runMarketCheck";
+import { buildSafetyReport } from "@/lib/safety-engine/buildSafetyReport";
 import type { MarketCheckRequest } from "@/lib/sources/marketcheck/types";
 import { rateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 
@@ -52,5 +53,15 @@ export async function POST(req: Request) {
   }
 
   const result = await runMarketCheck(request);
-  return NextResponse.json({ result });
+
+  // Free, keyless NHTSA safety layer, keyed off the resolved vehicle identity.
+  // REAL-OR-HIDDEN: null when there's nothing real to show. Never blocks the
+  // pricing result — failures degrade to null.
+  const safety = await buildSafetyReport(
+    result.vehicle.year,
+    result.vehicle.make,
+    result.vehicle.model,
+  ).catch(() => null);
+
+  return NextResponse.json({ result, safety });
 }

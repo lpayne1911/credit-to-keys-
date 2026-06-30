@@ -1,5 +1,7 @@
 import Link from "next/link";
 import type { MarketCheckResponse } from "@/lib/sources/marketcheck/types";
+import type { SafetyReport } from "@/lib/sources/nhtsa/types";
+import { SafetyRecallsCard } from "@/components/safety/SafetyRecallsCard";
 import { SampleBadge } from "@/components/funnels/primitives";
 import { money, MarketStatusBadge, MarketGauge, PriceTrendChart, PriceDistributionChart, StatTile } from "./parts";
 import { ComparableListingsTable } from "./ComparableListingsTable";
@@ -30,9 +32,12 @@ function KV({ k, v }: { k: string; v: string }) {
 
 export function MarketCheckReport({
   response,
+  safety = null,
   enableSave = true,
 }: {
   response: MarketCheckResponse;
+  /** NHTSA recalls + crash ratings for this vehicle; null hides the card. */
+  safety?: SafetyReport | null;
   /** Hidden on an already-saved shared report (/r/[id]). */
   enableSave?: boolean;
 }) {
@@ -98,6 +103,9 @@ export function MarketCheckReport({
               </div>
             </div>
           </section>
+
+          {/* Safety & recalls (NHTSA — real-or-hidden) */}
+          <SafetyRecallsCard report={safety} />
 
           {/* Market Price Snapshot */}
           <Section

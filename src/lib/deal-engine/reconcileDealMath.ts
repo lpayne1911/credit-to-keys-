@@ -34,10 +34,20 @@ function paymentTolerance(expected: number): number {
   return Math.max(15, expected * 0.04);
 }
 
-/** A conservative placeholder APR band — NOT a real benchmark. */
+/** A conservative placeholder APR band — NOT a real benchmark. Used when no real
+ *  FRED benchmark is injected. */
 const APR_BENCHMARK_PLACEHOLDER = { low: 5, high: 9, source: "placeholder" as const };
 
-export function reconcileDealMath(deal: NormalizedDeal): DealMathOutput {
+export interface ReconcileOptions {
+  /** Real national-average APR band injected server-side (FRED). When absent,
+   *  the conservative placeholder band is used and no APR flag is raised. */
+  aprBenchmark?: DealMathOutput["aprBenchmark"];
+}
+
+export function reconcileDealMath(
+  deal: NormalizedDeal,
+  opts: ReconcileOptions = {},
+): DealMathOutput {
   const notes: string[] = [];
 
   const totalFees = deal.fees.reduce((s, f) => s + (f.amount || 0), 0);
@@ -160,7 +170,7 @@ export function reconcileDealMath(deal: NormalizedDeal): DealMathOutput {
     paymentMismatch,
     impliedApr,
     termStretch,
-    aprBenchmark: APR_BENCHMARK_PLACEHOLDER,
+    aprBenchmark: opts.aprBenchmark ?? APR_BENCHMARK_PLACEHOLDER,
     notes,
   };
 }

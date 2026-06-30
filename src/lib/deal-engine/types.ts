@@ -151,8 +151,12 @@ export interface DealMathOutput {
   impliedApr: number | null;
   /** Long-term stretch comparison (e.g. 84 → 72), when applicable. */
   termStretch: { current: number; rung: number; flagged: boolean } | null;
-  /** Placeholder APR band — NOT a real benchmark until seed data exists. */
-  aprBenchmark: { low: number; high: number; source: "placeholder" } | null;
+  /** APR band the quoted APR is compared against. `source: "placeholder"` is the
+   *  conservative default; `source: "fred"` is a real national-average band from
+   *  the FRED G.19 auto-loan series (injected server-side). */
+  aprBenchmark:
+    | { low: number; high: number; source: "placeholder" | "fred"; term?: number; asOf?: string }
+    | null;
   /** Transparency notes about the assumptions used. */
   notes: string[];
 }
