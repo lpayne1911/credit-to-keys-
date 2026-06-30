@@ -3,6 +3,7 @@ import { getBuyer, isBuyerAuthConfigured } from "@/lib/buyer-auth";
 import { listDealsForUser } from "@/lib/deals";
 import { listCasesForUser, listEngagementsForUser } from "@/lib/cases";
 import { entitlementsFor } from "@/lib/entitlements";
+import { recommendationsFor, isRecurringService } from "@/lib/dashboard/recommendations";
 import { isDealReviewResult } from "@/lib/deal-engine/is-deal-review";
 import { AccountAuth } from "@/components/account/AccountAuth";
 import { SignOutButton } from "@/components/account/SignOutButton";
@@ -117,6 +118,15 @@ export default async function DashboardHome() {
   const ent = entitlementsFor(engagements, cases);
   const nextActions = cases.filter((c) => c.status === "needs_customer_info");
 
+  // Group cases by lifecycle so the board reads as "what's happening" not a dump.
+  const inProgress = cases.filter((c) => IN_PROGRESS.has(c.status));
+  const completed = cases.filter((c) => COMPLETED.has(c.status));
+
+  // Recurring service lines (Credit-to-Keys, advocate, concierge) get their own
+  // prominent section — these are the long-running engagements.
+  const recurring = engagements.filter((e) => isRecurringService(e.service));
+  const recommendations = recommendationsFor(engagements, cases, deals.length);
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
       <div className="flex items-start justify-between gap-4">
@@ -147,52 +157,54 @@ export default async function DashboardHome() {
         )}
       </div>
 
-      {/* My Cases — the units of work. */}
-      <div className="mt-10">
-        <SectionTitle>My cases</SectionTitle>
-        {cases.length === 0 ? (
-          <div className="mt-3 rounded-2xl border border-edge bg-white p-6 text-slate shadow-card">
-            <p className="font-semibold text-navy">No cases yet.</p>
-            <p className="mt-1 text-sm">Run a Deal Check or review a quote below — anything you run while signed in opens a case here.</p>
-          </div>
-        ) : (
-          <div className="mt-3 divide-y divide-edge overflow-hidden rounded-2xl border border-edge bg-white shadow-card">
-            {cases.map((c) => {
-              const s = CASE_STATUS[c.status];
-              return (
-                <Link key={c.id} href={caseHref(c)} className="flex items-center justify-between gap-4 px-5 py-4 transition hover:bg-cream/50">
-                  <div className="min-w-0">
-                    <p className="truncate font-semibold text-navy">{c.title ?? "Your deal"}</p>
-                    <p className="text-xs text-slate">
-                      {SERVICE_LABEL[c.type]} · {new Date(c.created_at).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-bold ${s.style}`}>{s.label}</span>
-                </Link>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* My Services — the engagements (service lines) in play. */}
-      {engagements.length > 0 && (
+      {/* Active services — long-running engagements (recurring service lines). */}
+      {recurring.length > 0 && (
         <div className="mt-10">
-          <SectionTitle>My services</SectionTitle>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {engagements.map((e) => (
-              <span key={e.id} className="rounded-full border border-edge bg-white px-3 py-1.5 text-sm font-semibold text-navy shadow-card">
-                {SERVICE_LABEL[e.service]}
-              </span>
+          <SectionTitle>Active services</SectionTitle>
+          <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {recurring.map((e) => (
+              <div key={e.id} className="rounded-2xl border border-edge bg-white p-5 shadow-card">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-bold text-navy">{SERVICE_LABEL[e.service]}</p>
+                  <span className="rounded-full bg-verdict-green/10 px-2.5 py-0.5 text-xs font-bold text-green-dark">
+                    {e.status === "active" ? "Active" : "Closed"}
+                  </span>
+                </div>
+                <p className="mt-1 text-xs text-slate">Started {new Date(e.created_at).toLocaleDateString()}</p>
+                <Link href={SERVICE_HREF[e.service]} className="mt-3 inline-block text-sm font-bold text-blue hover:underline">
+                  Open →
+                </Link>
+              </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* Recommendations — signal-driven cross-sell (engine arrives in a later phase). */}
+      {/* In-progress cases — units of work currently moving. */}
+      <div className="mt-10">
+        <SectionTitle>In progress</SectionTitle>
+        {inProgress.length === 0 ? (
+          <div className="mt-3 rounded-2xl border border-edge bg-white p-6 text-slate shadow-card">
+            <p className="font-semibold text-navy">Nothing in progress.</p>
+            <p className="mt-1 text-sm">Start a quote review, plan, or post-sale check and it&apos;ll show up here.</p>
+          </div>
+        ) : (
+          <CaseList cases={inProgress} />
+        )}
+      </div>
+
+      {/* Recommendations — derived from the buyer's state, not generic cards. */}
       <div className="mt-10">
         <SectionTitle>Recommended next steps</SectionTitle>
-        <ActionCards />
+        <div className="mt-3 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+          {recommendations.map((r) => (
+            <Link key={r.id + r.href} href={r.href} className="rounded-2xl border border-edge bg-white p-6 shadow-card transition hover:-translate-y-1 hover:shadow-lift">
+              <p className="font-bold text-navy">{r.title}</p>
+              <p className="mt-1 text-sm text-slate">{r.body}</p>
+              <p className="mt-3 text-sm font-bold text-blue">{r.cta} →</p>
+            </Link>
+          ))}
+        </div>
         {!ent.can_view_reports && (
           <p className="mt-3 text-sm text-slate">
             Tip: run a full Deal Check to unlock a fee-by-fee report on your deal.
@@ -200,10 +212,10 @@ export default async function DashboardHome() {
         )}
       </div>
 
-      {/* My Deals — saved scan/verdict history. */}
+      {/* Saved deals — scan/review artifacts the buyer can reopen. */}
       {deals.length > 0 && (
         <div className="mt-10">
-          <SectionTitle>My deals</SectionTitle>
+          <SectionTitle>Saved deals &amp; scans</SectionTitle>
           <div className="mt-3 divide-y divide-edge overflow-hidden rounded-2xl border border-edge bg-white shadow-card">
             {deals.map((d) => {
               const verdict = d.reviewed_verdict ?? d.auto_verdict ?? "amber";
@@ -226,6 +238,57 @@ export default async function DashboardHome() {
           </div>
         </div>
       )}
+
+      {/* Completed cases — delivered/closed work, kept for the record. */}
+      {completed.length > 0 && (
+        <div className="mt-10">
+          <SectionTitle>Completed</SectionTitle>
+          <CaseList cases={completed} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Case-status buckets for the dashboard groupings. */
+const IN_PROGRESS = new Set<CaseStatus>([
+  "submitted",
+  "review_requested",
+  "in_review",
+  "needs_customer_info",
+  "ready_for_delivery",
+  "active",
+]);
+const COMPLETED = new Set<CaseStatus>(["delivered", "payment_pending", "closed"]);
+
+/** Where each recurring service line opens. */
+const SERVICE_HREF: Record<EngagementService, string> = {
+  deal_check: "/check",
+  quote_review: "/quote-review",
+  deal_rescue: "/post-sale-triage",
+  buyer_advocate: "/services/buyer-advocate",
+  credit_to_keys: "/credit-to-keys",
+  concierge: "/concierge",
+};
+
+/** Reusable list of case rows with status pills. */
+function CaseList({ cases }: { cases: CaseRow[] }) {
+  return (
+    <div className="mt-3 divide-y divide-edge overflow-hidden rounded-2xl border border-edge bg-white shadow-card">
+      {cases.map((c) => {
+        const s = CASE_STATUS[c.status];
+        return (
+          <Link key={c.id} href={caseHref(c)} className="flex items-center justify-between gap-4 px-5 py-4 transition hover:bg-cream/50">
+            <div className="min-w-0">
+              <p className="truncate font-semibold text-navy">{c.title ?? "Your deal"}</p>
+              <p className="text-xs text-slate">
+                {SERVICE_LABEL[c.type]} · {new Date(c.created_at).toLocaleDateString()}
+              </p>
+            </div>
+            <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-bold ${s.style}`}>{s.label}</span>
+          </Link>
+        );
+      })}
     </div>
   );
 }
