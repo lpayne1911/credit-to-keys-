@@ -37,13 +37,14 @@ describe("product CTA routing (rendered markup)", () => {
     expect(markup).toContain('href="/post-sale-triage"');
   });
 
-  it("header nav routes to the funnels with quote review as primary", () => {
+  it("header nav routes buyers by situation into the journey pages", () => {
     const markup = html(createElement(SiteHeader));
-    expect(markup).toContain('href="/concierge"');
-    expect(markup).toContain('href="/post-sale-triage"');
-    expect(markup).toContain('href="/quote-review"');
-    expect(markup).toContain("How it works");
-    expect(markup).toContain("What we catch");
+    expect(markup).toContain('href="/deal-in-hand"');
+    expect(markup).toContain('href="/still-shopping"');
+    expect(markup).toContain('href="/already-signed"');
+    expect(markup).toContain('href="/market-check"');
+    expect(markup).toContain("Deal in hand");
+    expect(markup).toContain("Still shopping");
     expect(markup).not.toContain("Pricing");
   });
 

@@ -52,7 +52,10 @@ export default function LandingPage() {
  * situation and an emotionally direct next step instead of a product name.
  */
 interface BuyerDoor {
+  /** Funnel to borrow the accent + icon from. */
   funnelId: string;
+  /** Journey-router page this door opens into. */
+  href: string;
   state: string;
   desc: string;
   cta: string;
@@ -61,18 +64,21 @@ interface BuyerDoor {
 const DOORS: BuyerDoor[] = [
   {
     funnelId: "quote-review",
+    href: "/deal-in-hand",
     state: "I have a deal in front of me",
     desc: "Upload the quote, check the math, and get a pushback plan you can use right now.",
     cta: "Scan My Deal",
   },
   {
     funnelId: "build-my-plan",
+    href: "/still-shopping",
     state: "I'm still shopping",
     desc: "Know your target price, payment, APR, and negotiation plan before you walk in.",
     cta: "Build My Buying Plan",
   },
   {
     funnelId: "post-sale-triage",
+    href: "/already-signed",
     state: "I already signed",
     desc: "Understand what may be cancellable, disputable, or worth escalating — without panic.",
     cta: "Review My Options",
@@ -143,7 +149,7 @@ function Hero() {
             )}
             <p className="text-sm text-white/65">
               Just want market pricing?{" "}
-              <Link href="/dashboard/market-check" className="font-semibold text-blue-soft hover:underline">
+              <Link href="/market-check" className="font-semibold text-blue-soft hover:underline">
                 Check the Market →
               </Link>
             </p>
@@ -166,7 +172,7 @@ function BuyerDoorCard({ door, funnel }: { door: BuyerDoor; funnel: Funnel }) {
   const a = ACCENT_CLASSES[funnel.accent];
   return (
     <Link
-      href={funnel.route}
+      href={door.href}
       className="group flex h-full flex-col rounded-2xl border border-edge bg-white p-6 text-ink shadow-card transition hover:-translate-y-1 hover:shadow-lg"
     >
       <span className={`flex h-12 w-12 items-center justify-center rounded-xl ${a.soft} ${a.softText}`}>

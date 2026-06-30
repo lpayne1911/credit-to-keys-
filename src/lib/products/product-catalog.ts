@@ -338,12 +338,11 @@ export interface NavLink {
   primary?: boolean;
 }
 export const NAV_LINKS: NavLink[] = [
-  { label: "How it works", href: "/#how-it-works" },
-  { label: "What we catch", href: "/#what-we-catch" },
-  { label: "Market Check", href: "/dashboard/market-check" },
-  { label: "Concierge", href: "/concierge" },
-  { label: "Already signed?", href: "/post-sale-triage" },
-  { label: "Review my deal", href: "/quote-review", primary: true },
+  { label: "Deal in hand", href: "/deal-in-hand" },
+  { label: "Still shopping", href: "/still-shopping" },
+  { label: "Already signed", href: "/already-signed" },
+  { label: "Market Check", href: "/market-check" },
+  { label: "Review my deal", href: "/deal-in-hand", primary: true },
 ];
 
 /** Analytics event names for CTA clicks / intake submissions. */

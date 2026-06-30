@@ -50,14 +50,14 @@ describe("product catalog routing", () => {
     expect(getProduct("deal-rescue")?.usesAutomatedScoring).toBe(false);
   });
 
-  it("nav links route correctly with the quote-review funnel as primary", () => {
+  it("nav routes by buyer situation into the journey-router pages", () => {
     const byLabel = Object.fromEntries(NAV_LINKS.map((l) => [l.label, l]));
-    expect(byLabel["How it works"].href).toBe("/#how-it-works");
-    expect(byLabel["What we catch"].href).toBe("/#what-we-catch");
-    expect(byLabel["Concierge"].href).toBe("/concierge");
-    expect(byLabel["Already signed?"].href).toBe("/post-sale-triage");
+    expect(byLabel["Deal in hand"].href).toBe("/deal-in-hand");
+    expect(byLabel["Still shopping"].href).toBe("/still-shopping");
+    expect(byLabel["Already signed"].href).toBe("/already-signed");
+    expect(byLabel["Market Check"].href).toBe("/market-check");
     const primary = NAV_LINKS.find((l) => l.primary);
-    expect(primary?.href).toBe("/quote-review");
+    expect(primary?.href).toBe("/deal-in-hand");
   });
 
   it("getProductByRoute round-trips", () => {

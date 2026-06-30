@@ -436,7 +436,7 @@ function Shell({
             <span className="w-9" />
           )}
           <span className="font-serif text-sm font-semibold tracking-tight text-navy/80">Driveway Advocate</span>
-          <Link href="/products" aria-label="All products" className="flex h-9 w-9 items-center justify-center rounded-full text-navy/50 hover:bg-navy/5">
+          <Link href="/services" aria-label="All services" className="flex h-9 w-9 items-center justify-center rounded-full text-navy/50 hover:bg-navy/5">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" /></svg>
           </Link>
         </div>
