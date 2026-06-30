@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import type { PriceRange } from "@/lib/fairness-engine";
 import { buildDealReview } from "./buildDealReview";
 import { normalizeDealInput } from "./normalizeDealInput";
+// Single source of truth for banned phrases + the string collector.
+import { BANNED_PHRASES as BANNED, collectStrings } from "@/lib/output-contract/copy/voice";
 
 const MARKET: PriceRange = {
   low: 24000,
@@ -70,25 +72,6 @@ describe("buildDealReview", () => {
 /* --------------------------------------------------------------------------
  *  Compliance — no unsafe legal / guarantee language anywhere in the output.
  * ------------------------------------------------------------------------ */
-const BANNED = [
-  "broke the law",
-  "fraud",
-  "illegal",
-  "you are entitled",
-  "guaranteed savings",
-  "green · sign it",
-  "contract & legal",
-  "legal review",
-  "the dealer lied",
-];
-
-function collectStrings(value: unknown, out: string[]): void {
-  if (typeof value === "string") out.push(value);
-  else if (Array.isArray(value)) value.forEach((v) => collectStrings(v, out));
-  else if (value && typeof value === "object")
-    Object.values(value).forEach((v) => collectStrings(v, out));
-}
-
 describe("compliance copy", () => {
   it("never emits banned legal / guarantee phrases", () => {
     const variants = [
