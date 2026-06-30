@@ -33,14 +33,27 @@ function parseRecall(raw: RawRecall): Recall {
   };
 }
 
-/** Map the recalls response to a clean list. Empty array when none/failed —
- *  an honest "no open recalls reported", never fabricated. */
+/** NHTSA report dates are DD/MM/YYYY. Parse to a sortable timestamp; unparseable
+ *  dates sort last (0). */
+function recallDateValue(date: string | null): number {
+  if (!date) return 0;
+  const parts = date.split("/");
+  if (parts.length !== 3) return 0;
+  const [dd, mm, yyyy] = parts.map((p) => Number(p));
+  if (!yyyy || !mm || mm > 12) return 0;
+  return new Date(yyyy, mm - 1, dd || 1).getTime();
+}
+
+/** Map the recalls response to a clean list, newest first. Empty array when
+ *  none/failed — an honest "no recalls on record", never fabricated. The order
+ *  matters because the card caps the list, so the most recent should win. */
 export function parseRecalls(raw: RawRecallsResponse | null): Recall[] {
   const rows = raw?.results ?? raw?.Results ?? [];
   if (!rows.length) return [];
   return rows
     .map(parseRecall)
-    .filter((r) => r.campaignId || r.component || r.summary);
+    .filter((r) => r.campaignId || r.component || r.summary)
+    .sort((a, b) => recallDateValue(b.reportDate) - recallDateValue(a.reportDate));
 }
 
 /** Map the NCAP detail to stars, or null when nothing is actually rated. */

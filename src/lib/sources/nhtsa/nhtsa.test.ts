@@ -47,6 +47,18 @@ describe("parseRecalls", () => {
     expect(parseRecalls({})).toEqual([]);
   });
 
+  it("orders recalls newest-first (DD/MM/YYYY) so the display cap keeps recent ones", () => {
+    const recalls = parseRecalls({
+      Count: 3,
+      results: [
+        { NHTSACampaignNumber: "20V314000", Component: "A", ReportReceivedDate: "28/05/2020" },
+        { NHTSACampaignNumber: "26V332000", Component: "C", ReportReceivedDate: "21/05/2026" },
+        { NHTSACampaignNumber: "23V158000", Component: "B", ReportReceivedDate: "09/03/2023" },
+      ],
+    });
+    expect(recalls.map((r) => r.campaignId)).toEqual(["26V332000", "23V158000", "20V314000"]);
+  });
+
   it("tolerates an uppercase `Results` key (casing guard)", () => {
     const recalls = parseRecalls({
       Count: 1,

@@ -1,5 +1,9 @@
 import type { SafetyRating, SafetyReport } from "@/lib/sources/nhtsa/types";
 
+/** Real vehicles can carry many verbose recalls — cap the list so the card
+ *  stays scannable; the rest roll up into a "+N more" line. */
+const MAX_RECALLS = 6;
+
 function Stars({ value }: { value: number }) {
   return (
     <span className="inline-flex items-center gap-0.5" aria-label={`${value} out of 5 stars`}>
@@ -46,28 +50,34 @@ export function SafetyRecallsCard({ report }: { report: SafetyReport | null }) {
         {recalls.length > 0 ? (
           <div className="rounded-xl border border-orange/30 bg-orange-soft px-4 py-3">
             <p className="text-sm font-bold text-orange">
-              {recalls.length} open recall{recalls.length === 1 ? "" : "s"} reported by NHTSA
+              {recalls.length} safety recall{recalls.length === 1 ? "" : "s"} on record for this year, make &amp; model
             </p>
             <ul className="mt-2 space-y-2">
-              {recalls.map((r, i) => (
+              {recalls.slice(0, MAX_RECALLS).map((r, i) => (
                 <li key={r.campaignId || i} className="text-sm text-ink">
                   <span className="font-semibold">{r.component || "Recall"}</span>
                   {r.campaignId ? (
                     <span className="ml-1.5 font-mono text-xs text-slate">({r.campaignId})</span>
                   ) : null}
-                  {r.summary ? <span className="mt-0.5 block text-slate">{r.summary}</span> : null}
+                  {r.consequence || r.summary ? (
+                    <span className="mt-0.5 block text-slate">{r.consequence || r.summary}</span>
+                  ) : null}
                 </li>
               ))}
             </ul>
+            {recalls.length > MAX_RECALLS && (
+              <p className="mt-2 text-xs font-semibold text-slate">
+                +{recalls.length - MAX_RECALLS} more — look up the VIN at nhtsa.gov/recalls
+              </p>
+            )}
             <p className="mt-2 text-xs text-slate">
-              Recalls are repaired free by a franchised dealer. Ask the seller to confirm each one is
-              completed before you buy.
+              These are recall campaigns for this year/make/model — some may already be fixed on this
+              specific car. Ask the seller for the VIN and confirm each recall is completed before you buy.
             </p>
           </div>
         ) : (
           <div className="rounded-xl border border-green/30 bg-green-soft px-4 py-3 text-sm text-green-dark">
-            No open recalls reported by NHTSA for this year/make/model. Confirm any older repairs were
-            completed.
+            No safety recalls on record with NHTSA for this year, make, and model.
           </div>
         )}
       </div>
