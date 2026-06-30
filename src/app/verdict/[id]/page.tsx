@@ -226,7 +226,9 @@ function buildReviewedResult(deal: {
     flags: (deal.reviewed_flags as FairnessResult["flags"]) ?? auto?.flags ?? [],
     warranty: auto?.warranty ?? null,
     assumptions: auto?.assumptions ?? [],
+    schemaVersion: "fairness-1",
     engineVersion: auto?.engineVersion ?? "reviewed",
+    createdAt: auto?.createdAt ?? "",
   };
 }
 

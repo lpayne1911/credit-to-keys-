@@ -184,7 +184,9 @@ describe("buildNegotiationScript", () => {
       ],
       warranty: null,
       assumptions: [],
+      schemaVersion: "fairness-1",
       engineVersion: "reviewed",
+      createdAt: "2026-01-01T00:00:00.000Z",
     };
     const s = buildNegotiationScript(black);
     expect(s.opener).toMatch(/not comfortable moving forward/i);
@@ -201,7 +203,9 @@ describe("buildNegotiationScript", () => {
       flags: [],
       warranty: null,
       assumptions: [],
+      schemaVersion: "fairness-1",
       engineVersion: "reviewed",
+      createdAt: "2026-01-01T00:00:00.000Z",
     };
     const s = buildNegotiationScript(black);
     expect(s.points).toHaveLength(0);
