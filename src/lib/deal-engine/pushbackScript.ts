@@ -82,7 +82,9 @@ export function buildDealReviewScript(
     flags,
     warranty: null,
     assumptions: [],
+    schemaVersion: "fairness-1",
     engineVersion: "deal-review-1",
+    createdAt: "",
     marketValue: null,
   };
 

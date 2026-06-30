@@ -114,7 +114,9 @@ export function ReviewEditor({
     flags: flags.filter((f) => f.title || f.explanation),
     warranty: autoResult?.warranty ?? null,
     assumptions: autoResult?.assumptions ?? [],
+    schemaVersion: "fairness-1",
     engineVersion: autoResult?.engineVersion ?? "reviewed",
+    createdAt: autoResult?.createdAt ?? "",
   };
 
   return (

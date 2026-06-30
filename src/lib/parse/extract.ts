@@ -169,6 +169,9 @@ Strip "$" and commas from all numbers. Only include a value that actually appear
           {
             model,
             max_tokens: 1500,
+            // Deterministic read: temperature 0 so the same document extracts the
+            // same figures every time (no run-to-run drift in what it pulls).
+            temperature: 0,
             messages: [
               {
                 role: "user",
@@ -275,40 +278,56 @@ export function normalize(raw: Record<string, unknown>): ExtractedFields {
     tradeMileage: s(raw.tradeMileage),
   };
 
-  // Optional F&I products the model already separated out.
+  // ---- Line items + vehicle-service-contract reconciliation ---------------
+  // Document extraction can place the SAME product in a different bucket from
+  // one upload to the next (fees vs. add-ons vs. the warrantyPrice field). To
+  // keep the vehicle service contract STABLE and accurate, OUR warranty catalog
+  // — not the model — decides what counts as a VSC, scanning every line item
+  // regardless of where the model put it.
+  let fees = Array.isArray(raw.fees)
+    ? raw.fees.map(toLine).filter((f) => f.label || f.amount)
+    : [];
   const addOns = Array.isArray(raw.addOns)
     ? raw.addOns.map(toLine).filter((f) => f.label || f.amount)
     : [];
 
-  if (Array.isArray(raw.fees)) {
-    let fees = raw.fees.map(toLine).filter((f) => f.label || f.amount);
+  // Find a vehicle service contract among ALL line items (fees first, then
+  // add-ons). The catalog distinguishes a true VSC from a prepaid / service-
+  // maintenance contract, so the same paperwork always resolves the same way.
+  const vscInFees = fees.findIndex((f) => f.amount > 0 && isWarrantyLineItem(f.label));
+  const vscInAddOns = addOns.findIndex((a) => a.amount > 0 && isWarrantyLineItem(a.label));
 
-    // Recognize a service contract no matter where it landed: if the model
-    // listed an extended-warranty/VSC line as a fee (under any of its many
-    // names) and didn't already report a warranty price, promote it so the
-    // buyer's warranty actually gets price-checked instead of buried in fees.
-    if (!out.warrantyPrice) {
-      const idx = fees.findIndex(
-        (f) => f.amount > 0 && isWarrantyLineItem(f.label),
-      );
-      if (idx !== -1) {
-        out.warrantyPrice = String(fees[idx].amount);
-        fees = fees.filter((_, i) => i !== idx);
-      }
+  if (!out.warrantyPrice) {
+    // No model-reported warranty price — take it from the detected line (a VSC
+    // can land in either bucket) so the buyer's contract still gets
+    // price-checked, then remove that line so it isn't also listed as a product.
+    if (vscInFees !== -1) {
+      out.warrantyPrice = String(fees[vscInFees].amount);
+      fees.splice(vscInFees, 1);
+    } else if (vscInAddOns !== -1) {
+      out.warrantyPrice = String(addOns[vscInAddOns].amount);
+      addOns.splice(vscInAddOns, 1);
     }
-
-    // Optional F&I products (GAP, prepaid/service-maintenance, tire & wheel,
-    // key, GPS) sometimes land on the fee schedule. Move them to add-ons so
-    // they're scored as optional products instead of inflating "total fees".
-    const reclassified = fees.filter((f) => isFinanceAddOnProduct(f.label));
-    if (reclassified.length) {
-      addOns.push(...reclassified);
-      fees = fees.filter((f) => !isFinanceAddOnProduct(f.label));
-    }
-
-    if (fees.length) out.fees = fees;
+  } else {
+    // Model already reported a warranty price — drop a duplicate VSC line ONLY
+    // when the amount matches, so the same contract isn't counted twice while a
+    // genuinely separate line (different amount) is preserved.
+    const wp = Number(out.warrantyPrice);
+    const dup = (amt: number) => Number.isFinite(wp) && Math.abs(amt - wp) < 0.005;
+    if (vscInFees !== -1 && dup(fees[vscInFees].amount)) fees.splice(vscInFees, 1);
+    else if (vscInAddOns !== -1 && dup(addOns[vscInAddOns].amount)) addOns.splice(vscInAddOns, 1);
   }
 
+  // Other optional F&I products (GAP, prepaid/service-maintenance, tire & wheel,
+  // key, GPS) sometimes land on the fee schedule. Move them to add-ons so they
+  // are scored as optional products instead of inflating "total fees".
+  const reclassified = fees.filter((f) => isFinanceAddOnProduct(f.label));
+  if (reclassified.length) {
+    addOns.push(...reclassified);
+    fees = fees.filter((f) => !isFinanceAddOnProduct(f.label));
+  }
+
+  if (fees.length) out.fees = fees;
   if (addOns.length) out.addOns = addOns;
 
   // Drop undefined keys so the route's "got anything?" check is accurate.

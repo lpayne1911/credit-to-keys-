@@ -15,6 +15,7 @@
  * ============================================================================
  */
 import type { CreditBand } from "@/lib/fairness-engine";
+import type { EngineResultEnvelope } from "@/lib/output-contract";
 
 export interface PlanVehicle {
   year: number | null;
@@ -90,7 +91,7 @@ export interface PlanScript {
   say: string;
 }
 
-export interface TargetDealSheet {
+export interface TargetDealSheet extends EngineResultEnvelope {
   /** Brands the payload so a result page never mis-reads another shape. */
   schemaVersion: "target-plan-1";
   vehicleLabel: string;

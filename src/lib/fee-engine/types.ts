@@ -14,8 +14,10 @@
  */
 import type { PriceRange } from "@/lib/fairness-engine";
 import type { DocFeeFinding } from "@/lib/intelligence/docFeeRules";
+import type { Confidence } from "@/lib/output-contract";
 
-export type FieldConfidence = "low" | "medium" | "high";
+/** Per-field confidence — the canonical program-wide confidence scale. */
+export type FieldConfidence = Confidence;
 
 /** Canonical fee categories (what a raw label normalizes to). */
 export type FeeCategory =

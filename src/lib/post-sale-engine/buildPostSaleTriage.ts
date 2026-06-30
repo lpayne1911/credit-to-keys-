@@ -195,7 +195,12 @@ function buildPlan(input: PostSaleInput, hasRefundable: boolean): TriageStep[] {
   return steps;
 }
 
-export function buildPostSaleTriage(input: PostSaleInput): PostSaleTriageResult {
+const ENGINE_VERSION = "post-sale-1.0.0";
+
+export function buildPostSaleTriage(
+  input: PostSaleInput,
+  opts: { now?: string } = {},
+): PostSaleTriageResult {
   const addOns = input.addOns
     .filter((a) => (a.rawLabel ?? "").trim() !== "")
     .map((a) => triageAddOn(a, input.financed));
@@ -215,6 +220,8 @@ export function buildPostSaleTriage(input: PostSaleInput): PostSaleTriageResult 
 
   return {
     schemaVersion: "post-sale-1",
+    engineVersion: ENGINE_VERSION,
+    createdAt: opts.now ?? new Date().toISOString(),
     signedContext: {
       state: input.buyerState,
       daysSinceSigned: input.daysSinceSigned,

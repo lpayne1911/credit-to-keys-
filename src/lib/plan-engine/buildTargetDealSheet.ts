@@ -206,9 +206,12 @@ function buildMissing(input: TargetPlanInput, market: PlanMarket): string[] {
   return missing;
 }
 
+const ENGINE_VERSION = "target-plan-1.0.0";
+
 export function buildTargetDealSheet(
   input: TargetPlanInput,
   deps: { market: PlanMarket; docFeeRule?: DocFeeRule | null },
+  opts: { now?: string } = {},
 ): TargetDealSheet {
   const fees = buildFees(input, deps.docFeeRule);
   const docFeeTarget = fees.find((f) => f.label.startsWith("Doc"))?.target ?? null;
@@ -219,6 +222,8 @@ export function buildTargetDealSheet(
 
   return {
     schemaVersion: "target-plan-1",
+    engineVersion: ENGINE_VERSION,
+    createdAt: opts.now ?? new Date().toISOString(),
     vehicleLabel: vehicleLabelOf(input.vehicle),
     pricing: deps.market,
     tradeEquity: tradeEquityOf(input),

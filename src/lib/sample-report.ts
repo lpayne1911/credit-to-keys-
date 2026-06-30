@@ -48,6 +48,8 @@ export const SAMPLE_LOAN: LoanInputs = {
 };
 
 export const SAMPLE_RESULT: FairnessResult = {
+  schemaVersion: "fairness-1",
+  createdAt: "2026-06-01T00:00:00.000Z",
   overallVerdict: "amber",
   headline: "A few numbers here don't add up — push back before you sign.",
   confidence: "medium",

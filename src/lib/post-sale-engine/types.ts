@@ -18,6 +18,7 @@
  * ============================================================================
  */
 import type { AddOnCategory } from "@/lib/add-on-engine/types";
+import type { EngineResultEnvelope } from "@/lib/output-contract";
 
 /** How likely an add-on is to be cancellable for some refund after signing. */
 export type CancelOutlook = "often_refundable" | "unlikely" | "unknown";
@@ -65,7 +66,7 @@ export interface TriageStep {
   timing?: string;
 }
 
-export interface PostSaleTriageResult {
+export interface PostSaleTriageResult extends EngineResultEnvelope {
   /** Brands the payload so a result page never mis-reads another shape. */
   schemaVersion: "post-sale-1";
   signedContext: {

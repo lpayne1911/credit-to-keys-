@@ -51,6 +51,8 @@ import {
   stateSourceNote,
   type StateResolution,
 } from "./intelligence/resolveDealState";
+import { minConfidence, type Confidence } from "./output-contract/confidence";
+import type { EngineResultEnvelope } from "./output-contract/envelope";
 
 // ---------------------------------------------------------------------------
 //  INPUT TYPES
@@ -193,7 +195,10 @@ export interface FairnessInput {
 
 export type Verdict = "green" | "amber" | "red" | "black";
 
-export type Confidence = "low" | "medium" | "high";
+// Canonical confidence scale lives in the output contract; re-exported here so
+// the many existing `import { Confidence } from "@/lib/fairness-engine"` sites
+// keep working.
+export type { Confidence };
 
 export type WarrantyPriceRating =
   | "fair"
@@ -248,7 +253,10 @@ export interface WarrantyAssessment {
   explanation: string;
 }
 
-export interface FairnessResult {
+export interface FairnessResult extends EngineResultEnvelope {
+  /** Brands this payload so the shared `deals.auto_result` column never collides
+   *  with a DealReviewResult. The /verdict reader gates on this. */
+  schemaVersion: "fairness-1";
   overallVerdict: Verdict;
   /** One-line, plain-spoken summary of the verdict for the buyer. */
   headline: string;
@@ -263,6 +271,8 @@ export interface FairnessResult {
   assumptions: string[];
   /** Engine version — bump when the real engine replaces these placeholders. */
   engineVersion: string;
+  /** ISO timestamp of generation (injectable for deterministic tests). */
+  createdAt: string;
   /** How the deal's jurisdiction was resolved (drives state-aware rules and the
    * "Using MD from the dealer ZIP — verify" note). Optional for back-compat. */
   stateResolution?: StateResolution | null;
@@ -543,7 +553,10 @@ const GOVERNMENT_FEE_INFLATED_MULTIPLIER = 2.5;
  * the rest of the app calls. Swap its internals for the real engine while
  * keeping this signature and the exported types stable.
  */
-export function scoreDeal(input: FairnessInput): FairnessResult {
+export function scoreDeal(
+  input: FairnessInput,
+  opts: { now?: string } = {},
+): FairnessResult {
   const assumptions: string[] = [];
   const flags: Flag[] = [];
 
@@ -624,6 +637,7 @@ export function scoreDeal(input: FairnessInput): FairnessResult {
   );
 
   return {
+    schemaVersion: "fairness-1",
     overallVerdict,
     headline,
     confidence,
@@ -632,6 +646,7 @@ export function scoreDeal(input: FairnessInput): FairnessResult {
     warranty,
     assumptions: dedupe(assumptions),
     engineVersion: ENGINE_VERSION,
+    createdAt: opts.now ?? new Date().toISOString(),
     stateResolution: stateRes,
     marketValue: input.marketValue ?? null,
   };
@@ -1270,11 +1285,6 @@ function assessFees(
  * Compliance copy lives in the classifier; this only chooses severity/type.
  */
 /** The lower (more cautious) of two confidence levels. */
-function minConfidence(a: Confidence, b: Confidence): Confidence {
-  const rank: Record<Confidence, number> = { low: 0, medium: 1, high: 2 };
-  return rank[a] <= rank[b] ? a : b;
-}
-
 function buildDocFeeFlag(
   fee: ItemizedFee,
   stateRes: StateResolution,

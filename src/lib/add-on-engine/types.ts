@@ -12,8 +12,10 @@
  * ============================================================================
  */
 import type { PriceRange } from "@/lib/fairness-engine";
+import type { Confidence } from "@/lib/output-contract";
 
-export type FieldConfidence = "low" | "medium" | "high";
+/** Per-field confidence — the canonical program-wide confidence scale. */
+export type FieldConfidence = Confidence;
 
 export type AddOnCategory =
   | "vsc" // vehicle service contract / extended warranty

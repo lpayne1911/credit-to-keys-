@@ -17,7 +17,9 @@ function res(flags: Flag[]): FairnessResult {
     flags,
     warranty: null,
     assumptions: [],
+    schemaVersion: "fairness-1",
     engineVersion: "test",
+    createdAt: "2026-01-01T00:00:00.000Z",
   };
 }
 

@@ -17,8 +17,10 @@ import type { PriceRange } from "@/lib/fairness-engine";
 import type { NegotiationScript } from "@/lib/negotiation";
 import type { FeeAssessment } from "@/lib/fee-engine/types";
 import type { AddOnAssessment } from "@/lib/add-on-engine/types";
+import type { Confidence, EngineResultEnvelope } from "@/lib/output-contract";
 
-export type FieldConfidence = "low" | "medium" | "high";
+/** Per-field confidence — the canonical program-wide confidence scale. */
+export type FieldConfidence = Confidence;
 export type DealSource = "manual" | "upload" | "mixed";
 
 export interface NormalizedVehicle {
@@ -188,7 +190,7 @@ export interface DealScoreBreakdown {
   paperwork: number;
 }
 
-export interface DealReviewResult {
+export interface DealReviewResult extends EngineResultEnvelope {
   /** Brands this payload so the shared `deals.auto_result` column never
    *  collides with a fairness-engine FairnessResult read by /verdict. */
   schemaVersion: "deal-review-1";
