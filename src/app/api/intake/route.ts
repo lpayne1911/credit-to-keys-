@@ -7,10 +7,10 @@
  * - Degrades gracefully: if the DB isn't configured, it still acknowledges so
  *   the buyer's submit doesn't hard-fail (mirrors the deals route).
  */
-import { NextResponse } from "next/server";
 import { getServiceClient } from "@/lib/supabase/server";
 import { getProduct } from "@/lib/products/product-catalog";
 import { rateLimit, rateLimitHeaders } from "@/lib/rate-limit";
+import { apiError, apiOk } from "@/lib/api-response";
 
 export const runtime = "nodejs";
 
@@ -18,32 +18,31 @@ export async function POST(req: Request) {
   // Unauthenticated write path — throttle per IP to prevent lead/row spam.
   const limit = await rateLimit(req, { key: "intake", limit: 20, windowMs: 10 * 60_000 });
   if (!limit.ok) {
-    return NextResponse.json(
-      { error: "Too many requests. Please wait and try again." },
-      { status: 429, headers: rateLimitHeaders(limit) },
-    );
+    return apiError("rate_limited", "Too many requests. Please wait and try again.", {
+      headers: rateLimitHeaders(limit),
+    });
   }
 
   let body: unknown;
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ error: "Expected a JSON body." }, { status: 400 });
+    return apiError("invalid_json", "Expected a JSON body.");
   }
 
   const productId = (body as { productId?: unknown })?.productId;
   const fields = (body as { fields?: unknown })?.fields;
   if (typeof productId !== "string" || !getProduct(productId)) {
-    return NextResponse.json({ error: "Unknown product." }, { status: 400 });
+    return apiError("validation", "Unknown product.", { status: 400 });
   }
   if (typeof fields !== "object" || fields === null) {
-    return NextResponse.json({ error: "Missing intake fields." }, { status: 400 });
+    return apiError("validation", "Missing intake fields.", { status: 400 });
   }
 
   const supabase = getServiceClient();
   if (!supabase) {
     // Not configured in this environment — acknowledge so the UX still works.
-    return NextResponse.json({ ok: true, stored: false });
+    return apiOk({ stored: false });
   }
 
   const { data, error } = await supabase
@@ -53,10 +52,7 @@ export async function POST(req: Request) {
     .single();
 
   if (error) {
-    return NextResponse.json(
-      { error: "Could not save your request. Please try again." },
-      { status: 500 },
-    );
+    return apiError("server_error", "Could not save your request. Please try again.");
   }
-  return NextResponse.json({ ok: true, stored: true, id: data.id });
+  return apiOk({ stored: true, id: data.id });
 }

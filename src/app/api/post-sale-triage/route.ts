@@ -8,9 +8,9 @@
  * /triage/[triageId] page to render.
  */
 import { randomUUID } from "node:crypto";
-import { NextResponse } from "next/server";
 import { postSaleSchema } from "@/lib/schemas";
 import { buildPostSaleTriage } from "@/lib/post-sale-engine/buildPostSaleTriage";
+import { apiError, apiOk } from "@/lib/api-response";
 import type { PostSaleInput } from "@/lib/post-sale-engine/types";
 
 export const runtime = "nodejs";
@@ -33,15 +33,12 @@ export async function POST(req: Request) {
   try {
     raw = await req.json();
   } catch {
-    return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
+    return apiError("invalid_json", "Invalid JSON body.");
   }
 
   const parsed = postSaleSchema.safeParse(raw);
   if (!parsed.success) {
-    return NextResponse.json(
-      { error: "That submission didn't look right. Please check your entries." },
-      { status: 422 },
-    );
+    return apiError("validation", "That submission didn't look right. Please check your entries.");
   }
   const d = parsed.data;
 
@@ -58,5 +55,5 @@ export async function POST(req: Request) {
 
   const result = buildPostSaleTriage(input);
 
-  return NextResponse.json({ triageId: randomUUID(), result, persisted: false });
+  return apiOk({ triageId: randomUUID(), result, persisted: false });
 }
