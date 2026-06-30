@@ -125,6 +125,34 @@ export function generateRiskFlags(inputs: RiskFlagInputs): RiskFlag[] {
     });
   }
 
+  /* ---- Finance: APR above the national average --------------------------- */
+  // Only when a REAL benchmark was injected (FRED) — never on the placeholder
+  // band, so we don't raise false APR flags from a guessed range.
+  const benchmark = math.aprBenchmark;
+  if (
+    benchmark?.source === "fred" &&
+    deal.finance.apr != null &&
+    deal.finance.apr > benchmark.high
+  ) {
+    const apr = deal.finance.apr;
+    const term = deal.finance.termMonths;
+    flags.push({
+      id: "apr_above_benchmark",
+      source: "finance",
+      severity: apr > benchmark.high * 1.15 ? "medium" : "low",
+      confidence: "medium",
+      title: "APR above national average",
+      detail:
+        `Your APR (${apr.toFixed(1)}%) is above the current national average for ` +
+        `${term ? `${term}-month ` : ""}auto loans (about ${benchmark.high.toFixed(1)}% at the high end). ` +
+        "This is a possible overcharge worth questioning.",
+      estimatedImpact: null,
+      suggestedAction:
+        "Ask the lender to improve the rate, or compare a credit-union or bank pre-approval before you sign.",
+      scriptFlagType: "apr_markup",
+    });
+  }
+
   /* ---- Finance: long-term stretch ---------------------------------------- */
   if (math.termStretch?.flagged) {
     flags.push({

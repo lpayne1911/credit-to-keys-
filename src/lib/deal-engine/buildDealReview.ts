@@ -34,6 +34,9 @@ const ENGINE_VERSION = "deal-review-1.0.0";
 export interface BuildDealReviewOptions {
   /** MarketCheck band injected server-side; null when unavailable. */
   marketValue?: PriceRange | null;
+  /** Real national-average APR band (FRED) injected server-side; null when
+   *  unavailable, in which case the engine uses its conservative placeholder. */
+  aprBenchmark?: DealReviewResult["math"]["aprBenchmark"];
   /** ISO timestamp; injectable for deterministic tests. */
   now?: string;
 }
@@ -55,7 +58,7 @@ export function buildDealReview(
 ): DealReviewResult {
   const marketValue = opts.marketValue ?? null;
 
-  const math = reconcileDealMath(deal);
+  const math = reconcileDealMath(deal, { aprBenchmark: opts.aprBenchmark });
   const feeAssessments = classifyFees(
     deal.fees.map((f) => ({ rawLabel: f.rawLabel, amount: f.amount })),
     { stateCode: deal.sourceMetadata.buyerState },
@@ -179,6 +182,11 @@ function buildTakeaways(
   if (math.paymentMismatch) {
     out.push(
       "The payment does not reconcile with the APR, term, and amount financed provided — ask for those three in writing.",
+    );
+  }
+  if (riskFlags.some((f) => f.id === "apr_above_benchmark")) {
+    out.push(
+      "Your APR looks higher than the current national average — compare a credit-union or bank pre-approval before agreeing to the dealer's rate.",
     );
   }
 

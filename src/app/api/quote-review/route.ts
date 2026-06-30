@@ -22,7 +22,14 @@ import { normalizeDealInput } from "@/lib/deal-engine/normalizeDealInput";
 import { buildDealReview } from "@/lib/deal-engine/buildDealReview";
 import { runMarketCheck } from "@/lib/market-engine/runMarketCheck";
 import { isConfigured as isMarketCheckConfigured } from "@/lib/sources/marketcheck/connector";
+import {
+  fetchAprObservations,
+  isConfigured as isFredConfigured,
+  isEnabled as isFredEnabled,
+} from "@/lib/sources/fred/connector";
+import { parseAprBenchmark } from "@/lib/sources/fred/normalize";
 import type { PriceRange } from "@/lib/fairness-engine";
+import type { DealReviewResult } from "@/lib/deal-engine/types";
 import { getServiceClient } from "@/lib/supabase/server";
 import { rateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import { getBuyer } from "@/lib/buyer-auth";
@@ -109,7 +116,17 @@ export async function POST(req: Request) {
     }
   }
 
-  const result = buildDealReview(deal, { marketValue });
+  // FRED national-average APR band (server-only, opt-in). Real data only — when
+  // disabled/unconfigured/failed the engine keeps its conservative placeholder
+  // and no APR flag is raised. Gated so the free FRED tier is never spent unless
+  // the operator turns it on.
+  let aprBenchmark: DealReviewResult["math"]["aprBenchmark"] = null;
+  if (isFredEnabled() && isFredConfigured() && deal.finance.termMonths != null) {
+    const obs = await fetchAprObservations(deal.finance.termMonths).catch(() => null);
+    aprBenchmark = parseAprBenchmark(obs, deal.finance.termMonths);
+  }
+
+  const result = buildDealReview(deal, { marketValue, aprBenchmark });
 
   const inputPath: "manual" | "upload" =
     deal.sourceMetadata.documentUploaded ? "upload" : "manual";
