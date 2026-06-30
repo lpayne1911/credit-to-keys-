@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseRecalls, parseRating, parseStar } from "./normalize";
+import { parseRecalls, parseRating, parseSignals, parseStar } from "./normalize";
 
 describe("parseStar", () => {
   it("maps valid 1–5 strings to numbers", () => {
@@ -66,6 +66,40 @@ describe("parseRecalls", () => {
     });
     expect(recalls).toHaveLength(1);
     expect(recalls[0].component).toBe("AIR BAGS");
+  });
+});
+
+describe("parseSignals", () => {
+  it("maps complaints, investigations, and driver-assist from the real payload", () => {
+    expect(
+      parseSignals({
+        OverallRating: "5",
+        ComplaintsCount: 639,
+        InvestigationCount: 2,
+        RecallsCount: 6,
+        NHTSAForwardCollisionWarning: "Standard",
+        NHTSALaneDepartureWarning: "Standard",
+        NHTSAElectronicStabilityControl: "Standard",
+      }),
+    ).toEqual({
+      complaints: 639,
+      investigations: 2,
+      forwardCollisionWarning: "Standard",
+      laneDepartureWarning: "Standard",
+      electronicStabilityControl: "Standard",
+    });
+  });
+
+  it("returns null fields for missing values, and null overall when nothing is reported", () => {
+    expect(parseSignals(null)).toBeNull();
+    expect(parseSignals({ OverallRating: "5" })).toBeNull();
+    expect(parseSignals({ ComplaintsCount: 0 })).toEqual({
+      complaints: 0,
+      investigations: null,
+      forwardCollisionWarning: null,
+      laneDepartureWarning: null,
+      electronicStabilityControl: null,
+    });
   });
 });
 

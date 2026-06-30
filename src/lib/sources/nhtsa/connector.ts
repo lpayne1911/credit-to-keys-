@@ -50,6 +50,13 @@ export interface RawRatingDetail {
   OverallFrontCrashRating?: string;
   OverallSideCrashRating?: string;
   RolloverRating?: string;
+  /** Vehicle-level safety signals carried in the same detail response. */
+  ComplaintsCount?: number;
+  InvestigationCount?: number;
+  RecallsCount?: number;
+  NHTSAForwardCollisionWarning?: string;
+  NHTSALaneDepartureWarning?: string;
+  NHTSAElectronicStabilityControl?: string;
 }
 
 export interface RawRatingDetailResponse {

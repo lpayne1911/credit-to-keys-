@@ -30,13 +30,27 @@ function hasAnyRating(r: SafetyRating): boolean {
   return r.overall != null || r.frontCrash != null || r.sideCrash != null || r.rollover != null;
 }
 
+/** The driver-assist systems that come Standard, as friendly labels. */
+function standardAssist(s: NonNullable<SafetyReport["signals"]>): string[] {
+  const isStd = (v: string | null) => v != null && v.toLowerCase() === "standard";
+  const out: string[] = [];
+  if (isStd(s.forwardCollisionWarning)) out.push("forward-collision warning");
+  if (isStd(s.laneDepartureWarning)) out.push("lane-departure warning");
+  if (isStd(s.electronicStabilityControl)) out.push("electronic stability control");
+  return out;
+}
+
 /**
  * Renders NHTSA open recalls + NCAP crash-test ratings. Returns null when there
  * is no real data (the report is REAL-OR-HIDDEN — never a fabricated sample).
  */
 export function SafetyRecallsCard({ report }: { report: SafetyReport | null }) {
   if (!report) return null;
-  const { recalls, ratings } = report;
+  const { recalls, ratings, signals } = report;
+  const openInvestigations = signals?.investigations != null && signals.investigations > 0;
+  const hasComplaints = signals?.complaints != null;
+  const assist = signals ? standardAssist(signals) : [];
+  const showSignals = Boolean(signals) && (openInvestigations || hasComplaints || assist.length > 0);
 
   return (
     <section className="rounded-2xl border border-edge bg-white p-5 shadow-card sm:p-6">
@@ -100,6 +114,33 @@ export function SafetyRecallsCard({ report }: { report: SafetyReport | null }) {
             <RatingRow label="Side crash" value={ratings.sideCrash} />
             <RatingRow label="Rollover" value={ratings.rollover} />
           </div>
+        </div>
+      )}
+
+      {/* Complaints, investigations & driver-assist (same NHTSA response) */}
+      {showSignals && (
+        <div className="mt-4 border-t border-edge pt-4">
+          {(openInvestigations || hasComplaints) && (
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+              {openInvestigations && (
+                <span className="font-semibold text-orange">
+                  {signals!.investigations} open NHTSA investigation
+                  {signals!.investigations === 1 ? "" : "s"}
+                </span>
+              )}
+              {hasComplaints && (
+                <span className="text-slate">
+                  {signals!.complaints!.toLocaleString()} owner complaint
+                  {signals!.complaints === 1 ? "" : "s"} filed with NHTSA
+                </span>
+              )}
+            </div>
+          )}
+          {assist.length > 0 && (
+            <p className="mt-2 text-xs text-slate">
+              Standard driver assist: {assist.join(" · ")}
+            </p>
+          )}
         </div>
       )}
     </section>
