@@ -560,10 +560,16 @@ export function scoreDeal(
   const assumptions: string[] = [];
   const flags: Flag[] = [];
 
+  // Current calendar year, derived from the injectable clock so age/mileage
+  // surcharge math is reproducible (same input + same `now` → same output).
+  const currentYear = opts.now
+    ? new Date(opts.now).getFullYear()
+    : new Date().getFullYear();
+
   // --- Warranty assessment (optional) ------------------------------------
   let warranty: WarrantyAssessment | null = null;
   if (input.warranty && hasAnyWarrantySignal(input.warranty)) {
-    warranty = assessWarranty(input.vehicle, input.warranty, assumptions);
+    warranty = assessWarranty(input.vehicle, input.warranty, assumptions, currentYear);
     const warrantyFlag = warrantyToFlag(warranty);
     if (warrantyFlag) flags.push(warrantyFlag);
   }
@@ -727,6 +733,7 @@ function assessWarranty(
   vehicle: VehicleInput,
   w: WarrantyInput,
   assumptions: string[],
+  currentYear: number,
 ): WarrantyAssessment {
   const tier = reliabilityTier(vehicle.make);
   const coverage = w.coverageTier ?? "unknown";
@@ -738,8 +745,8 @@ function assessWarranty(
   const covMult = COVERAGE_TIER_MULTIPLIER[coverage];
   const relMult = RELIABILITY_MULTIPLIER[tier];
 
-  // Age & mileage risk surcharge (relative to current calendar year).
-  const now = new Date().getFullYear();
+  // Age & mileage risk surcharge (relative to the injected current year).
+  const now = currentYear;
   const age = Math.max(0, now - (vehicle.year || now));
   const ageSurcharge =
     Math.max(0, age - AGE_FREE_YEARS) * AGE_SURCHARGE_PER_YEAR;
