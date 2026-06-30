@@ -101,10 +101,18 @@ export function SiteFooter() {
 
         <div className="mt-12 space-y-6 border-t border-white/10 pt-8">
           <Disclaimer tone="dark" />
-          <p className="text-xs text-cream/40">
-            © {new Date().getFullYear()} Driveway Advocate. On the buyer&apos;s
-            side, always.
-          </p>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <p className="text-xs text-cream/40">
+              © {new Date().getFullYear()} Driveway Advocate. On the buyer&apos;s
+              side, always.
+            </p>
+            <Link
+              href="/privacy"
+              className="text-xs text-cream/55 underline transition hover:text-gold-light"
+            >
+              Privacy
+            </Link>
+          </div>
         </div>
       </div>
     </footer>
