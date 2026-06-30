@@ -26,6 +26,7 @@ const SAMPLE = {
   dealerName: "Waldorf Toyota",
   salesperson: "Swann, D'Marius",
   stockNumber: "00N40400",
+  insuranceCarrier: "USAA",
   buyerState: "MD",
   source: "upload" as const,
 };
@@ -52,11 +53,17 @@ describe("logMarketData", () => {
       dealer_state: "MD",
       trade_make: "Honda",
       input_path: "upload",
+      insurance_carrier: "USAA",
     });
     expect(typeof row.deal_score).toBe("number");
 
-    // Hard guarantee: buyer-identity columns are never written.
-    const PII = ["name", "first_name", "last_name", "dob", "date_of_birth", "drivers_license", "license", "insurance", "email", "user_id", "lead_id"];
+    // Hard guarantee: buyer-identity columns are never written. We keep the
+    // insurance CARRIER name, but never the policy number / account ID.
+    const PII = [
+      "name", "first_name", "last_name", "dob", "date_of_birth",
+      "drivers_license", "license", "insurance_policy", "policy_number",
+      "email", "user_id", "lead_id",
+    ];
     for (const key of PII) expect(row).not.toHaveProperty(key);
   });
 

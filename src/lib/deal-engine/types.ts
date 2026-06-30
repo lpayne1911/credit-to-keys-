@@ -102,6 +102,8 @@ export interface SourceMetadata {
   salesperson: string | null;
   /** Dealer stock number for the vehicle. */
   stockNumber: string | null;
+  /** Buyer's auto-insurance carrier NAME only — never a policy number. */
+  insuranceCarrier: string | null;
   /** Explicit purchase/buyer state (two-letter). */
   buyerState: string | null;
   dealerZip: string | null;

@@ -143,6 +143,7 @@ export const quoteReviewSchema = z.object({
   dealerPhone: z.string().max(40).optional(),
   salesperson: z.string().max(120).optional(),
   stockNumber: z.string().max(60).optional(),
+  insuranceCarrier: z.string().max(80).optional(),
   buyerState: z.string().max(8).optional(),
   dealerZip: z.string().max(12).optional(),
   registrationZip: z.string().max(12).optional(),

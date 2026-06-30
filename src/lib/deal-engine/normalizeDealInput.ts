@@ -71,6 +71,7 @@ export interface QuoteReviewInputRaw {
   dealerPhone?: string | null;
   salesperson?: string | null;
   stockNumber?: string | null;
+  insuranceCarrier?: string | null;
   buyerState?: string | null;
   dealerZip?: string | null;
   registrationZip?: string | null;
@@ -237,6 +238,7 @@ export function normalizeDealInput(
       dealerPhone: toStr(raw.dealerPhone),
       salesperson: toStr(raw.salesperson),
       stockNumber: toStr(raw.stockNumber),
+      insuranceCarrier: toStr(raw.insuranceCarrier),
       buyerState: toState(raw.buyerState),
       dealerZip: toStr(raw.dealerZip),
       registrationZip: toStr(raw.registrationZip),

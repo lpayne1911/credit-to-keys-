@@ -87,6 +87,7 @@ export async function logMarketData(
       dealer_state: deal.sourceMetadata.buyerState,
       salesperson: deal.sourceMetadata.salesperson,
       stock_number: deal.sourceMetadata.stockNumber,
+      insurance_carrier: deal.sourceMetadata.insuranceCarrier,
 
       deal_score: result.dealScore,
       market_low: result.marketValue?.low ?? null,

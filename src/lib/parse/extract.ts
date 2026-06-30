@@ -47,6 +47,8 @@ export interface ExtractedFields {
   salesperson?: string;
   /** The dealer stock number for the vehicle. */
   stockNumber?: string;
+  /** The buyer's auto-insurance carrier NAME only (never a policy number). */
+  insuranceCarrier?: string;
   /** The dealership's ZIP code, used as a fallback to resolve the deal's state. */
   dealerZip?: string;
   /** Two-letter state of the dealer/sale, used to resolve tax & doc-fee rules. */
@@ -151,6 +153,7 @@ Return a single JSON object (no prose, no code fences) with these keys, omitting
   "dealerPhone": string,             // the dealership's phone number
   "salesperson": string,             // the salesperson named on the order
   "stockNumber": string,             // the dealer stock number (STOCK NO.) for the vehicle
+  "insuranceCarrier": string,        // the buyer's auto-insurance company NAME ONLY (e.g. "USAA", "GEICO", "State Farm"). NEVER include the policy number or any account/ID number.
   "dealerZip": string,               // the dealership's 5-digit ZIP code, from its address/letterhead/footer — extract it whenever any address is shown
   "dealerState": string,             // the dealership's 2-letter state code (e.g. MD, CA), from its address/letterhead/footer
   "tradeYear": number, "tradeMake": string, "tradeModel": string, "tradeMileage": number,  // the TRADE-IN vehicle's identity, only if a trade-in is described
@@ -263,6 +266,7 @@ export function normalize(raw: Record<string, unknown>): ExtractedFields {
     dealerPhone: s(raw.dealerPhone),
     salesperson: s(raw.salesperson),
     stockNumber: s(raw.stockNumber),
+    insuranceCarrier: s(raw.insuranceCarrier),
     dealerZip: s(raw.dealerZip),
     dealerState: stateCode(raw.dealerState),
     tradeYear: s(raw.tradeYear),

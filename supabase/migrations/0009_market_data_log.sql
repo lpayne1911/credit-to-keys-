@@ -93,6 +93,11 @@ create table if not exists public.deal_market_data (
   salesperson           text,
   stock_number          text,
 
+  -- Buyer's auto-insurance CARRIER NAME only (e.g. "USAA"). The policy number
+  -- is never collected or stored — it is high-liability PII with no analytical
+  -- value. Carrier name alone is mild and useful (carrier × deal × region).
+  insurance_carrier     text,
+
   -- Computed outcome
   deal_score            integer,
   market_low            numeric,

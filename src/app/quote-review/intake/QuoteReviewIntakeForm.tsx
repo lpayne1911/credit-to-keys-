@@ -40,6 +40,7 @@ interface FormState {
   dealerPhone: string;
   salesperson: string;
   stockNumber: string;
+  insuranceCarrier: string;
   buyerState: string;
   dealerZip: string;
   registrationZip: string;
@@ -79,6 +80,7 @@ const EMPTY: FormState = {
   dealerPhone: "",
   salesperson: "",
   stockNumber: "",
+  insuranceCarrier: "",
   buyerState: "",
   dealerZip: "",
   registrationZip: "",
@@ -198,6 +200,7 @@ export function QuoteReviewIntakeForm() {
         dealerPhone: ex.dealerPhone ?? f.dealerPhone,
         salesperson: ex.salesperson ?? f.salesperson,
         stockNumber: ex.stockNumber ?? f.stockNumber,
+        insuranceCarrier: ex.insuranceCarrier ?? f.insuranceCarrier,
         dealerZip: ex.dealerZip ?? f.dealerZip,
         buyerState: ex.dealerState ?? f.buyerState,
         vehiclePrice: ex.vehiclePrice ?? f.vehiclePrice,
@@ -358,6 +361,7 @@ export function QuoteReviewIntakeForm() {
         dealerPhone: form.dealerPhone,
         salesperson: form.salesperson,
         stockNumber: form.stockNumber,
+        insuranceCarrier: form.insuranceCarrier,
         buyerState: form.buyerState,
         dealerZip: form.dealerZip,
         registrationZip: form.registrationZip,
@@ -422,8 +426,8 @@ export function QuoteReviewIntakeForm() {
           </p>
           <p className="mt-2 text-xs text-navy/45">
             We don&apos;t store your name, date of birth, driver&apos;s license, or
-            insurance details — only the vehicle, pricing, and dealer figures from
-            the deal.
+            insurance policy number — only the vehicle, pricing, dealer, and
+            insurance-carrier details from the deal.
           </p>
         </div>
 
@@ -596,6 +600,11 @@ export function QuoteReviewIntakeForm() {
         </div>
         <Field label="Credit band (optional)" value={form.creditBand} placeholder="e.g. Excellent / 720+"
           onChange={(v) => set("creditBand", v)} />
+        <Field label="Insurance carrier (optional)" value={form.insuranceCarrier} placeholder="e.g. GEICO, State Farm"
+          onChange={(v) => set("insuranceCarrier", v)} />
+        <p className="text-xs text-navy/45">
+          Carrier name only — we never ask for or store your policy number.
+        </p>
       </section>
 
       {/* Trade-in */}
@@ -631,7 +640,8 @@ export function QuoteReviewIntakeForm() {
       </p>
       <p className="text-center text-xs text-navy/40">
         We don&apos;t store your name, date of birth, driver&apos;s license, or
-        insurance — just the vehicle, pricing, and dealer details.
+        insurance policy number — just the vehicle, pricing, dealer, and
+        insurance-carrier details.
       </p>
     </div>
   );
