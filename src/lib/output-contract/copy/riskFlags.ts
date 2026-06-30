@@ -40,6 +40,15 @@ export const RISK_COPY = {
     suggestedAction:
       "Ask the dealer to show the amount financed, APR, and term in writing so the monthly payment can be confirmed.",
   },
+  aprAboveBenchmark: {
+    title: "APR above national average",
+    detail: (apr: number, benchmarkHigh: number, term: number | null) =>
+      `Your APR (${apr.toFixed(1)}%) is above the current national average for ` +
+      `${term ? `${term}-month ` : ""}auto loans (about ${benchmarkHigh.toFixed(1)}% at the high end). ` +
+      "This is a possible overcharge worth questioning.",
+    suggestedAction:
+      "Ask the lender to improve the rate, or compare a credit-union or bank pre-approval before you sign.",
+  },
   termStretch: {
     title: "Long loan term",
     detail: (months: number) =>

@@ -141,14 +141,10 @@ export function generateRiskFlags(inputs: RiskFlagInputs): RiskFlag[] {
       source: "finance",
       severity: apr > benchmark.high * 1.15 ? "medium" : "low",
       confidence: "medium",
-      title: "APR above national average",
-      detail:
-        `Your APR (${apr.toFixed(1)}%) is above the current national average for ` +
-        `${term ? `${term}-month ` : ""}auto loans (about ${benchmark.high.toFixed(1)}% at the high end). ` +
-        "This is a possible overcharge worth questioning.",
+      title: RISK_COPY.aprAboveBenchmark.title,
+      detail: RISK_COPY.aprAboveBenchmark.detail(apr, benchmark.high, term),
       estimatedImpact: null,
-      suggestedAction:
-        "Ask the lender to improve the rate, or compare a credit-union or bank pre-approval before you sign.",
+      suggestedAction: RISK_COPY.aprAboveBenchmark.suggestedAction,
       scriptFlagType: "apr_markup",
     });
   }
