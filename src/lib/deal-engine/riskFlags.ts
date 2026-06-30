@@ -24,6 +24,7 @@ import type {
   NormalizedDeal,
   RiskFlag,
 } from "./types";
+import { RISK_COPY } from "@/lib/output-contract/copy/riskFlags";
 
 export interface RiskFlagInputs {
   deal: NormalizedDeal;
@@ -31,14 +32,6 @@ export interface RiskFlagInputs {
   fees: FeeAssessment[];
   addOns: AddOnAssessment[];
   marketValue: PriceRange | null;
-}
-
-function money(n: number): string {
-  return n.toLocaleString("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  });
 }
 
 export function generateRiskFlags(inputs: RiskFlagInputs): RiskFlag[] {
@@ -55,16 +48,15 @@ export function generateRiskFlags(inputs: RiskFlagInputs): RiskFlag[] {
       source: "pricing",
       severity: overLow > marketValue.high * 0.06 ? "high" : "medium",
       confidence: marketValue.confidence,
-      title: "Price above local market",
-      detail: `The selling price (${money(price)}) is above the local market band (${money(marketValue.high)} at the top). ${marketValue.basis}`,
+      title: RISK_COPY.priceAboveMarket.title,
+      detail: RISK_COPY.priceAboveMarket.detail(price, marketValue.high, marketValue.basis),
       estimatedImpact: {
         low: overLow,
         high: Math.max(overLow, overHigh),
         confidence: marketValue.confidence,
-        basis: "Distance above the local market band. Not a guarantee of savings.",
+        basis: RISK_COPY.priceAboveMarket.impactBasis,
       },
-      suggestedAction:
-        "Ask to bring the selling price toward the market band before discussing monthly payment; request a revised buyer's order.",
+      suggestedAction: RISK_COPY.priceAboveMarket.suggestedAction,
       scriptFlagType: "overpriced_vehicle",
     });
   }
@@ -92,9 +84,9 @@ export function generateRiskFlags(inputs: RiskFlagInputs): RiskFlag[] {
       confidence: f.confidence,
       title:
         f.category === "doc_fee"
-          ? "Documentation fee signal"
-          : "Dealer fee padding",
-      detail: `${f.rawLabel} (${money(f.amount)}): ${f.reason}`,
+          ? RISK_COPY.dealerFee.titleDocFee
+          : RISK_COPY.dealerFee.titleDealer,
+      detail: RISK_COPY.dealerFee.detail(f.rawLabel, f.amount, f.reason),
       estimatedImpact: f.estimatedImpact ?? null,
       suggestedAction: f.suggestedAction,
       scriptFlagType: f.category === "government" ? "government_fee" : "junk_fee",
@@ -110,8 +102,8 @@ export function generateRiskFlags(inputs: RiskFlagInputs): RiskFlag[] {
       source: "addons",
       severity: a.overpricedRisk ? "medium" : "low",
       confidence: a.confidence,
-      title: isWarranty ? "Warranty markup risk" : "Add-on package risk",
-      detail: `${a.rawLabel} (${money(a.amount)}): ${a.reason}`,
+      title: isWarranty ? RISK_COPY.addon.titleWarranty : RISK_COPY.addon.titleAddon,
+      detail: RISK_COPY.addon.detail(a.rawLabel, a.amount, a.reason),
       estimatedImpact: a.estimatedImpact ?? null,
       suggestedAction: a.suggestedAction,
       scriptFlagType: isWarranty ? "overpriced_warranty" : "overpriced_addon",
@@ -125,13 +117,10 @@ export function generateRiskFlags(inputs: RiskFlagInputs): RiskFlag[] {
       source: "finance",
       severity: "high",
       confidence: "medium",
-      title: "APR / payment mismatch",
-      detail:
-        "The payment does not reconcile with the APR, term, and amount financed provided." +
-        ` The quoted payment differs from the reconstructed payment by about ${money(Math.abs(math.paymentDelta))} per month.`,
+      title: RISK_COPY.aprPaymentMismatch.title,
+      detail: RISK_COPY.aprPaymentMismatch.detail(Math.abs(math.paymentDelta)),
       estimatedImpact: null,
-      suggestedAction:
-        "Ask the dealer to show the amount financed, APR, and term in writing so the monthly payment can be confirmed.",
+      suggestedAction: RISK_COPY.aprPaymentMismatch.suggestedAction,
       scriptFlagType: "payment_packing",
     });
   }
@@ -143,11 +132,10 @@ export function generateRiskFlags(inputs: RiskFlagInputs): RiskFlag[] {
       source: "finance",
       severity: "low",
       confidence: "medium",
-      title: "Long loan term",
-      detail: `The loan runs ${math.termStretch.current} months. A longer term lowers the payment but raises total interest.`,
+      title: RISK_COPY.termStretch.title,
+      detail: RISK_COPY.termStretch.detail(math.termStretch.current),
       estimatedImpact: null,
-      suggestedAction:
-        "Ask what a shorter term looks like so you can compare total interest, not just the monthly payment.",
+      suggestedAction: RISK_COPY.termStretch.suggestedAction,
     });
   }
 
@@ -165,16 +153,15 @@ export function generateRiskFlags(inputs: RiskFlagInputs): RiskFlag[] {
       source: "trade",
       severity: "medium",
       confidence: "low",
-      title: "Trade equity concern",
-      detail: `The trade offer (${money(trade.offer)}) is below your researched value (${money(trade.estimatedValue)}).`,
+      title: RISK_COPY.tradeLowball.title,
+      detail: RISK_COPY.tradeLowball.detail(trade.offer, trade.estimatedValue),
       estimatedImpact: {
         low: Math.max(0, low),
         high: Math.max(0, high),
         confidence: "low",
-        basis: "Difference between your researched value and the dealer's offer. Not a guarantee.",
+        basis: RISK_COPY.tradeLowball.impactBasis,
       },
-      suggestedAction:
-        "Ask the dealer to move the trade offer up, or get competing offers before agreeing.",
+      suggestedAction: RISK_COPY.tradeLowball.suggestedAction,
       scriptFlagType: "trade_lowball",
     });
   }
@@ -184,16 +171,15 @@ export function generateRiskFlags(inputs: RiskFlagInputs): RiskFlag[] {
       source: "trade",
       severity: "medium",
       confidence: "medium",
-      title: "Trade equity concern",
-      detail: `You owe about ${money(math.negativeEquity)} more on the trade than the dealer is offering. Rolling that into the new loan increases what you finance.`,
+      title: RISK_COPY.negativeEquity.title,
+      detail: RISK_COPY.negativeEquity.detail(math.negativeEquity),
       estimatedImpact: {
         low: Math.round(math.negativeEquity),
         high: Math.round(math.negativeEquity),
         confidence: "medium",
-        basis: "Trade payoff minus the dealer's offer.",
+        basis: RISK_COPY.negativeEquity.impactBasis,
       },
-      suggestedAction:
-        "Ask to handle the payoff separately rather than rolling negative equity into the new payment.",
+      suggestedAction: RISK_COPY.negativeEquity.suggestedAction,
       scriptFlagType: "negative_equity",
     });
   }
@@ -205,12 +191,10 @@ export function generateRiskFlags(inputs: RiskFlagInputs): RiskFlag[] {
       source: "paperwork",
       severity: "low",
       confidence: "high",
-      title: "Missing buyer's order",
-      detail:
-        "We don't have an itemized list of fees. Without the buyer's order, padding can hide inside an out-the-door total.",
+      title: RISK_COPY.missingBuyersOrder.title,
+      detail: RISK_COPY.missingBuyersOrder.detail,
       estimatedImpact: null,
-      suggestedAction:
-        "Request an itemized buyer's order so every fee and add-on is listed separately.",
+      suggestedAction: RISK_COPY.missingBuyersOrder.suggestedAction,
     });
   }
 
@@ -231,12 +215,10 @@ export function generateRiskFlags(inputs: RiskFlagInputs): RiskFlag[] {
         source: "paperwork",
         severity: "low",
         confidence: "low",
-        title: "Contract mismatch signal",
-        detail:
-          "The out-the-door total is higher than the listed price, fees, and add-ons add up to, beyond a typical tax range. There may be charges not itemized here.",
+        title: RISK_COPY.contractMismatchTotal.title,
+        detail: RISK_COPY.contractMismatchTotal.detail,
         estimatedImpact: null,
-        suggestedAction:
-          "Ask for a line-by-line buyer's order that reconciles to the out-the-door total.",
+        suggestedAction: RISK_COPY.contractMismatchTotal.suggestedAction,
       });
     }
   }

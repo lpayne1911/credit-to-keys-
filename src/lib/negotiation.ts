@@ -23,6 +23,13 @@ import type {
   Verdict,
   WarrantyAssessment,
 } from "./fairness-engine";
+import {
+  SAY,
+  SAY_FRAGMENTS,
+  OPENERS,
+  CLOSERS,
+  CLEAN_DEAL_POINT,
+} from "./output-contract/copy/negotiation";
 
 export interface ScriptPoint {
   /** Short label for the issue, e.g. "Nitrogen tire fill". */
@@ -54,14 +61,6 @@ interface SayContext {
   warranty: WarrantyAssessment | null;
 }
 
-function money(n: number): string {
-  return n.toLocaleString("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  });
-}
-
 /** Strip the smart/straight quotes a docFee scriptLine is wrapped in, so it
  *  reads as a plain numbered talking point alongside the other lines. */
 function plainScriptLine(s: string): string {
@@ -86,8 +85,8 @@ function itemName(flag: Flag): string {
 /** A parenthetical dollar range for a flag's impact, or "" when unknown. */
 function impactNote(flag: Flag): string {
   const i = flag.estimatedImpact;
-  if (!i || i.high <= 0) return "";
-  return ` (about ${money(i.low)}–${money(i.high)})`;
+  if (!i) return "";
+  return SAY_FRAGMENTS.impact(i.low, i.high);
 }
 
 /** A short, stable label for a flag — never leaks raw title fragments. */
@@ -117,50 +116,42 @@ function isDocFee(flag: Flag): boolean {
   return /\bdoc(ument)?/i.test(flag.title);
 }
 
-/** The line a buyer can say for one flag, by type. */
+/** The line a buyer can say for one flag, by type. Copy lives in the catalog;
+ *  this builds the small dynamic fragments and picks the template. */
 function sayFor(flag: Flag, ctx: SayContext): string {
   const impact = impactNote(flag);
   switch (flag.type) {
     case "government_fee":
-      return `I'll pay the actual state title and registration fees — no problem. But I need that charge itemized against my state's real cost${impact}, with any dealer-retained padding removed.`;
+      return SAY.governmentFee(impact);
     case "junk_fee":
       // Doc fees are a REAL charge (sometimes state-capped) — don't demand it be
       // removed; ask for an equivalent price reduction instead (offset).
-      if (isDocFee(flag)) {
-        return `On the documentation fee${impact}: if it's state-regulated and can't be lowered, then reduce the car's selling price by the same amount. What I care about is the out-the-door total, not which line it sits on.`;
-      }
-      return `Please take the "${itemName(flag)}" charge off${impact}. I'm not paying a fee that isn't a real cost of the car.`;
+      if (isDocFee(flag)) return SAY.docFee(impact);
+      return SAY.junkFee(itemName(flag), impact);
     case "overpriced_addon":
     case "redundant_addon":
-      return `I don't want the ${itemName(flag)}${impact}. Please remove it from the numbers.`;
-    case "apr_markup": {
+      return SAY.addon(itemName(flag), impact);
+    case "apr_markup":
       // Name the actual rate when we have it — concrete numbers carry weight.
-      const lead =
-        ctx.offeredApr != null
-          ? `The ${ctx.offeredApr}% APR you're quoting me`
-          : "This APR";
-      return `${lead} is higher than I qualify for${impact}. Show me the lender's buy rate, or I'll go with my own pre-approval.`;
-    }
+      return SAY.aprMarkup(SAY_FRAGMENTS.aprLead(ctx.offeredApr), impact);
     case "payment_packing":
-      return `Before we talk about the monthly payment, show me the full amount financed and the APR in writing — the payment is higher than these numbers add up to.`;
+      return SAY.paymentPacking();
     case "overpriced_warranty": {
       const w = ctx.warranty;
-      const quoted =
-        w && w.quotedPrice ? ` ${money(w.quotedPrice)}` : " this price";
-      const fair =
-        w && w.fairRange && w.fairRange.high > 0
-          ? ` — a fair price is closer to ${money(w.fairRange.low)}–${money(w.fairRange.high)}`
-          : "";
-      return `I'm not paying${quoted} for the service contract${fair}. Bring it to a fair price or I'll pass — I can buy coverage elsewhere.`;
+      const quoted = SAY_FRAGMENTS.warrantyQuoted(w?.quotedPrice ?? null);
+      const fair = w?.fairRange
+        ? SAY_FRAGMENTS.warrantyFair(w.fairRange.low, w.fairRange.high)
+        : "";
+      return SAY.warranty(quoted, fair);
     }
     case "overpriced_vehicle":
-      return `Based on comparable listings nearby, this price is above the local market${impact}. Can you bring the selling price down closer to the market median?`;
+      return SAY.vehiclePrice(impact);
     case "trade_lowball":
-      return `Your offer on my trade-in is low${impact}. Please come up to a fair number, or I'll get competing offers and sell it myself.`;
+      return SAY.tradeLowball(impact);
     case "negative_equity":
-      return `I owe more on my trade than you're offering${impact}. I don't want that negative equity rolled into the new payment — let's handle the payoff separately.`;
+      return SAY.negativeEquity(impact);
     default:
-      return `I'd like to go over "${itemName(flag)}" before I sign anything.`;
+      return SAY.generic(itemName(flag));
   }
 }
 
@@ -168,30 +159,22 @@ function openerFor(verdict: Verdict, hasPoints: boolean): string {
   // "Black" is a reviewer's walk-away call (fraud / legal concern). It is NOT a
   // negotiation — frame it as disengaging, regardless of how many points there
   // are, and never invite the buyer to keep dealing.
-  if (verdict === "black") {
-    return "I've had this deal reviewed, and I'm not comfortable moving forward with it.";
-  }
-  if (!hasPoints) {
-    return "Thanks — this looks close to fair. Before I sign, I just want to confirm a couple of things.";
-  }
+  if (verdict === "black") return OPENERS.black;
+  if (!hasPoints) return OPENERS.noPoints;
   switch (verdict) {
     case "red":
-      return "Before I sign anything, I need to go through a few items on this deal.";
+      return OPENERS.red;
     case "amber":
-      return "I'm interested, but there are a few things I'd like to fix before we finish the paperwork.";
+      return OPENERS.amber;
     default:
-      return "This is close, but I'd like to clean up a couple of items before I sign.";
+      return OPENERS.default;
   }
 }
 
 function closerFor(verdict: Verdict): string {
-  if (verdict === "black") {
-    return "I'm going to walk away from this one — please cancel the paperwork. Thanks for your time.";
-  }
-  if (verdict === "green") {
-    return "If those check out, I'm ready to move forward today. I'd just like the out-the-door total in writing first.";
-  }
-  return "I'm ready to buy today if the numbers are fair — and I'm comfortable walking if they're not. Take your time.";
+  if (verdict === "black") return CLOSERS.black;
+  if (verdict === "green") return CLOSERS.green;
+  return CLOSERS.default;
 }
 
 /**
@@ -233,10 +216,7 @@ export function buildNegotiationScript(
   // A clean deal still gets a useful point — but never on a walk-away verdict,
   // where "nothing looks off" would contradict the disengage message.
   if (points.length === 0 && result.overallVerdict !== "black") {
-    points.push({
-      heading: "Confirm the out-the-door price",
-      say: "Nothing here looks off to me. Can I get the full out-the-door price in writing so I can confirm it matches what we discussed?",
-    });
+    points.push({ ...CLEAN_DEAL_POINT });
   }
 
   const opener = openerFor(result.overallVerdict, realFlags.length > 0);
