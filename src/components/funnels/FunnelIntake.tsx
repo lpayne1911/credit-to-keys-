@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { ACCENT_CLASSES, type Accent } from "@/lib/funnels";
 
@@ -102,6 +103,17 @@ export function FunnelIntake({
           <p className="mt-2 text-sm text-slate">
             A buyer-side advocate will follow up by email. This is decision support, not
             legal or financial advice — and there&apos;s no charge today.
+          </p>
+          <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+            <Link href="/signup?redirectTo=/dashboard" className={`${a.btn} text-sm`}>
+              Create a free account
+            </Link>
+            <Link href="/dashboard" className="btn-secondary text-sm">
+              Go to your dashboard
+            </Link>
+          </div>
+          <p className="mt-3 text-xs text-slate">
+            An account keeps your services and reports in one place as they open.
           </p>
         </div>
       ) : (
