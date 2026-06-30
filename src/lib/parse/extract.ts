@@ -24,17 +24,40 @@ export interface ExtractedFields {
   trim?: string;
   mileage?: string;
   vin?: string;
+  /** Condition as stated: new / used / cpo / demo / rental. */
+  condition?: string;
+  /** Exterior color. */
+  color?: string;
   vehiclePrice?: string;
   apr?: string;
   termMonths?: string;
   monthlyPayment?: string;
   warrantyPrice?: string;
+  /** Dealer-stated "total vehicle price" line (for math cross-check). */
+  totalVehiclePrice?: string;
+  /** Dealer-stated "balance due on delivery" (for math cross-check). */
+  balanceDue?: string;
+  /** The dealership's name. */
+  dealerName?: string;
+  /** The dealership's street address. */
+  dealerAddress?: string;
+  /** The dealership's phone number. */
+  dealerPhone?: string;
+  /** The salesperson named on the order. */
+  salesperson?: string;
+  /** The dealer stock number for the vehicle. */
+  stockNumber?: string;
   /** The dealership's ZIP code, used as a fallback to resolve the deal's state. */
   dealerZip?: string;
   /** Two-letter state of the dealer/sale, used to resolve tax & doc-fee rules. */
   dealerState?: string;
   /** A deposit / down payment already submitted with the order. */
   deposit?: string;
+  /** Trade-in vehicle identity, when a trade is on the order. */
+  tradeYear?: string;
+  tradeMake?: string;
+  tradeModel?: string;
+  tradeMileage?: string;
   fees?: { label: string; amount: number }[];
   /** Optional F&I products (GAP, maintenance, tire & wheel, …) listed on the
    *  paperwork. Separated from fees so they land in the add-ons section. */
@@ -113,14 +136,24 @@ Return a single JSON object (no prose, no code fences) with these keys, omitting
 {
   "year": number, "make": string, "model": string, "trim": string,
   "mileage": number, "vin": string,
+  "condition": string,               // "new", "used", "cpo", "demo", or "rental" — whichever box/word is marked
+  "color": string,                   // exterior color, if shown
   "vehiclePrice": number,            // the vehicle sale/selling price before fees
   "apr": number,                     // financing APR as a percent, e.g. 9.9 — ONLY if a real rate is shown
   "termMonths": number,              // financing term in months — ONLY a real term (e.g. 36, 60, 72); ignore placeholder/blank values like 0 or 1
   "monthlyPayment": number,
   "deposit": number,                 // any deposit / down payment / cash submitted with the order
+  "totalVehiclePrice": number,       // the document's stated "total vehicle price" subtotal (price + fees + taxes), if shown
+  "balanceDue": number,              // the document's stated "balance due on delivery" / total balance, if shown
   "warrantyPrice": number,           // price of any vehicle service contract / extended warranty, under ANY name: VSC, extended service plan/contract (ESP/ESC), mechanical breakdown insurance (MBI), a manufacturer plan (e.g. Honda Care, Ford Protect/PremiumCARE, GM Protection Plan, Mopar MaxCare, Nissan Security+Plus, Subaru Added Security), or a provider plan (e.g. Endurance, Zurich, Ally Premier Protection, Fidelity, Assurant, CarShield). NOT GAP, tire & wheel, key, or paint/fabric protection.
+  "dealerName": string,              // the dealership's name, from its letterhead/footer
+  "dealerAddress": string,           // the dealership's street address (street, city, state ZIP)
+  "dealerPhone": string,             // the dealership's phone number
+  "salesperson": string,             // the salesperson named on the order
+  "stockNumber": string,             // the dealer stock number (STOCK NO.) for the vehicle
   "dealerZip": string,               // the dealership's 5-digit ZIP code, from its address/letterhead/footer — extract it whenever any address is shown
   "dealerState": string,             // the dealership's 2-letter state code (e.g. MD, CA), from its address/letterhead/footer
+  "tradeYear": number, "tradeMake": string, "tradeModel": string, "tradeMileage": number,  // the TRADE-IN vehicle's identity, only if a trade-in is described
   "fees": [ { "label": string, "amount": number } ],   // dealer & government CHARGES only: doc/processing fee, freight/destination, applicable taxes, title/registration, tag, dealer prep, nitrogen, VIN etch, market adjustment, etc.
   "addOns": [ { "label": string, "amount": number } ]  // OPTIONAL F&I PRODUCTS sold separately: GAP / guaranteed asset protection, prepaid/scheduled maintenance or service-maintenance contract, tire & wheel / road hazard, key replacement, GPS/LoJack. Put these here, NOT in fees. Skip any line marked DECLINED or N/A.
 }
@@ -215,14 +248,27 @@ export function normalize(raw: Record<string, unknown>): ExtractedFields {
     trim: s(raw.trim),
     mileage: s(raw.mileage),
     vin: s(raw.vin),
+    condition: s(raw.condition)?.toLowerCase(),
+    color: s(raw.color),
     vehiclePrice: s(raw.vehiclePrice),
     apr: s(raw.apr),
     termMonths: plausibleTerm(raw.termMonths),
     monthlyPayment: s(raw.monthlyPayment),
     deposit: s(raw.deposit),
+    totalVehiclePrice: s(raw.totalVehiclePrice),
+    balanceDue: s(raw.balanceDue),
     warrantyPrice: s(raw.warrantyPrice),
+    dealerName: s(raw.dealerName),
+    dealerAddress: s(raw.dealerAddress),
+    dealerPhone: s(raw.dealerPhone),
+    salesperson: s(raw.salesperson),
+    stockNumber: s(raw.stockNumber),
     dealerZip: s(raw.dealerZip),
     dealerState: stateCode(raw.dealerState),
+    tradeYear: s(raw.tradeYear),
+    tradeMake: s(raw.tradeMake),
+    tradeModel: s(raw.tradeModel),
+    tradeMileage: s(raw.tradeMileage),
   };
 
   // Optional F&I products the model already separated out.

@@ -45,4 +45,38 @@ describe("normalizeDealInput", () => {
     const noTrade = normalizeDealInput({ trade: {} });
     expect(noTrade.trade).toBeNull();
   });
+
+  it("builds a trade object from trade-vehicle identity alone (no dollars)", () => {
+    const d = normalizeDealInput({
+      trade: { year: "2018", make: "Honda", model: "Civic", mileage: "62,000" },
+    });
+    expect(d.trade).toMatchObject({
+      year: 2018,
+      make: "Honda",
+      model: "Civic",
+      mileage: 62000,
+    });
+  });
+
+  it("captures condition, color, dealer identity, and stated totals", () => {
+    const d = normalizeDealInput({
+      vehicle: { make: "Toyota", model: "Camry", condition: "new", color: "Blue" },
+      pricing: { vehiclePrice: "40509", totalVehiclePrice: "45693.61", balanceDue: "52260" },
+      dealerName: "Waldorf Toyota",
+      dealerAddress: "2600 Crain Highway, Waldorf, MD 20601",
+      dealerPhone: "301-843-3700",
+      salesperson: "Swann, D'Marius",
+      stockNumber: "00N40400",
+    });
+    expect(d.vehicle.condition).toBe("new");
+    expect(d.vehicle.color).toBe("Blue");
+    expect(d.pricing.totalVehiclePrice).toBe(45693.61);
+    expect(d.pricing.balanceDue).toBe(52260);
+    expect(d.sourceMetadata).toMatchObject({
+      dealerName: "Waldorf Toyota",
+      dealerPhone: "301-843-3700",
+      salesperson: "Swann, D'Marius",
+      stockNumber: "00N40400",
+    });
+  });
 });

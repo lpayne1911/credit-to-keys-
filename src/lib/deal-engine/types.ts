@@ -28,6 +28,10 @@ export interface NormalizedVehicle {
   trim: string | null;
   mileage: number | null;
   vin: string | null;
+  /** Condition as stated on the order: new / used / cpo / demo / rental. */
+  condition: string | null;
+  /** Exterior color, when shown. */
+  color: string | null;
 }
 
 export interface NormalizedPricing {
@@ -43,6 +47,10 @@ export interface NormalizedPricing {
   outTheDoor: number | null;
   /** Cash down payment. */
   downPayment: number | null;
+  /** Dealer-stated "total vehicle price" line, kept for cross-checking math. */
+  totalVehiclePrice: number | null;
+  /** Dealer-stated "balance due on delivery", kept for cross-checking math. */
+  balanceDue: number | null;
 }
 
 export interface NormalizedFinance {
@@ -62,6 +70,11 @@ export interface NormalizedTrade {
   estimatedValue: number | null;
   /** Remaining loan balance on the trade. */
   loanPayoff: number | null;
+  /** Identity of the trade-in vehicle, when stated on the order. */
+  year: number | null;
+  make: string | null;
+  model: string | null;
+  mileage: number | null;
 }
 
 export interface NormalizedFeeLine {
@@ -81,6 +94,14 @@ export interface SourceMetadata {
   uploadedFilePath: string | null;
   documentUploaded: boolean;
   dealerName: string | null;
+  /** Dealer street address, when shown on the paperwork. */
+  dealerAddress: string | null;
+  /** Dealer phone number, when shown. */
+  dealerPhone: string | null;
+  /** Salesperson named on the order. */
+  salesperson: string | null;
+  /** Dealer stock number for the vehicle. */
+  stockNumber: string | null;
   /** Explicit purchase/buyer state (two-letter). */
   buyerState: string | null;
   dealerZip: string | null;

@@ -33,7 +33,13 @@ interface FormState {
   vehicle: VehicleValue;
   mileage: string;
   vin: string;
+  condition: string;
+  color: string;
   dealerName: string;
+  dealerAddress: string;
+  dealerPhone: string;
+  salesperson: string;
+  stockNumber: string;
   buyerState: string;
   dealerZip: string;
   registrationZip: string;
@@ -43,6 +49,8 @@ interface FormState {
   rebates: string;
   outTheDoor: string;
   downPayment: string;
+  totalVehiclePrice: string;
+  balanceDue: string;
   fees: LineItem[];
   addOns: LineItem[];
   apr: string;
@@ -53,6 +61,10 @@ interface FormState {
   tradeOffer: string;
   tradeEstimatedValue: string;
   tradeLoanPayoff: string;
+  tradeYear: string;
+  tradeMake: string;
+  tradeModel: string;
+  tradeMileage: string;
   alreadySigned: boolean;
 }
 
@@ -60,7 +72,13 @@ const EMPTY: FormState = {
   vehicle: {},
   mileage: "",
   vin: "",
+  condition: "",
+  color: "",
   dealerName: "",
+  dealerAddress: "",
+  dealerPhone: "",
+  salesperson: "",
+  stockNumber: "",
   buyerState: "",
   dealerZip: "",
   registrationZip: "",
@@ -70,6 +88,8 @@ const EMPTY: FormState = {
   rebates: "",
   outTheDoor: "",
   downPayment: "",
+  totalVehiclePrice: "",
+  balanceDue: "",
   fees: [
     { label: "Doc fee", amount: "" },
     { label: "Title & registration", amount: "" },
@@ -83,6 +103,10 @@ const EMPTY: FormState = {
   tradeOffer: "",
   tradeEstimatedValue: "",
   tradeLoanPayoff: "",
+  tradeYear: "",
+  tradeMake: "",
+  tradeModel: "",
+  tradeMileage: "",
   alreadySigned: false,
 };
 
@@ -167,13 +191,26 @@ export function QuoteReviewIntakeForm() {
         },
         mileage: ex.mileage ?? f.mileage,
         vin: ex.vin ?? f.vin,
+        condition: ex.condition ?? f.condition,
+        color: ex.color ?? f.color,
+        dealerName: ex.dealerName ?? f.dealerName,
+        dealerAddress: ex.dealerAddress ?? f.dealerAddress,
+        dealerPhone: ex.dealerPhone ?? f.dealerPhone,
+        salesperson: ex.salesperson ?? f.salesperson,
+        stockNumber: ex.stockNumber ?? f.stockNumber,
         dealerZip: ex.dealerZip ?? f.dealerZip,
         buyerState: ex.dealerState ?? f.buyerState,
         vehiclePrice: ex.vehiclePrice ?? f.vehiclePrice,
         downPayment: ex.deposit ?? f.downPayment,
+        totalVehiclePrice: ex.totalVehiclePrice ?? f.totalVehiclePrice,
+        balanceDue: ex.balanceDue ?? f.balanceDue,
         apr: ex.apr ?? f.apr,
         termMonths: ex.termMonths ?? f.termMonths,
         monthlyPayment: ex.monthlyPayment ?? f.monthlyPayment,
+        tradeYear: ex.tradeYear ?? f.tradeYear,
+        tradeMake: ex.tradeMake ?? f.tradeMake,
+        tradeModel: ex.tradeModel ?? f.tradeModel,
+        tradeMileage: ex.tradeMileage ?? f.tradeMileage,
       };
       if (ex.fees && ex.fees.length > 0) {
         next.fees = ex.fees.map((fee) => ({
@@ -272,6 +309,8 @@ export function QuoteReviewIntakeForm() {
           trim: form.vehicle.trim,
           mileage: form.mileage,
           vin: form.vin,
+          condition: form.condition,
+          color: form.color,
         },
         pricing: {
           vehiclePrice: form.vehiclePrice,
@@ -280,6 +319,8 @@ export function QuoteReviewIntakeForm() {
           rebates: form.rebates,
           outTheDoor: form.outTheDoor,
           downPayment: form.downPayment,
+          totalVehiclePrice: form.totalVehiclePrice,
+          balanceDue: form.balanceDue,
         },
         fees: form.fees
           .filter((l) => l.label.trim() || l.amount.trim())
@@ -295,14 +336,28 @@ export function QuoteReviewIntakeForm() {
           creditBand: form.creditBand,
         },
         trade:
-          form.tradeOffer || form.tradeEstimatedValue || form.tradeLoanPayoff
+          form.tradeOffer ||
+          form.tradeEstimatedValue ||
+          form.tradeLoanPayoff ||
+          form.tradeYear ||
+          form.tradeMake ||
+          form.tradeModel ||
+          form.tradeMileage
             ? {
                 offer: form.tradeOffer,
                 estimatedValue: form.tradeEstimatedValue,
                 loanPayoff: form.tradeLoanPayoff,
+                year: form.tradeYear === "" ? undefined : form.tradeYear,
+                make: form.tradeMake,
+                model: form.tradeModel,
+                mileage: form.tradeMileage,
               }
             : undefined,
         dealerName: form.dealerName,
+        dealerAddress: form.dealerAddress,
+        dealerPhone: form.dealerPhone,
+        salesperson: form.salesperson,
+        stockNumber: form.stockNumber,
         buyerState: form.buyerState,
         dealerZip: form.dealerZip,
         registrationZip: form.registrationZip,
@@ -413,6 +468,22 @@ export function QuoteReviewIntakeForm() {
         <div className="grid grid-cols-2 gap-3">
           <Field label="Mileage" value={form.mileage} inputMode="numeric" onChange={(v) => set("mileage", v)} />
           <Field label="VIN (optional)" value={form.vin} onChange={(v) => set("vin", v)} />
+          <label className="block">
+            <span className="field-label">Condition</span>
+            <select
+              className="field-input"
+              value={form.condition}
+              onChange={(e) => set("condition", e.target.value)}
+            >
+              <option value="">I don&apos;t know</option>
+              <option value="new">New</option>
+              <option value="used">Used</option>
+              <option value="cpo">Certified pre-owned</option>
+              <option value="demo">Demo</option>
+              <option value="rental">Previous rental</option>
+            </select>
+          </label>
+          <Field label="Color (optional)" value={form.color} onChange={(v) => set("color", v)} />
         </div>
       </section>
 
@@ -420,6 +491,12 @@ export function QuoteReviewIntakeForm() {
       <section className="card space-y-3">
         <h2 className="font-serif text-lg font-semibold text-navy">Dealer &amp; location</h2>
         <Field label="Dealer name (optional)" value={form.dealerName} onChange={(v) => set("dealerName", v)} />
+        <Field label="Dealer address (optional)" value={form.dealerAddress} onChange={(v) => set("dealerAddress", v)} />
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Salesperson (optional)" value={form.salesperson} onChange={(v) => set("salesperson", v)} />
+          <Field label="Stock # (optional)" value={form.stockNumber} onChange={(v) => set("stockNumber", v)} />
+          <Field label="Dealer phone (optional)" value={form.dealerPhone} inputMode="numeric" onChange={(v) => set("dealerPhone", v)} />
+        </div>
         <div className="grid grid-cols-3 gap-3">
           <Field label="State" value={form.buyerState} placeholder="CA" onChange={(v) => set("buyerState", v)} />
           <Field label="Dealer ZIP" value={form.dealerZip} inputMode="numeric" onChange={(v) => set("dealerZip", v)} />
@@ -436,8 +513,14 @@ export function QuoteReviewIntakeForm() {
           <Field label="Dealer discount" value={form.dealerDiscount} inputMode="decimal" onChange={(v) => set("dealerDiscount", v)} />
           <Field label="Rebates" value={form.rebates} inputMode="decimal" onChange={(v) => set("rebates", v)} />
           <Field label="Out-the-door price" value={form.outTheDoor} inputMode="decimal" onChange={(v) => set("outTheDoor", v)} />
-          <Field label="Down payment" value={form.downPayment} inputMode="decimal" onChange={(v) => set("downPayment", v)} />
+          <Field label="Down payment / deposit" value={form.downPayment} inputMode="decimal" onChange={(v) => set("downPayment", v)} />
+          <Field label="Dealer-stated total (optional)" value={form.totalVehiclePrice} inputMode="decimal" onChange={(v) => set("totalVehiclePrice", v)} />
+          <Field label="Balance due (optional)" value={form.balanceDue} inputMode="decimal" onChange={(v) => set("balanceDue", v)} />
         </div>
+        <p className="text-xs text-navy/45">
+          &ldquo;Dealer-stated total&rdquo; and &ldquo;Balance due&rdquo; are the totals printed on
+          your order — we use them to double-check the math, not to score you.
+        </p>
       </section>
 
       {/* Fees */}
@@ -513,6 +596,12 @@ export function QuoteReviewIntakeForm() {
       {/* Trade-in */}
       <section className="card space-y-3">
         <h2 className="font-serif text-lg font-semibold text-navy">Trade-in (optional)</h2>
+        <div className="grid grid-cols-4 gap-3">
+          <Field label="Year" value={form.tradeYear} inputMode="numeric" onChange={(v) => set("tradeYear", v)} />
+          <Field label="Make" value={form.tradeMake} onChange={(v) => set("tradeMake", v)} />
+          <Field label="Model" value={form.tradeModel} onChange={(v) => set("tradeModel", v)} />
+          <Field label="Miles" value={form.tradeMileage} inputMode="numeric" onChange={(v) => set("tradeMileage", v)} />
+        </div>
         <div className="grid grid-cols-3 gap-3">
           <Field label="Dealer offer" value={form.tradeOffer} inputMode="decimal" onChange={(v) => set("tradeOffer", v)} />
           <Field label="Your value" value={form.tradeEstimatedValue} inputMode="decimal" onChange={(v) => set("tradeEstimatedValue", v)} />

@@ -32,6 +32,18 @@ function money(n: number | null | undefined): string {
   });
 }
 
+const CONDITION_LABELS: Record<string, string> = {
+  new: "New",
+  used: "Used",
+  cpo: "Certified pre-owned",
+  demo: "Demo",
+  rental: "Previous rental",
+};
+
+function titleCase(s: string): string {
+  return CONDITION_LABELS[s.toLowerCase()] ?? s.charAt(0).toUpperCase() + s.slice(1);
+}
+
 function Section({
   title,
   children,
@@ -130,18 +142,47 @@ export function DealReviewView({ result }: { result: DealReviewResult }) {
             label="Vehicle"
             value={result.vehicleLabel}
           />
+          {deal.vehicle.condition ? (
+            <Row label="Condition" value={titleCase(deal.vehicle.condition)} />
+          ) : null}
+          {deal.vehicle.color ? <Row label="Color" value={deal.vehicle.color} /> : null}
           {deal.vehicle.mileage != null ? (
             <Row label="Mileage" value={`${deal.vehicle.mileage.toLocaleString()} mi`} />
           ) : null}
           {deal.vehicle.vin ? <Row label="VIN" value={deal.vehicle.vin} /> : null}
-          {deal.sourceMetadata.dealerName ? (
-            <Row label="Dealer" value={deal.sourceMetadata.dealerName} />
-          ) : null}
-          {deal.sourceMetadata.buyerState ? (
-            <Row label="State" value={deal.sourceMetadata.buyerState} />
-          ) : null}
         </div>
       </Section>
+
+      {/* ---- Dealer & sale ------------------------------------------------ */}
+      {deal.sourceMetadata.dealerName ||
+      deal.sourceMetadata.dealerAddress ||
+      deal.sourceMetadata.dealerPhone ||
+      deal.sourceMetadata.salesperson ||
+      deal.sourceMetadata.stockNumber ||
+      deal.sourceMetadata.buyerState ? (
+        <Section title="Dealer & sale">
+          <div className="divide-y divide-navy/5">
+            {deal.sourceMetadata.dealerName ? (
+              <Row label="Dealer" value={deal.sourceMetadata.dealerName} />
+            ) : null}
+            {deal.sourceMetadata.dealerAddress ? (
+              <Row label="Address" value={deal.sourceMetadata.dealerAddress} />
+            ) : null}
+            {deal.sourceMetadata.dealerPhone ? (
+              <Row label="Phone" value={deal.sourceMetadata.dealerPhone} />
+            ) : null}
+            {deal.sourceMetadata.salesperson ? (
+              <Row label="Salesperson" value={deal.sourceMetadata.salesperson} />
+            ) : null}
+            {deal.sourceMetadata.stockNumber ? (
+              <Row label="Stock #" value={deal.sourceMetadata.stockNumber} />
+            ) : null}
+            {deal.sourceMetadata.buyerState ? (
+              <Row label="State" value={deal.sourceMetadata.buyerState} />
+            ) : null}
+          </div>
+        </Section>
+      ) : null}
 
       {/* ---- MarketCheck snapshot (only when available) -------------------- */}
       {marketValue ? (
@@ -183,8 +224,39 @@ export function DealReviewView({ result }: { result: DealReviewResult }) {
           <Row label="Total fees" value={money(math.totalFees)} />
           <Row label="Total add-ons" value={money(math.totalAddOns)} />
           <Row label="Down payment" value={money(deal.pricing.downPayment)} />
+          {deal.pricing.totalVehiclePrice != null ? (
+            <Row label="Dealer-stated total" value={money(deal.pricing.totalVehiclePrice)} />
+          ) : null}
+          {deal.pricing.balanceDue != null ? (
+            <Row label="Balance due (stated)" value={money(deal.pricing.balanceDue)} />
+          ) : null}
           <Row label="Est. amount financed" value={money(math.estimatedAmountFinanced)} />
         </div>
+        {(() => {
+          // Cross-check our reconstructed financed amount against the figure the
+          // dealer printed. A gap means a line was missed on one side — worth a
+          // question before signing, not a verdict.
+          const stated = deal.pricing.balanceDue;
+          const ours = math.estimatedAmountFinanced;
+          if (stated == null || ours == null) return null;
+          const diff = Math.round(ours - stated);
+          if (Math.abs(diff) < 50) {
+            return (
+              <p className="mt-3 text-sm text-navy/60">
+                Our reconstructed amount financed matches the balance due printed on
+                your order.
+              </p>
+            );
+          }
+          return (
+            <p className="mt-3 rounded-lg bg-verdict-amber/10 px-3 py-2 text-sm text-navy/80">
+              Our reconstructed amount financed is {money(Math.abs(diff))}{" "}
+              {diff > 0 ? "more" : "less"} than the balance due printed on your order
+              ({money(stated)}). Ask the dealer to itemize the difference before
+              signing.
+            </p>
+          );
+        })()}
       </Section>
 
       {/* ---- Fee Breakdown ------------------------------------------------ */}
@@ -311,6 +383,14 @@ export function DealReviewView({ result }: { result: DealReviewResult }) {
       {deal.trade ? (
         <Section title="Trade-in review">
           <div className="divide-y divide-navy/5">
+            {(() => {
+              const t = deal.trade;
+              const label = [t.year, t.make, t.model].filter(Boolean).join(" ");
+              return label ? <Row label="Trade vehicle" value={label} /> : null;
+            })()}
+            {deal.trade.mileage != null ? (
+              <Row label="Trade mileage" value={`${deal.trade.mileage.toLocaleString()} mi`} />
+            ) : null}
             <Row label="Dealer offer" value={money(deal.trade.offer)} />
             {deal.trade.estimatedValue != null ? (
               <Row label="Your researched value" value={money(deal.trade.estimatedValue)} />
