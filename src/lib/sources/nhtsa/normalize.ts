@@ -7,7 +7,7 @@ import type {
   RawRecall,
   RawRecallsResponse,
 } from "./connector";
-import type { Recall, SafetyRating } from "./types";
+import type { Recall, SafetyRating, SafetySignals } from "./types";
 
 function clean(s: string | undefined): string {
   return (s ?? "").trim();
@@ -54,6 +54,36 @@ export function parseRecalls(raw: RawRecallsResponse | null): Recall[] {
     .map(parseRecall)
     .filter((r) => r.campaignId || r.component || r.summary)
     .sort((a, b) => recallDateValue(b.reportDate) - recallDateValue(a.reportDate));
+}
+
+function count(n: number | undefined): number | null {
+  return typeof n === "number" && Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+function equip(s: string | undefined): string | null {
+  const v = clean(s);
+  return v ? v : null;
+}
+
+/** Map the vehicle-level signals (complaints, investigations, driver-assist
+ *  equipment) from the same NCAP detail. Null when nothing is reported — an
+ *  honest blank, never fabricated. */
+export function parseSignals(raw: RawRatingDetail | null): SafetySignals | null {
+  if (!raw) return null;
+  const signals: SafetySignals = {
+    complaints: count(raw.ComplaintsCount),
+    investigations: count(raw.InvestigationCount),
+    forwardCollisionWarning: equip(raw.NHTSAForwardCollisionWarning),
+    laneDepartureWarning: equip(raw.NHTSALaneDepartureWarning),
+    electronicStabilityControl: equip(raw.NHTSAElectronicStabilityControl),
+  };
+  const hasAny =
+    signals.complaints != null ||
+    signals.investigations != null ||
+    signals.forwardCollisionWarning != null ||
+    signals.laneDepartureWarning != null ||
+    signals.electronicStabilityControl != null;
+  return hasAny ? signals : null;
 }
 
 /** Map the NCAP detail to stars, or null when nothing is actually rated. */

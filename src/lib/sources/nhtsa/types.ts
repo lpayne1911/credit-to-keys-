@@ -35,11 +35,23 @@ export interface SafetyRating {
   rollover: number | null;
 }
 
+/** Vehicle-level safety signals from the same NCAP detail response — owner
+ *  complaints, open investigations, and standard driver-assist equipment. */
+export interface SafetySignals {
+  complaints: number | null;
+  investigations: number | null;
+  /** "Standard" | "Optional" | null per system. */
+  forwardCollisionWarning: string | null;
+  laneDepartureWarning: string | null;
+  electronicStabilityControl: string | null;
+}
+
 /** The normalized safety picture for one vehicle. Null fields/empty arrays are
  *  honest "nothing reported", never fabricated. */
 export interface SafetyReport {
   recalls: Recall[];
   ratings: SafetyRating | null;
+  signals: SafetySignals | null;
   source: {
     provider: "nhtsa";
     fetchedAt: string;

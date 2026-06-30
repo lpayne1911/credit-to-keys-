@@ -29,12 +29,14 @@ describe("buildSafetyReport", () => {
       results: [{ NHTSACampaignNumber: "23V456000", Component: "BRAKES", Summary: "x" }],
     });
     mockVariants.mockResolvedValue([{ VehicleId: 999, VehicleDescription: "2021 Toyota Camry" }]);
-    mockDetail.mockResolvedValue({ OverallRating: "5" });
+    mockDetail.mockResolvedValue({ OverallRating: "5", ComplaintsCount: 639, InvestigationCount: 2 });
 
     const report = await buildSafetyReport(2021, "Toyota", "Camry");
     expect(report).not.toBeNull();
     expect(report!.recalls).toHaveLength(1);
     expect(report!.ratings?.overall).toBe(5);
+    expect(report!.signals?.investigations).toBe(2);
+    expect(report!.signals?.complaints).toBe(639);
     expect(report!.source.provider).toBe("nhtsa");
   });
 
