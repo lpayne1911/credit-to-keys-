@@ -13,11 +13,11 @@
  *  real OCR / document-LLM provider drops in there with zero route changes.
  * ---------------------------------------------------------------------------
  */
-import { NextResponse } from "next/server";
 import { getServiceClient } from "@/lib/supabase/server";
 import { extractFields, getExtractor, type ExtractedFields } from "@/lib/parse/extract";
 import { rateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import { sniffUpload } from "@/lib/parse/sniff-upload";
+import { apiError, apiOk } from "@/lib/api-response";
 
 // The extractor calls a Claude model — needs the Node runtime (not edge) and a
 // longer budget than the default serverless timeout.
@@ -31,28 +31,24 @@ export async function POST(req: Request) {
   // endpoint can't be looped to fill the bucket or run up extraction cost.
   const limit = await rateLimit(req, { key: "parse-upload", limit: 10, windowMs: 10 * 60_000 });
   if (!limit.ok) {
-    return NextResponse.json(
-      { error: "Too many uploads. Please wait a bit and try again." },
-      { status: 429, headers: rateLimitHeaders(limit) },
-    );
+    return apiError("rate_limited", "Too many uploads. Please wait a bit and try again.", {
+      headers: rateLimitHeaders(limit),
+    });
   }
 
   let form: FormData;
   try {
     form = await req.formData();
   } catch {
-    return NextResponse.json({ error: "Expected a file upload." }, { status: 400 });
+    return apiError("validation", "Expected a file upload.", { status: 400 });
   }
 
   const file = form.get("file");
   if (!(file instanceof File)) {
-    return NextResponse.json({ error: "No file received." }, { status: 400 });
+    return apiError("validation", "No file received.", { status: 400 });
   }
   if (file.size > MAX_BYTES) {
-    return NextResponse.json(
-      { error: "That file is too large (max 15 MB)." },
-      { status: 413 },
-    );
+    return apiError("payload_too_large", "That file is too large (max 15 MB).");
   }
 
   // Read the file once; reuse the bytes for both storage and extraction.
@@ -65,10 +61,7 @@ export async function POST(req: Request) {
   // and removes any path-traversal/odd characters from the storage key.
   const sniffed = sniffUpload(bytes);
   if (!sniffed) {
-    return NextResponse.json(
-      { error: "Please upload an image or a PDF of your quote." },
-      { status: 415 },
-    );
+    return apiError("unsupported_media", "Please upload an image or a PDF of your quote.");
   }
   const contentType = sniffed.contentType;
 
@@ -100,7 +93,7 @@ export async function POST(req: Request) {
   }
   const gotAnything = Object.keys(extracted).length > 0;
 
-  return NextResponse.json({
+  return apiOk({
     uploadedFilePath,
     extracted,
     // Diagnostics so the UI can explain WHY autofill produced nothing.

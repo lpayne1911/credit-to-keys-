@@ -7,7 +7,6 @@
  * configured, we still return the scored verdict so the app is usable — we just
  * can't persist or offer a shareable link / human review.
  */
-import { NextResponse } from "next/server";
 import { scoreDeal } from "@/lib/fairness-engine";
 import { reviewFees } from "@/lib/fee-classifier";
 import { toFairnessInput, toDealRow } from "@/lib/deal-mapper";
@@ -18,6 +17,7 @@ import { isConfigured as isMarketCheckConfigured } from "@/lib/sources/marketche
 import { rateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import { getBuyer } from "@/lib/buyer-auth";
 import { ensureCaseForDeal } from "@/lib/cases";
+import { apiError, apiOk } from "@/lib/api-response";
 
 export const runtime = "nodejs";
 
@@ -25,25 +25,21 @@ export async function POST(req: Request) {
   // Persists rows and may trigger a paid MarketCheck call — throttle per IP.
   const limit = await rateLimit(req, { key: "deals", limit: 30, windowMs: 5 * 60_000 });
   if (!limit.ok) {
-    return NextResponse.json(
-      { error: "Too many requests. Please slow down." },
-      { status: 429, headers: rateLimitHeaders(limit) },
-    );
+    return apiError("rate_limited", "Too many requests. Please slow down.", {
+      headers: rateLimitHeaders(limit),
+    });
   }
 
   let raw: unknown;
   try {
     raw = await req.json();
   } catch {
-    return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
+    return apiError("invalid_json", "Invalid JSON body.");
   }
 
   const parsed = dealSubmissionSchema.safeParse(raw);
   if (!parsed.success) {
-    return NextResponse.json(
-      { error: "That submission didn't look right. Please check your entries." },
-      { status: 422 },
-    );
+    return apiError("validation", "That submission didn't look right. Please check your entries.");
   }
   const body = parsed.data;
 
@@ -65,10 +61,7 @@ export async function POST(req: Request) {
       input.tradeIn,
   );
   if (!hasSubstance) {
-    return NextResponse.json(
-      { error: "Please enter at least one detail about your deal." },
-      { status: 422 },
-    );
+    return apiError("validation", "Please enter at least one detail about your deal.");
   }
 
   // Feed a REAL MarketCheck snapshot into the score when configured. We only
@@ -108,7 +101,7 @@ export async function POST(req: Request) {
   const supabase = getServiceClient();
   if (!supabase) {
     // Not configured — return the verdict for inline display, no persistence.
-    return NextResponse.json({ id: null, result, feeRisk, persisted: false });
+    return apiOk({ id: null, result, feeRisk, persisted: false });
   }
 
   try {
@@ -136,7 +129,7 @@ export async function POST(req: Request) {
 
     if (dealErr || !deal) {
       // Persistence failed — degrade gracefully, still return the verdict.
-      return NextResponse.json({ id: null, result, feeRisk, persisted: false });
+      return apiOk({ id: null, result, feeRisk, persisted: false });
     }
 
     // Mirror flags into the normalized findings table for the console.
@@ -171,8 +164,8 @@ export async function POST(req: Request) {
       }
     }
 
-    return NextResponse.json({ id: deal.id, result, feeRisk, persisted: true });
+    return apiOk({ id: deal.id, result, feeRisk, persisted: true });
   } catch {
-    return NextResponse.json({ id: null, result, feeRisk, persisted: false });
+    return apiOk({ id: null, result, feeRisk, persisted: false });
   }
 }
