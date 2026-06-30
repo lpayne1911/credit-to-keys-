@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getBuyer } from "@/lib/buyer-auth";
 import { listCasesForUser, listEngagementsForUser } from "@/lib/cases";
 import { billingSummary, billingIsEmpty } from "@/lib/billing/derive";
+import { isPaymentsEnabled, PAYMENTS_PLACEHOLDER_NOTE } from "@/lib/billing/payments";
 import { SERVICE_LABEL, SERVICE_HREF } from "@/lib/dashboard/labels";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import type { CaseRow } from "@/lib/types";
@@ -52,6 +53,7 @@ export default async function BillingPage() {
   ]);
   const summary = billingSummary(engagements, cases);
   const empty = billingIsEmpty(summary);
+  const paymentsEnabled = isPaymentsEnabled();
 
   return (
     <DashboardShell>
@@ -85,6 +87,18 @@ export default async function BillingPage() {
               <Section title="Payment due">
                 <p className="mt-1 text-sm text-slate">Delivered work — a charge may be captured for these.</p>
                 <CaseRows cases={summary.paymentDue} note={() => "Delivered"} />
+                {/* Payments placeholder — Stripe is wired before launch. */}
+                <div className="mt-3 flex flex-col items-start gap-2 rounded-2xl border border-dashed border-edge-strong bg-cream-100 p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-sm text-slate">{PAYMENTS_PLACEHOLDER_NOTE}</p>
+                  <button
+                    type="button"
+                    disabled={!paymentsEnabled}
+                    className="btn-primary cursor-not-allowed opacity-60"
+                    aria-disabled={!paymentsEnabled}
+                  >
+                    {paymentsEnabled ? "Pay now" : "Pay (opens before launch)"}
+                  </button>
+                </div>
               </Section>
             )}
 
