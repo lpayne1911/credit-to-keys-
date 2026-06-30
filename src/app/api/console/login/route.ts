@@ -6,11 +6,11 @@
  * a valid Supabase user who is NOT an active operator is signed back out and
  * refused — authentication alone never grants console access.
  */
-import { NextResponse } from "next/server";
 import { getConsoleClient } from "@/lib/supabase/ssr";
 import { isConsoleConfigured, getConsoleOperator } from "@/lib/console-auth";
 import { loginSchema } from "@/lib/schemas";
 import { rateLimit, rateLimitHeaders } from "@/lib/rate-limit";
+import { apiError, apiOk } from "@/lib/api-response";
 
 export const runtime = "nodejs";
 
@@ -18,27 +18,23 @@ export async function POST(req: Request) {
   // Brute-force brake on credential stuffing / password guessing, per IP.
   const limit = await rateLimit(req, { key: "console-login", limit: 10, windowMs: 10 * 60_000 });
   if (!limit.ok) {
-    return NextResponse.json(
-      { ok: false, error: "Too many attempts. Please wait and try again." },
-      { status: 429, headers: rateLimitHeaders(limit) },
-    );
+    return apiError("rate_limited", "Too many attempts. Please wait and try again.", {
+      headers: rateLimitHeaders(limit),
+    });
   }
 
   if (!isConsoleConfigured()) {
-    return NextResponse.json(
-      { ok: false, error: "Console auth isn't configured on the server." },
-      { status: 503 },
-    );
+    return apiError("unavailable", "Console auth isn't configured on the server.");
   }
 
   const parsed = loginSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
-    return NextResponse.json({ ok: false, error: "Enter a valid email and password." }, { status: 400 });
+    return apiError("validation", "Enter a valid email and password.", { status: 400 });
   }
 
   const supabase = getConsoleClient();
   if (!supabase) {
-    return NextResponse.json({ ok: false, error: "Server error." }, { status: 500 });
+    return apiError("server_error", "Server error.");
   }
 
   const { data, error } = await supabase.auth.signInWithPassword({
@@ -47,7 +43,7 @@ export async function POST(req: Request) {
   });
   // Generic message — don't reveal whether the email exists.
   if (error || !data.user) {
-    return NextResponse.json({ ok: false, error: "Incorrect email or password." }, { status: 401 });
+    return apiError("unauthorized", "Incorrect email or password.");
   }
 
   // Authorization: must resolve to an active operator (email allowlist). The
@@ -55,11 +51,8 @@ export async function POST(req: Request) {
   const operator = await getConsoleOperator();
   if (!operator) {
     await supabase.auth.signOut();
-    return NextResponse.json(
-      { ok: false, error: "This account isn't authorized for the review console." },
-      { status: 403 },
-    );
+    return apiError("forbidden", "This account isn't authorized for the review console.");
   }
 
-  return NextResponse.json({ ok: true });
+  return apiOk({});
 }

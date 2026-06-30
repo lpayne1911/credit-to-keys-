@@ -12,8 +12,8 @@
  *  - Basic per-instance rate limiting as defense-in-depth.
  *  - Not linked anywhere in the app's navigation.
  */
-import { NextResponse } from "next/server";
 import { detectWarrantyLineItem } from "@/lib/warranty/detect-warranty-line-item";
+import { apiError, apiOk } from "@/lib/api-response";
 
 export const runtime = "nodejs";
 
@@ -36,31 +36,28 @@ export async function POST(req: Request) {
   const secret = process.env.DIAGNOSTIC_SECRET;
   // Disabled unless explicitly configured — keeps it off in any env by default.
   if (!secret) {
-    return NextResponse.json({ error: "Not found." }, { status: 404 });
+    return apiError("not_found", "Not found.");
   }
   if (req.headers.get("x-diagnostic-secret") !== secret) {
-    return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+    return apiError("unauthorized", "Unauthorized.");
   }
   if (rateLimited(Date.now())) {
-    return NextResponse.json({ error: "Rate limited." }, { status: 429 });
+    return apiError("rate_limited", "Rate limited.");
   }
 
   let body: unknown;
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ error: "Expected a JSON body." }, { status: 400 });
+    return apiError("invalid_json", "Expected a JSON body.");
   }
   const text = (body as { text?: unknown })?.text;
   if (typeof text !== "string" || !text.trim()) {
-    return NextResponse.json(
-      { error: 'Body must be { "text": "<line item>" }.' },
-      { status: 400 },
-    );
+    return apiError("validation", 'Body must be { "text": "<line item>" }.', { status: 400 });
   }
 
   const d = detectWarrantyLineItem(text);
-  return NextResponse.json({
+  return apiOk({
     input: text,
     isWarrantyLike: d.isWarranty,
     matchedTerm: d.matchedTerm,
