@@ -420,6 +420,11 @@ export function QuoteReviewIntakeForm() {
             We&apos;ll read your paperwork and pre-fill what we can — you confirm the
             figures on the next screen before we score.
           </p>
+          <p className="mt-2 text-xs text-navy/45">
+            We don&apos;t store your name, date of birth, driver&apos;s license, or
+            insurance details — only the vehicle, pricing, and dealer figures from
+            the deal.
+          </p>
         </div>
 
         <div className="card">
@@ -623,6 +628,10 @@ export function QuoteReviewIntakeForm() {
       </button>
       <p className="text-center text-xs text-navy/45">
         Decision support, not legal or financial advice. You make the final decision.
+      </p>
+      <p className="text-center text-xs text-navy/40">
+        We don&apos;t store your name, date of birth, driver&apos;s license, or
+        insurance — just the vehicle, pricing, and dealer details.
       </p>
     </div>
   );

@@ -27,6 +27,7 @@ import { getServiceClient } from "@/lib/supabase/server";
 import { rateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import { getBuyer } from "@/lib/buyer-auth";
 import { ensureCaseForDeal } from "@/lib/cases";
+import { logMarketData } from "@/lib/market-data/log";
 
 export const runtime = "nodejs";
 
@@ -110,6 +111,9 @@ export async function POST(req: Request) {
 
   const result = buildDealReview(deal, { marketValue });
 
+  const inputPath: "manual" | "upload" =
+    deal.sourceMetadata.documentUploaded ? "upload" : "manual";
+
   const supabase = getServiceClient();
   if (!supabase) {
     // Not configured — return the result + a generated id for the workspace.
@@ -120,9 +124,11 @@ export async function POST(req: Request) {
     });
   }
 
+  // De-identified market-data capture (vehicle/pricing/dealer facts; no buyer
+  // identity, no account link). Best-effort and non-blocking.
+  void logMarketData(supabase, deal, result, inputPath);
+
   try {
-    const inputPath: "manual" | "upload" =
-      deal.sourceMetadata.documentUploaded ? "upload" : "manual";
     // Stamp ownership when the buyer is signed in (shows on their dashboard).
     const buyer = await getBuyer();
     const row = {
