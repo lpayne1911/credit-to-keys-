@@ -4,39 +4,36 @@
  * control. Returns 503 when persistence isn't configured so the UI can fail
  * gracefully instead of pretending it saved.
  */
-import { NextResponse } from "next/server";
 import { saveMarketSnapshot } from "@/lib/market-snapshots";
 import { isSupabaseConfigured } from "@/lib/supabase/server";
 import type { MarketCheckResponse } from "@/lib/sources/marketcheck/types";
+import { apiError, apiOk } from "@/lib/api-response";
 
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   if (!isSupabaseConfigured()) {
-    return NextResponse.json(
-      { error: "Saving reports isn't available right now." },
-      { status: 503 },
-    );
+    return apiError("unavailable", "Saving reports isn't available right now.");
   }
 
   let body: unknown;
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ error: "Expected a JSON body." }, { status: 400 });
+    return apiError("invalid_json", "Expected a JSON body.");
   }
 
   const response = (body as { result?: unknown })?.result ?? body;
   const r = response as Partial<MarketCheckResponse>;
   // Minimal shape check — a real report always carries these.
   if (!r || !r.vehicle || !r.snapshot || !r.source) {
-    return NextResponse.json({ error: "Not a valid report." }, { status: 422 });
+    return apiError("validation", "Not a valid report.");
   }
 
   const id = await saveMarketSnapshot(response as MarketCheckResponse);
   if (!id) {
-    return NextResponse.json({ error: "Could not save the report." }, { status: 502 });
+    return apiError("upstream_error", "Could not save the report.");
   }
 
-  return NextResponse.json({ id, url: `/r/${id}` });
+  return apiOk({ id, url: `/r/${id}` });
 }

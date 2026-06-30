@@ -11,13 +11,13 @@
  * intake form saves it to the on-device workspace for the /plan/[planId] page.
  */
 import { randomUUID } from "node:crypto";
-import { NextResponse } from "next/server";
 import { buildPlanSchema } from "@/lib/schemas";
 import { buildTargetDealSheet } from "@/lib/plan-engine/buildTargetDealSheet";
 import type { PlanMarket, TargetPlanInput } from "@/lib/plan-engine/types";
 import type { CreditBand } from "@/lib/fairness-engine";
 import { runMarketCheck } from "@/lib/market-engine/runMarketCheck";
 import { getDocFeeRuleForState } from "@/lib/intelligence/docFeeRules";
+import { apiError, apiOk } from "@/lib/api-response";
 
 export const runtime = "nodejs";
 
@@ -45,15 +45,12 @@ export async function POST(req: Request) {
   try {
     raw = await req.json();
   } catch {
-    return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
+    return apiError("invalid_json", "Invalid JSON body.");
   }
 
   const parsed = buildPlanSchema.safeParse(raw);
   if (!parsed.success) {
-    return NextResponse.json(
-      { error: "That submission didn't look right. Please check your entries." },
-      { status: 422 },
-    );
+    return apiError("validation", "That submission didn't look right. Please check your entries.");
   }
   const d = parsed.data;
 
@@ -80,10 +77,7 @@ export async function POST(req: Request) {
 
   // Require enough to anchor on (a vehicle).
   if (!input.vehicle.make && !input.vehicle.model) {
-    return NextResponse.json(
-      { error: "Tell us the vehicle you're targeting (make and model)." },
-      { status: 422 },
-    );
+    return apiError("validation", "Tell us the vehicle you're targeting (make and model).");
   }
 
   // Market band — mock fallback allowed for planning, but flagged via isEstimate.
@@ -122,5 +116,5 @@ export async function POST(req: Request) {
 
   const result = buildTargetDealSheet(input, { market, docFeeRule });
 
-  return NextResponse.json({ planId: randomUUID(), result, persisted: false });
+  return apiOk({ planId: randomUUID(), result, persisted: false });
 }

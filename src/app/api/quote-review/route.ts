@@ -16,7 +16,6 @@
  * live here.
  */
 import { randomUUID } from "node:crypto";
-import { NextResponse } from "next/server";
 import { quoteReviewSchema } from "@/lib/schemas";
 import { normalizeDealInput } from "@/lib/deal-engine/normalizeDealInput";
 import { buildDealReview } from "@/lib/deal-engine/buildDealReview";
@@ -35,6 +34,7 @@ import { rateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import { getBuyer } from "@/lib/buyer-auth";
 import { ensureCaseForDeal } from "@/lib/cases";
 import { logMarketData } from "@/lib/market-data/log";
+import { apiError, apiOk } from "@/lib/api-response";
 
 export const runtime = "nodejs";
 
@@ -48,25 +48,21 @@ export async function POST(req: Request) {
   // Persists rows and may trigger a paid MarketCheck call — throttle per IP.
   const limit = await rateLimit(req, { key: "quote-review", limit: 20, windowMs: 5 * 60_000 });
   if (!limit.ok) {
-    return NextResponse.json(
-      { error: "Too many requests. Please slow down." },
-      { status: 429, headers: rateLimitHeaders(limit) },
-    );
+    return apiError("rate_limited", "Too many requests. Please slow down.", {
+      headers: rateLimitHeaders(limit),
+    });
   }
 
   let raw: unknown;
   try {
     raw = await req.json();
   } catch {
-    return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
+    return apiError("invalid_json", "Invalid JSON body.");
   }
 
   const parsed = quoteReviewSchema.safeParse(raw);
   if (!parsed.success) {
-    return NextResponse.json(
-      { error: "That submission didn't look right. Please check your entries." },
-      { status: 422 },
-    );
+    return apiError("validation", "That submission didn't look right. Please check your entries.");
   }
 
   const deal = normalizeDealInput(parsed.data);
@@ -84,10 +80,7 @@ export async function POST(req: Request) {
       deal.trade,
   );
   if (!hasSubstance) {
-    return NextResponse.json(
-      { error: "Please enter at least one detail about your deal." },
-      { status: 422 },
-    );
+    return apiError("validation", "Please enter at least one detail about your deal.");
   }
 
   // MarketCheck band (server-only). We only inject a REAL snapshot — never the
@@ -134,11 +127,7 @@ export async function POST(req: Request) {
   const supabase = getServiceClient();
   if (!supabase) {
     // Not configured — return the result + a generated id for the workspace.
-    return NextResponse.json({
-      dealId: randomUUID(),
-      result,
-      persisted: false,
-    });
+    return apiOk({ dealId: randomUUID(), result, persisted: false });
   }
 
   // De-identified market-data capture (vehicle/pricing/dealer facts; no buyer
@@ -180,7 +169,7 @@ export async function POST(req: Request) {
       .single();
 
     if (error || !persistedDeal) {
-      return NextResponse.json({ dealId: randomUUID(), result, persisted: false });
+      return apiOk({ dealId: randomUUID(), result, persisted: false });
     }
 
     // Open an engagement + Quote Review case for a signed-in buyer (best-effort).
@@ -200,12 +189,8 @@ export async function POST(req: Request) {
       }
     }
 
-    return NextResponse.json({
-      dealId: persistedDeal.id as string,
-      result,
-      persisted: true,
-    });
+    return apiOk({ dealId: persistedDeal.id as string, result, persisted: true });
   } catch {
-    return NextResponse.json({ dealId: randomUUID(), result, persisted: false });
+    return apiOk({ dealId: randomUUID(), result, persisted: false });
   }
 }
