@@ -247,6 +247,11 @@ export const oauthStartSchema = z.object({
   provider: z.enum(["google", "apple"]),
 });
 
+/** Claim an anonymous deal for the signed-in buyer. */
+export const claimDealSchema = z.object({
+  dealId: z.string().uuid(),
+});
+
 /** Admin: invite/allowlist an operator by email. */
 export const addOperatorSchema = z.object({
   email: z.string().email().max(320),

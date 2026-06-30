@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { Disclaimer } from "@/components/Disclaimer";
 import { VerdictView } from "@/components/VerdictView";
 import { RequestReviewButton } from "@/components/RequestReviewButton";
+import { SaveToAccountPrompt } from "@/components/account/SaveToAccountPrompt";
 import { getDealById } from "@/lib/deals";
 import { isDealReviewResult } from "@/lib/deal-engine/is-deal-review";
 import { reviewFees } from "@/lib/fee-classifier";
@@ -88,6 +89,12 @@ export default async function VerdictPage({
                   deal.status === "in_review" ||
                   deal.status === "reviewed"
                 }
+              />
+
+              <SaveToAccountPrompt
+                dealId={deal.id}
+                dealUserId={deal.user_id ?? null}
+                redirectTo={`/verdict/${deal.id}`}
               />
 
               <VerdictNextSteps

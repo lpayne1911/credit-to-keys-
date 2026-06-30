@@ -10,11 +10,22 @@ import { getServerSupabase } from "@/lib/supabase/ssr";
 import { isBuyerAuthConfigured } from "@/lib/buyer-auth";
 import { accountSignupSchema } from "@/lib/schemas";
 import { rateLimit, rateLimitHeaders } from "@/lib/rate-limit";
+import { safeRedirectPath, isUuid } from "@/lib/safe-redirect";
 
 export const runtime = "nodejs";
 
 function siteOrigin(req: Request): string {
   return process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/+$/, "") || new URL(req.url).origin;
+}
+
+/** Email-confirmation return URL, threading redirectTo + claimDealId so a
+ * confirmed signup lands on the right page and claims its anonymous deal. */
+function confirmationUrl(req: Request, body: Record<string, unknown>): string {
+  const url = new URL("/api/account/auth/callback", siteOrigin(req));
+  const redirectTo = safeRedirectPath(body.redirectTo, "");
+  if (redirectTo) url.searchParams.set("redirectTo", redirectTo);
+  if (isUuid(body.claimDealId)) url.searchParams.set("claimDealId", body.claimDealId);
+  return url.toString();
 }
 
 export async function POST(req: Request) {
@@ -29,7 +40,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "Accounts aren't available here yet." }, { status: 503 });
   }
 
-  const parsed = accountSignupSchema.safeParse(await req.json().catch(() => null));
+  const raw = (await req.json().catch(() => null)) as Record<string, unknown> | null;
+  const parsed = accountSignupSchema.safeParse(raw);
   if (!parsed.success) {
     return NextResponse.json(
       { ok: false, error: "Enter a valid email and a password of at least 8 characters." },
@@ -45,7 +57,7 @@ export async function POST(req: Request) {
   const { data, error } = await supabase.auth.signUp({
     email: parsed.data.email,
     password: parsed.data.password,
-    options: { emailRedirectTo: `${siteOrigin(req)}/api/account/auth/callback` },
+    options: { emailRedirectTo: confirmationUrl(req, raw ?? {}) },
   });
   if (error) {
     return NextResponse.json({ ok: false, error: error.message }, { status: 400 });

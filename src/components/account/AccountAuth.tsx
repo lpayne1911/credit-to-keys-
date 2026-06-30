@@ -4,17 +4,47 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 /**
- * Buyer sign-in / sign-up. Email+password or Google. On success we refresh the
- * server component so the dashboard re-renders with the buyer's real deals.
+ * Buyer sign-in / sign-up. Email+password or Google.
+ *
+ * Defaults (no props) keep the dashboard's inline behavior: on success we
+ * refresh the server component so it re-renders with the buyer's real deals.
+ * The dedicated /login and /signup pages pass `redirectTo` (where to land) and
+ * `claimDealId` (an anonymous deal to attach on success) to drive the claim loop.
  */
-export function AccountAuth({ configured }: { configured: boolean }) {
+export function AccountAuth({
+  configured,
+  initialMode = "signin",
+  redirectTo,
+  claimDealId,
+}: {
+  configured: boolean;
+  initialMode?: "signin" | "signup";
+  redirectTo?: string;
+  claimDealId?: string;
+}) {
   const router = useRouter();
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [mode, setMode] = useState<"signin" | "signup">(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+
+  // Attach an anonymous deal to the just-authenticated buyer (best-effort).
+  async function claimIfNeeded() {
+    if (!claimDealId) return;
+    await fetch("/api/account/claim", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dealId: claimDealId }),
+    }).catch(() => {});
+  }
+
+  // Where to go once we're signed in.
+  function finish() {
+    if (redirectTo) router.push(redirectTo);
+    else router.refresh();
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -26,7 +56,7 @@ export function AccountAuth({ configured }: { configured: boolean }) {
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, redirectTo, claimDealId }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -38,7 +68,8 @@ export function AccountAuth({ configured }: { configured: boolean }) {
         setMode("signin");
         return;
       }
-      router.refresh();
+      await claimIfNeeded();
+      finish();
     } catch {
       setError("Network error.");
     } finally {
@@ -53,7 +84,7 @@ export function AccountAuth({ configured }: { configured: boolean }) {
       const res = await fetch("/api/account/oauth", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ provider: "google" }),
+        body: JSON.stringify({ provider: "google", redirectTo, claimDealId }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.url) {

@@ -7,11 +7,22 @@ import { getServerSupabase } from "@/lib/supabase/ssr";
 import { isBuyerAuthConfigured } from "@/lib/buyer-auth";
 import { oauthStartSchema } from "@/lib/schemas";
 import { rateLimit, rateLimitHeaders } from "@/lib/rate-limit";
+import { safeRedirectPath, isUuid } from "@/lib/safe-redirect";
 
 export const runtime = "nodejs";
 
 function siteOrigin(req: Request): string {
   return process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/+$/, "") || new URL(req.url).origin;
+}
+
+/** Build the callback URL, threading redirectTo + claimDealId so the post-auth
+ * return can claim an anonymous deal and land on the right page. */
+function callbackUrl(req: Request, body: Record<string, unknown>): string {
+  const url = new URL("/api/account/auth/callback", siteOrigin(req));
+  const redirectTo = safeRedirectPath(body.redirectTo, "");
+  if (redirectTo) url.searchParams.set("redirectTo", redirectTo);
+  if (isUuid(body.claimDealId)) url.searchParams.set("claimDealId", body.claimDealId);
+  return url.toString();
 }
 
 export async function POST(req: Request) {
@@ -26,7 +37,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "Accounts aren't available here yet." }, { status: 503 });
   }
 
-  const parsed = oauthStartSchema.safeParse(await req.json().catch(() => null));
+  const raw = (await req.json().catch(() => null)) as Record<string, unknown> | null;
+  const parsed = oauthStartSchema.safeParse(raw);
   if (!parsed.success) {
     return NextResponse.json({ ok: false, error: "Unsupported provider." }, { status: 400 });
   }
@@ -38,7 +50,7 @@ export async function POST(req: Request) {
 
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: parsed.data.provider,
-    options: { redirectTo: `${siteOrigin(req)}/api/account/auth/callback` },
+    options: { redirectTo: callbackUrl(req, raw ?? {}) },
   });
   if (error || !data.url) {
     return NextResponse.json({ ok: false, error: "Could not start sign-in." }, { status: 502 });

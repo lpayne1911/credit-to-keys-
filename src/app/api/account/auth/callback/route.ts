@@ -1,28 +1,41 @@
 /**
  * GET /api/account/auth/callback — buyer OAuth / email-confirmation return URL.
- * Exchanges the code for a session (sets cookies) and sends the buyer to their
- * dashboard.
+ * Exchanges the code for a session (sets cookies), optionally claims an
+ * anonymous deal threaded via `claimDealId`, then sends the buyer to a safe
+ * `redirectTo` (default the dashboard).
  */
 import { NextResponse } from "next/server";
 import { getServerSupabase } from "@/lib/supabase/ssr";
+import { getBuyer } from "@/lib/buyer-auth";
+import { claimDealForUser } from "@/lib/claim";
+import { safeRedirectPath, isUuid } from "@/lib/safe-redirect";
 
 export const runtime = "nodejs";
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const code = url.searchParams.get("code");
-  const dest = new URL("/dashboard", url.origin);
+  const redirectTo = safeRedirectPath(url.searchParams.get("redirectTo"));
+  const claimDealId = url.searchParams.get("claimDealId");
 
-  if (!code) {
+  const fail = () => {
+    const dest = new URL("/login", url.origin);
     dest.searchParams.set("auth_error", "1");
     return NextResponse.redirect(dest);
-  }
+  };
+
+  if (!code) return fail();
   const supabase = getServerSupabase();
-  if (!supabase) {
-    dest.searchParams.set("auth_error", "1");
-    return NextResponse.redirect(dest);
-  }
+  if (!supabase) return fail();
+
   const { error } = await supabase.auth.exchangeCodeForSession(code);
-  if (error) dest.searchParams.set("auth_error", "1");
-  return NextResponse.redirect(dest);
+  if (error) return fail();
+
+  // Best-effort claim of an anonymous deal now that the buyer has a session.
+  if (isUuid(claimDealId)) {
+    const buyer = await getBuyer();
+    if (buyer) await claimDealForUser(claimDealId, buyer.id);
+  }
+
+  return NextResponse.redirect(new URL(redirectTo, url.origin));
 }

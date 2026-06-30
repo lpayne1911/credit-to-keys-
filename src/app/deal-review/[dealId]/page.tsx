@@ -12,6 +12,7 @@ import Link from "next/link";
 import { Disclaimer } from "@/components/Disclaimer";
 import { DealReviewView } from "@/components/deal-review/DealReviewView";
 import { RequestReviewButton } from "@/components/RequestReviewButton";
+import { SaveToAccountPrompt } from "@/components/account/SaveToAccountPrompt";
 import { getDealById } from "@/lib/deals";
 import { isDealReviewResult } from "@/lib/deal-engine/is-deal-review";
 import type { DealReviewResult } from "@/lib/deal-engine/types";
@@ -48,6 +49,11 @@ export default async function DealReviewPage({
           {persisted ? (
             <div className="space-y-6">
               <DealReviewView result={persisted} />
+              <SaveToAccountPrompt
+                dealId={params.dealId}
+                dealUserId={deal?.user_id ?? null}
+                redirectTo={`/deal-review/${params.dealId}`}
+              />
               <RequestReviewButton dealId={params.dealId} alreadyRequested={alreadyRequested} />
               <Disclaimer />
               <Link
