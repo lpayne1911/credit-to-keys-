@@ -23,8 +23,46 @@ describe("normalize() — service-contract recognition", () => {
       fees: [{ label: "Honda Care", amount: "2500" }],
     });
     expect(out.warrantyPrice).toBe("3000");
-    // The fee stays put — we only promote when no warranty price was found.
+    // Different amount → a separate line, kept (not treated as a duplicate).
     expect((out.fees ?? []).map((f) => f.label)).toEqual(["Honda Care"]);
+  });
+
+  it("promotes a service contract the model listed in add-ons", () => {
+    const out = normalize({
+      addOns: [
+        { label: "Extended Service Plan", amount: "3695" },
+        { label: "GAP", amount: "999" },
+      ],
+    });
+    expect(out.warrantyPrice).toBe("3695");
+    // The VSC is pulled out of add-ons (now priced via the warranty path); GAP stays.
+    expect((out.addOns ?? []).map((a) => a.label)).toEqual(["GAP"]);
+  });
+
+  it("dedupes a VSC line that matches the model's warranty price", () => {
+    const out = normalize({
+      warrantyPrice: "3695",
+      addOns: [{ label: "Extended Service Plan", amount: "3695" }],
+      fees: [{ label: "Doc Fee", amount: "499" }],
+    });
+    expect(out.warrantyPrice).toBe("3695");
+    // Same amount → duplicate removed so the contract isn't counted twice.
+    expect(out.addOns).toBeUndefined();
+    expect((out.fees ?? []).map((f) => f.label)).toEqual(["Doc Fee"]);
+  });
+
+  it("keeps a true VSC and a service-maintenance contract in the right buckets", () => {
+    const out = normalize({
+      fees: [
+        { label: "Extended Service Plan", amount: "3695" },
+        { label: "Service/Maintenance Contract", amount: "3324" },
+      ],
+    });
+    // The extended service plan is the VSC (warranty path)…
+    expect(out.warrantyPrice).toBe("3695");
+    // …and the maintenance contract is an optional add-on, not a fee or a VSC.
+    expect((out.addOns ?? []).map((a) => a.label)).toEqual(["Service/Maintenance Contract"]);
+    expect(out.fees).toBeUndefined();
   });
 
   it("leaves genuine junk fees alone", () => {
