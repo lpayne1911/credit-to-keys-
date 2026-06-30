@@ -4,10 +4,11 @@ import { listDealsForUser } from "@/lib/deals";
 import { listCasesForUser, listEngagementsForUser } from "@/lib/cases";
 import { entitlementsFor } from "@/lib/entitlements";
 import { recommendationsFor, isRecurringService } from "@/lib/dashboard/recommendations";
+import { SERVICE_LABEL, SERVICE_HREF } from "@/lib/dashboard/labels";
 import { isDealReviewResult } from "@/lib/deal-engine/is-deal-review";
 import { AccountAuth } from "@/components/account/AccountAuth";
 import { SignOutButton } from "@/components/account/SignOutButton";
-import type { CaseRow, CaseStatus, DealRow, EngagementService } from "@/lib/types";
+import type { CaseRow, CaseStatus, DealRow } from "@/lib/types";
 
 export const metadata = { title: "Dashboard — Driveway Advocate" };
 export const dynamic = "force-dynamic";
@@ -23,15 +24,6 @@ const VERDICT_LABEL: Record<string, string> = {
   amber: "Negotiate first",
   red: "Don't sign yet",
   black: "Walk away",
-};
-
-const SERVICE_LABEL: Record<EngagementService, string> = {
-  deal_check: "Deal Check",
-  quote_review: "Quote Review",
-  deal_rescue: "Deal Rescue",
-  buyer_advocate: "Buyer Advocate",
-  credit_to_keys: "Credit-to-Keys",
-  concierge: "Concierge",
 };
 
 const CASE_STATUS: Record<CaseStatus, { label: string; style: string }> = {
@@ -260,16 +252,6 @@ const IN_PROGRESS = new Set<CaseStatus>([
   "active",
 ]);
 const COMPLETED = new Set<CaseStatus>(["delivered", "payment_pending", "closed"]);
-
-/** Where each recurring service line opens. */
-const SERVICE_HREF: Record<EngagementService, string> = {
-  deal_check: "/check",
-  quote_review: "/quote-review",
-  deal_rescue: "/post-sale-triage",
-  buyer_advocate: "/services/buyer-advocate",
-  credit_to_keys: "/credit-to-keys",
-  concierge: "/concierge",
-};
 
 /** Reusable list of case rows with status pills. */
 function CaseList({ cases }: { cases: CaseRow[] }) {
