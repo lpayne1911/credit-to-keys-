@@ -314,6 +314,37 @@ export const PRODUCTS: Product[] = [
         "An application reviewed by a buyer-side advocate, then a discovery call. No guaranteed savings; we never take dealer money.",
     },
   },
+  {
+    id: "credit-to-keys",
+    label: "Credit-to-Keys",
+    shortDescription:
+      "Get buy-ready: prepare your credit, hit your score tier, then bring in an advocate to buy.",
+    route: "/credit-to-keys",
+    ctaLabel: "Apply for Credit-to-Keys",
+    ctaLabelAlts: ["Start my pathway", "Get buy-ready"],
+    intent: "I'm a few months out and want to fix my credit before I buy.",
+    problem:
+      "My credit could cost me thousands at the finance desk and I don't know where to start.",
+    whoFor: "Buyers 3–9 months from purchase who want a better rate.",
+    estTime: "~3 min to apply",
+    intakeLabel: "Application",
+    type: "intake",
+    status: "beta",
+    usesAutomatedScoring: false,
+    supportsHumanReview: true,
+    supportsUpload: false,
+    emoji: "🔑",
+    page: {
+      what: "A guided prepare → qualify → buy pathway, billed monthly in arrears, with buyer-side advocacy when it's time to sign.",
+      inputs: [
+        "Your timeline to buy",
+        "Where your credit stands today",
+        "The vehicle and budget you're targeting",
+      ],
+      result:
+        "A month-by-month credit plan and an advocate at signing. Credit preparation, not a guaranteed score increase.",
+    },
+  },
 ];
 
 export function getProduct(id: string): Product | undefined {

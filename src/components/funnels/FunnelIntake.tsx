@@ -26,6 +26,14 @@ const FIELDS: Record<string, Field[]> = {
     { name: "notes", label: "Anything else we should know?", type: "textarea", placeholder: "Dealbreakers, preferences, existing quotes…" },
     { name: "contact", label: "Best email to reach you", type: "text", required: true, placeholder: "you@example.com" },
   ],
+  "credit-to-keys": [
+    { name: "timeline", label: "When are you hoping to buy?", type: "select", options: ["1–3 months", "3–6 months", "6–9 months", "Just planning"] },
+    { name: "credit", label: "Where does your credit stand today?", type: "select", options: ["Not sure", "Rebuilding", "Fair", "Good", "Excellent"] },
+    { name: "vehicle", label: "What are you hoping to buy?", type: "text", placeholder: "Year, make, model — or just a type" },
+    { name: "budget", label: "Target budget or payment", type: "text", placeholder: "e.g. $30k out-the-door or $450/mo" },
+    { name: "goal", label: "What's your main goal?", type: "textarea", placeholder: "e.g. reach a prime rate, avoid a subprime trap…" },
+    { name: "contact", label: "Best email to reach you", type: "text", required: true, placeholder: "you@example.com" },
+  ],
   "deal-rescue": [
     { name: "signed_date", label: "When did you sign?", type: "text", placeholder: "Approximate date" },
     { name: "state", label: "What state did you buy in?", type: "text", placeholder: "e.g. CA" },

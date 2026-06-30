@@ -2,6 +2,7 @@ import Link from "next/link";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Disclaimer } from "@/components/Disclaimer";
+import { FunnelIntake } from "@/components/funnels/FunnelIntake";
 
 export const metadata = {
   title: "Credit-to-Keys — Driveway Advocate",
@@ -52,16 +53,16 @@ export default function CreditToKeysPage() {
             when it&apos;s time to sign.
           </p>
           <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-            <Link href="/check" className="btn-primary">
-              Start with a free Deal Check
+            <Link href="#start" className="btn-primary">
+              Apply for Credit-to-Keys
             </Link>
             <Link href="/services" className="btn-secondary">
               See all services
             </Link>
           </div>
           <p className="mt-4 text-sm text-navy/50">
-            The full pathway is rolling out now. Start free today — the credit
-            stages open as we onboard.
+            The full pathway is rolling out now. Apply today — we&apos;ll reach out as
+            the credit stages open for you.
           </p>
         </section>
 
@@ -161,23 +162,31 @@ export default function CreditToKeysPage() {
           </div>
         </section>
 
-        {/* CTA + persistent disclaimer */}
-        <section className="mx-auto max-w-5xl px-4 py-14">
-          <div className="rounded-2xl border border-navy/10 bg-white p-8 text-center shadow-card">
+        {/* Application + persistent disclaimer */}
+        <section className="mx-auto max-w-3xl px-4 py-14">
+          <div className="mb-6 text-center">
             <h2 className="font-serif text-2xl font-semibold text-navy">
               Start where you are.
             </h2>
             <p className="mx-auto mt-2 max-w-xl text-navy/65">
-              Run a free Deal Check today to see how we work — and when the credit
-              stages open, you&apos;ll already be in the system, already on your
-              side&apos;s side.
+              Tell us your timeline and where your credit stands. We&apos;ll map your
+              prepare → qualify → buy pathway and reach out as the stages open — no
+              up-front fee, cancel any month.
             </p>
-            <div className="mt-6">
-              <Link href="/check" className="btn-primary">
-                Start a free Deal Check
-              </Link>
-            </div>
           </div>
+          <FunnelIntake
+            productId="credit-to-keys"
+            accent="gold"
+            cta="Apply for Credit-to-Keys"
+            heading="Apply for Credit-to-Keys"
+            blurb="A few quick questions. No payment now, no credit pull — we follow up by email."
+          />
+          <p className="mt-4 text-center text-sm text-navy/50">
+            Prefer to start by checking a specific deal?{" "}
+            <Link href="/deal-in-hand" className="font-semibold text-navy hover:underline">
+              See your options →
+            </Link>
+          </p>
           <div className="mt-10">
             <Disclaimer />
           </div>
