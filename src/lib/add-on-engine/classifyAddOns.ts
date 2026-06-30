@@ -38,7 +38,7 @@ const ADDON_ALIASES: { category: AddOnCategory; aliases: string[] }[] = [
   { category: "gap", aliases: ["gap", "guaranteed asset", "guaranteed auto protection"] },
   { category: "vsc", aliases: ["vsc", "service contract", "extended warranty", "extended service", "vehicle service", "mechanical breakdown", "powertrain coverage"] },
   { category: "tire_wheel", aliases: ["tire and wheel", "tire & wheel", "wheel and tire", "road hazard", "tire/wheel"] },
-  { category: "maintenance", aliases: ["maintenance plan", "prepaid maintenance", "scheduled maintenance", "oil change plan"] },
+  { category: "maintenance", aliases: ["maintenance contract", "maintenance plan", "maintenance program", "prepaid maintenance", "scheduled maintenance", "oil change plan", "maintenance"] },
   { category: "key", aliases: ["key replacement", "key fob", "key protection", "lost key"] },
   { category: "ceramic", aliases: ["ceramic", "ceramic coating"] },
   { category: "paint_fabric", aliases: ["paint protection", "fabric protection", "paint and fabric", "paint & fabric", "interior protection", "exterior protection", "environmental protection"] },
@@ -57,6 +57,28 @@ function categoryFor(label: string): AddOnCategory {
     if (aliases.some((a) => l.includes(a))) return category;
   }
   return "other";
+}
+
+/**
+ * Finance-office products that belong in the ADD-ONS section, not among
+ * dealer/government fees — so an extractor that lists them on the fee schedule
+ * can route them to the right bucket. Vehicle service contracts are handled
+ * separately by the warranty path, and cosmetic/hardware lines that are often
+ * dealer-installed (paint/fabric, ceramic, VIN etch, nitrogen, appearance) are
+ * intentionally left to the fee engine, so neither is included here.
+ */
+const FINANCE_ADDON_CATEGORIES: ReadonlySet<AddOnCategory> = new Set([
+  "gap",
+  "tire_wheel",
+  "maintenance",
+  "key",
+  "lojack_gps",
+]);
+
+/** True when a raw label is an optional F&I product that should live in the
+ *  add-ons section rather than the fee schedule (see FINANCE_ADDON_CATEGORIES). */
+export function isFinanceAddOnProduct(label: string): boolean {
+  return FINANCE_ADDON_CATEGORIES.has(categoryFor(label));
 }
 
 /** ± impact band assuming the product could be removed or renegotiated. */

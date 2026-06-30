@@ -168,7 +168,9 @@ export function QuoteReviewIntakeForm() {
         mileage: ex.mileage ?? f.mileage,
         vin: ex.vin ?? f.vin,
         dealerZip: ex.dealerZip ?? f.dealerZip,
+        buyerState: ex.dealerState ?? f.buyerState,
         vehiclePrice: ex.vehiclePrice ?? f.vehiclePrice,
+        downPayment: ex.deposit ?? f.downPayment,
         apr: ex.apr ?? f.apr,
         termMonths: ex.termMonths ?? f.termMonths,
         monthlyPayment: ex.monthlyPayment ?? f.monthlyPayment,
@@ -179,15 +181,30 @@ export function QuoteReviewIntakeForm() {
           amount: fee.amount ? String(fee.amount) : "",
         }));
       }
+      // Assemble the add-on lines we read: the warranty (priced via the
+      // warranty path), then any other optional F&I products the parser
+      // separated out of the fee schedule. All default to financed-into-loan.
+      const extractedAddOns: LineItem[] = [];
       if (ex.warrantyPrice) {
-        const warranty: LineItem = {
+        extractedAddOns.push({
           label: "Extended warranty / service contract",
           amount: String(ex.warrantyPrice),
           financed: true,
-        };
+        });
+      }
+      for (const a of ex.addOns ?? []) {
+        extractedAddOns.push({
+          label: a.label,
+          amount: a.amount ? String(a.amount) : "",
+          financed: true,
+        });
+      }
+      if (extractedAddOns.length > 0) {
         const onlyEmpty =
           f.addOns.length === 1 && !f.addOns[0].label && !f.addOns[0].amount;
-        next.addOns = onlyEmpty ? [warranty] : [warranty, ...f.addOns];
+        next.addOns = onlyEmpty
+          ? extractedAddOns
+          : [...extractedAddOns, ...f.addOns];
       }
       return next;
     });
