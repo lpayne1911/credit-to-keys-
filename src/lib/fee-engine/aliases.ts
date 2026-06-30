@@ -60,6 +60,26 @@ export const VIN_ETCH_ALIASES: string[] = [
 /** Nitrogen tire fill aliases. */
 export const NITROGEN_ALIASES: string[] = ["nitrogen"];
 
+/** Sales / excise tax aliases — a required government charge on the sale. */
+export const TAX_ALIASES: string[] = [
+  "sales tax",
+  "excise tax",
+  "use tax",
+  "applicable tax",
+  "applicable taxes",
+  "tax",
+];
+
+/** Manufacturer freight / destination aliases — a set, non-negotiable charge
+ *  the automaker bills to deliver the car to the dealer. */
+export const FREIGHT_ALIASES: string[] = [
+  "freight",
+  "destination charge",
+  "destination fee",
+  "destination",
+  "transportation charge",
+];
+
 /** Appearance / protection package aliases (when billed as a flat fee line). */
 export const PROTECTION_PKG_ALIASES: string[] = [
   "protection package",
@@ -88,7 +108,9 @@ export const FEE_ALIAS_TABLE: { category: FeeCategory; aliases: string[] }[] = [
   { category: "protection_pkg", aliases: PROTECTION_PKG_ALIASES },
   { category: "advertising", aliases: ADVERTISING_ALIASES },
   { category: "dealer_prep", aliases: DEALER_PREP_ALIASES },
+  { category: "freight", aliases: FREIGHT_ALIASES },
   { category: "government", aliases: GOVERNMENT_ALIASES },
+  { category: "tax", aliases: TAX_ALIASES },
 ];
 
 /** Normalize a raw label for matching: lowercase, collapse whitespace. */

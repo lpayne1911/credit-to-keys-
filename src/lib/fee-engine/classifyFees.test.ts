@@ -37,6 +37,16 @@ describe("classifyFees", () => {
     expect(classifyFee({ rawLabel: "VIN Etch", amount: 299 }).assessment).toBe("likely_junk");
   });
 
+  it("treats sales tax and manufacturer freight as legitimate charges", () => {
+    const tax = classifyFee({ rawLabel: "Applicable Taxes", amount: 2776.61 });
+    expect(tax.category).toBe("tax");
+    expect(tax.assessment).toBe("likely_legitimate");
+
+    const freight = classifyFee({ rawLabel: "Vehicle Freight", amount: 1295 });
+    expect(freight.category).toBe("freight");
+    expect(freight.assessment).toBe("likely_legitimate");
+  });
+
   it("returns unknown for an unrecognized label", () => {
     const f = classifyFee({ rawLabel: "Sparkle Surcharge", amount: 120 });
     expect(f.category).toBe("other");

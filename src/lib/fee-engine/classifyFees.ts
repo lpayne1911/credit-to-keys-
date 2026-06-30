@@ -63,6 +63,26 @@ function assessByCategory(
         confidence: "medium",
         estimatedImpact: null,
       };
+    case "tax":
+      return {
+        assessment: "likely_legitimate",
+        reason:
+          "Sales/excise tax is a required government charge set by your state, not a dealer fee. Confirm the rate and taxable amount match your state's rules.",
+        suggestedAction:
+          "Check the tax is calculated on the correct price (after eligible rebates/trade, per your state) so it isn't overstated.",
+        confidence: "medium",
+        estimatedImpact: null,
+      };
+    case "freight":
+      return {
+        assessment: "likely_legitimate",
+        reason:
+          "Freight / destination is the manufacturer's set charge to ship the car to the dealer. It's a real, non-negotiable cost printed on the window sticker — not dealer padding.",
+        suggestedAction:
+          "Confirm it matches the destination charge on the Monroney (window) sticker; it shouldn't exceed that figure.",
+        confidence: "medium",
+        estimatedImpact: null,
+      };
     case "dealer_prep":
       return {
         assessment: "likely_negotiable",

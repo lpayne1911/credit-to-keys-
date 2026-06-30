@@ -21,6 +21,8 @@ export type FieldConfidence = "low" | "medium" | "high";
 export type FeeCategory =
   | "doc_fee" // dealer documentation / processing / admin
   | "government" // title, registration, tag, license, electronic filing to the state
+  | "tax" // sales / excise / other government tax on the sale
+  | "freight" // manufacturer freight / destination charge
   | "dealer_prep" // prep, reconditioning, recon, dealer handling
   | "vin_etch" // VIN etch / theft etch
   | "nitrogen" // nitrogen tire fill

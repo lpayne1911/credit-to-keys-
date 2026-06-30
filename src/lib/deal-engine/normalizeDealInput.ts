@@ -31,6 +31,8 @@ export interface QuoteReviewInputRaw {
     trim?: string | null;
     mileage?: string | number | null;
     vin?: string | null;
+    condition?: string | null;
+    color?: string | null;
   };
   pricing?: {
     vehiclePrice?: string | number | null;
@@ -39,6 +41,8 @@ export interface QuoteReviewInputRaw {
     rebates?: string | number | null;
     outTheDoor?: string | number | null;
     downPayment?: string | number | null;
+    totalVehiclePrice?: string | number | null;
+    balanceDue?: string | number | null;
   };
   fees?: { label?: string | null; amount?: string | number | null }[];
   addOns?: {
@@ -57,8 +61,17 @@ export interface QuoteReviewInputRaw {
     offer?: string | number | null;
     estimatedValue?: string | number | null;
     loanPayoff?: string | number | null;
+    year?: string | number | null;
+    make?: string | null;
+    model?: string | null;
+    mileage?: string | number | null;
   } | null;
   dealerName?: string | null;
+  dealerAddress?: string | null;
+  dealerPhone?: string | null;
+  salesperson?: string | null;
+  stockNumber?: string | null;
+  insuranceCarrier?: string | null;
   buyerState?: string | null;
   dealerZip?: string | null;
   registrationZip?: string | null;
@@ -123,6 +136,8 @@ export function normalizeDealInput(
     trim: toStr(raw.vehicle?.trim),
     mileage: toNum(raw.vehicle?.mileage),
     vin: toStr(raw.vehicle?.vin),
+    condition: toStr(raw.vehicle?.condition),
+    color: toStr(raw.vehicle?.color),
   };
 
   const pricing = {
@@ -132,6 +147,8 @@ export function normalizeDealInput(
     rebates: toNum(raw.pricing?.rebates),
     outTheDoor: toNum(raw.pricing?.outTheDoor),
     downPayment: toNum(raw.pricing?.downPayment),
+    totalVehiclePrice: toNum(raw.pricing?.totalVehiclePrice),
+    balanceDue: toNum(raw.pricing?.balanceDue),
   };
 
   const finance = {
@@ -157,10 +174,28 @@ export function normalizeDealInput(
   const tradeOffer = toNum(raw.trade?.offer);
   const tradeEstimated = toNum(raw.trade?.estimatedValue);
   const tradePayoff = toNum(raw.trade?.loanPayoff);
+  const tradeYear = toNum(raw.trade?.year);
+  const tradeMake = toStr(raw.trade?.make);
+  const tradeModel = toStr(raw.trade?.model);
+  const tradeMileage = toNum(raw.trade?.mileage);
   const hasTrade =
-    tradeOffer != null || tradeEstimated != null || tradePayoff != null;
+    tradeOffer != null ||
+    tradeEstimated != null ||
+    tradePayoff != null ||
+    tradeYear != null ||
+    tradeMake != null ||
+    tradeModel != null ||
+    tradeMileage != null;
   const trade = hasTrade
-    ? { offer: tradeOffer, estimatedValue: tradeEstimated, loanPayoff: tradePayoff }
+    ? {
+        offer: tradeOffer,
+        estimatedValue: tradeEstimated,
+        loanPayoff: tradePayoff,
+        year: tradeYear,
+        make: tradeMake,
+        model: tradeModel,
+        mileage: tradeMileage,
+      }
     : null;
 
   const fieldConfidence: Record<string, FieldConfidence> = {
@@ -199,6 +234,11 @@ export function normalizeDealInput(
       uploadedFilePath: toStr(raw.uploadedFilePath),
       documentUploaded,
       dealerName: toStr(raw.dealerName),
+      dealerAddress: toStr(raw.dealerAddress),
+      dealerPhone: toStr(raw.dealerPhone),
+      salesperson: toStr(raw.salesperson),
+      stockNumber: toStr(raw.stockNumber),
+      insuranceCarrier: toStr(raw.insuranceCarrier),
       buyerState: toState(raw.buyerState),
       dealerZip: toStr(raw.dealerZip),
       registrationZip: toStr(raw.registrationZip),

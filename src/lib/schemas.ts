@@ -99,6 +99,8 @@ export const quoteReviewSchema = z.object({
       trim: shortStr,
       mileage: numLike,
       vin: z.string().max(32).optional(),
+      condition: z.string().max(20).optional(),
+      color: z.string().max(40).optional(),
     })
     .optional(),
   pricing: z
@@ -109,6 +111,8 @@ export const quoteReviewSchema = z.object({
       rebates: numLike,
       outTheDoor: numLike,
       downPayment: numLike,
+      totalVehiclePrice: numLike,
+      balanceDue: numLike,
     })
     .optional(),
   fees: z.array(feeSchema).max(40).optional(),
@@ -127,10 +131,19 @@ export const quoteReviewSchema = z.object({
       offer: numLike,
       estimatedValue: numLike,
       loanPayoff: numLike,
+      year: numLike,
+      make: shortStr,
+      model: shortStr,
+      mileage: numLike,
     })
     .optional()
     .nullable(),
   dealerName: z.string().max(200).optional(),
+  dealerAddress: z.string().max(200).optional(),
+  dealerPhone: z.string().max(40).optional(),
+  salesperson: z.string().max(120).optional(),
+  stockNumber: z.string().max(60).optional(),
+  insuranceCarrier: z.string().max(80).optional(),
   buyerState: z.string().max(8).optional(),
   dealerZip: z.string().max(12).optional(),
   registrationZip: z.string().max(12).optional(),
