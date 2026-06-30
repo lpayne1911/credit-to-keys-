@@ -5,17 +5,18 @@ import { Reveal } from "@/components/ui/Reveal";
 import { SeverityScale } from "@/components/ui/SeverityScale";
 import { MatrixCard } from "@/components/ui/MatrixCard";
 import { MatrixIcon, type IconName } from "@/components/ui/icons";
-import { FUNNELS, ACCENT_CLASSES } from "@/lib/funnels";
-import { PathCard } from "@/components/funnels/PathCard";
+import { FUNNELS, ACCENT_CLASSES, getFunnel, type Funnel } from "@/lib/funnels";
 import { ProcessTimeline } from "@/components/funnels/ProcessTimeline";
 import { FunnelIcon } from "@/components/funnels/icons";
 import { TrustBar, CTASection, SectionHeading } from "@/components/funnels/primitives";
 
 /**
- * Homepage — the car-deal command center. Self-segments buyers into four lanes
- * (green quote review, blue still-shopping, gold concierge, red post-sale), then
- * shows what each path does, delivers, and where it leads. Navy/white SaaS, one
- * action color per lane, no fake social proof.
+ * Homepage — the buyer's command center. Leads with the buyer's situation, not a
+ * service menu: a three-door journey router ("deal in hand", "still shopping",
+ * "already signed") gets a stressed buyer to the right lane by recognizing where
+ * they are, while Concierge stays a quiet apply-link for the few who want it
+ * handled for them. Below the fold we still explain what each lane delivers.
+ * Navy/white SaaS, one action color per lane, no fake social proof.
  */
 export default function LandingPage() {
   return (
@@ -42,10 +43,44 @@ export default function LandingPage() {
 }
 
 /* ========================================================================== */
-/*  HERO + 4 PATHS                                                             */
+/*  HERO — BUYER-JOURNEY ROUTER (3 DOORS)                                       */
 /* ========================================================================== */
 
+/**
+ * The three buyer states, in the order a buyer moves through them. Each door
+ * reuses an existing funnel's accent + route, but leads with the buyer's
+ * situation and an emotionally direct next step instead of a product name.
+ */
+interface BuyerDoor {
+  funnelId: string;
+  state: string;
+  desc: string;
+  cta: string;
+}
+
+const DOORS: BuyerDoor[] = [
+  {
+    funnelId: "quote-review",
+    state: "I have a deal in front of me",
+    desc: "Upload the quote, check the math, and get a pushback plan you can use right now.",
+    cta: "Scan My Deal",
+  },
+  {
+    funnelId: "build-my-plan",
+    state: "I'm still shopping",
+    desc: "Know your target price, payment, APR, and negotiation plan before you walk in.",
+    cta: "Build My Buying Plan",
+  },
+  {
+    funnelId: "post-sale-triage",
+    state: "I already signed",
+    desc: "Understand what may be cancellable, disputable, or worth escalating — without panic.",
+    cta: "Review My Options",
+  },
+];
+
 function Hero() {
+  const concierge = getFunnel("concierge");
   return (
     <section className="relative isolate overflow-hidden bg-navy text-white">
       <div aria-hidden className="absolute inset-0 -z-10">
@@ -65,33 +100,82 @@ function Hero() {
           </Reveal>
           <Reveal delay={60}>
             <h1 className="mt-5 text-5xl font-extrabold leading-[1.04] tracking-tight sm:text-6xl">
-              Get the right deal. Every time.
+              The dealer has a team.{" "}
+              <span className="text-gold">Now you do too.</span>
             </h1>
           </Reveal>
           <Reveal delay={120}>
             <p className="mx-auto mt-5 max-w-xl text-lg leading-relaxed text-white/75">
-              Choose your path and we&apos;ll guide you to the best next step.
+              Before you sign, we check the price, fees, financing, add-ons,
+              trade-in, and paperwork — so you know what to push back on, and what
+              to walk away from.
             </p>
           </Reveal>
-          <Reveal delay={180}>
-            <p className="mt-4 text-sm text-white/65">
+        </div>
+
+        <Reveal delay={180}>
+          <p className="mt-12 text-center text-sm font-bold uppercase tracking-[0.18em] text-white/60">
+            Where are you in the car-buying process?
+          </p>
+        </Reveal>
+
+        <div className="mt-6 grid gap-5 lg:grid-cols-3">
+          {DOORS.map((door, i) => {
+            const funnel = getFunnel(door.funnelId);
+            if (!funnel) return null;
+            return (
+              <Reveal key={door.funnelId} delay={200 + i * 80}>
+                <BuyerDoorCard door={door} funnel={funnel} />
+              </Reveal>
+            );
+          })}
+        </div>
+
+        <Reveal delay={460}>
+          <div className="mt-8 flex flex-col items-center gap-3 pb-12 text-center">
+            {concierge && (
+              <p className="text-sm text-white/70">
+                Want us to handle the whole process?{" "}
+                <Link href={concierge.route} className="font-semibold text-gold hover:underline">
+                  Apply for Concierge →
+                </Link>
+              </p>
+            )}
+            <p className="text-sm text-white/65">
               Just want market pricing?{" "}
               <Link href="/dashboard/market-check" className="font-semibold text-blue-soft hover:underline">
                 Check the Market →
               </Link>
             </p>
-          </Reveal>
-        </div>
-
-        <div className="mt-12 grid gap-5 pb-14 sm:grid-cols-2 lg:grid-cols-4">
-          {FUNNELS.map((f, i) => (
-            <Reveal key={f.id} delay={i * 70}>
-              <PathCard funnel={f} />
-            </Reveal>
-          ))}
-        </div>
+            <p className="mt-2 max-w-md text-xs leading-relaxed text-white/50">
+              We do not sell cars, loans, or warranties. We only sit on the
+              buyer&apos;s side.
+            </p>
+          </div>
+        </Reveal>
       </div>
     </section>
+  );
+}
+
+/**
+ * A single buyer-state door. The whole card is the link (big tap target); the
+ * CTA at the bottom is a styled span so we don't nest anchors.
+ */
+function BuyerDoorCard({ door, funnel }: { door: BuyerDoor; funnel: Funnel }) {
+  const a = ACCENT_CLASSES[funnel.accent];
+  return (
+    <Link
+      href={funnel.route}
+      className="group flex h-full flex-col rounded-2xl border border-edge bg-white p-6 text-ink shadow-card transition hover:-translate-y-1 hover:shadow-lg"
+    >
+      <span className={`flex h-12 w-12 items-center justify-center rounded-xl ${a.soft} ${a.softText}`}>
+        <FunnelIcon name={funnel.heroIcon} className="h-6 w-6" />
+      </span>
+      <h3 className="mt-4 text-xl font-extrabold leading-snug text-navy">{door.state}</h3>
+      <p className="mt-2 flex-1 text-sm leading-relaxed text-slate">{door.desc}</p>
+      <span className={`${a.btn} mt-5 w-full text-sm`}>{door.cta}</span>
+    </Link>
   );
 }
 
