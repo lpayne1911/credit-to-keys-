@@ -17,6 +17,7 @@
  * ============================================================================
  */
 import type { PriceRange } from "@/lib/fairness-engine";
+import type { TitleHistory } from "@/lib/sources/vinaudit/types";
 import { classifyAddOns } from "@/lib/add-on-engine/classifyAddOns";
 import { classifyFees } from "@/lib/fee-engine/classifyFees";
 import { dealReviewScore } from "./dealReviewScore";
@@ -37,6 +38,9 @@ export interface BuildDealReviewOptions {
   /** Real national-average APR band (FRED) injected server-side; null when
    *  unavailable, in which case the engine uses its conservative placeholder. */
   aprBenchmark?: DealReviewResult["math"]["aprBenchmark"];
+  /** NMVTIS title/salvage history (VinAudit) injected server-side; null when
+   *  unavailable. Drives the branded-title risk flag. */
+  titleHistory?: TitleHistory | null;
   /** ISO timestamp; injectable for deterministic tests. */
   now?: string;
 }
@@ -77,6 +81,7 @@ export function buildDealReview(
     fees: feeAssessments,
     addOns: addOnAssessments,
     marketValue,
+    titleHistory: opts.titleHistory ?? null,
   });
 
   const { dealScore, scoreBreakdown } = dealReviewScore(
@@ -149,6 +154,13 @@ function buildTakeaways(
   marketValue: PriceRange | null,
 ): string[] {
   const out: string[] = [];
+
+  // Title (lead with it — the highest-stakes signal)
+  if (riskFlags.some((f) => f.id === "branded_title")) {
+    out.push(
+      "NMVTIS reports a branded or total-loss title for this VIN — get an independent inspection and price it well below a clean-title car, or walk away.",
+    );
+  }
 
   // Price
   if (riskFlags.some((f) => f.id === "price_above_market")) {

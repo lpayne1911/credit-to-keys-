@@ -40,6 +40,13 @@ export const RISK_COPY = {
     suggestedAction:
       "Ask the dealer to show the amount financed, APR, and term in writing so the monthly payment can be confirmed.",
   },
+  brandedTitle: {
+    title: "Branded / total-loss title reported",
+    detail: (brands: string) =>
+      `NMVTIS reports ${brands} for this VIN. A branded or total-loss title is a major value and safety signal.`,
+    suggestedAction:
+      "Have the car inspected by an independent mechanic and price it well below a clean-title equivalent — or walk away.",
+  },
   aprAboveBenchmark: {
     title: "APR above national average",
     detail: (apr: number, benchmarkHigh: number, term: number | null) =>

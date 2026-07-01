@@ -5,6 +5,7 @@
  */
 import { runMarketCheck } from "@/lib/market-engine/runMarketCheck";
 import { buildSafetyReport } from "@/lib/safety-engine/buildSafetyReport";
+import { buildTitleHistory } from "@/lib/title-engine/buildTitleHistory";
 import type { MarketCheckRequest } from "@/lib/sources/marketcheck/types";
 import { rateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import { apiError, apiOk } from "@/lib/api-response";
@@ -59,5 +60,9 @@ export async function POST(req: Request) {
     result.vehicle.model,
   ).catch(() => null);
 
-  return apiOk({ result, safety });
+  // NMVTIS title/salvage history (VinAudit) — gated off by default, so this
+  // makes a paid call only when explicitly enabled + configured. REAL-OR-HIDDEN.
+  const title = await buildTitleHistory(request.vin).catch(() => null);
+
+  return apiOk({ result, safety, title });
 }

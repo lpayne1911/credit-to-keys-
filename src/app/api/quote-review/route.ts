@@ -27,6 +27,7 @@ import {
   isEnabled as isFredEnabled,
 } from "@/lib/sources/fred/connector";
 import { parseAprBenchmark } from "@/lib/sources/fred/normalize";
+import { buildTitleHistory } from "@/lib/title-engine/buildTitleHistory";
 import type { PriceRange } from "@/lib/fairness-engine";
 import type { DealReviewResult } from "@/lib/deal-engine/types";
 import { getServiceClient } from "@/lib/supabase/server";
@@ -119,7 +120,12 @@ export async function POST(req: Request) {
     aprBenchmark = parseAprBenchmark(obs, deal.finance.termMonths);
   }
 
-  const result = buildDealReview(deal, { marketValue, aprBenchmark });
+  // NMVTIS title/salvage history (VinAudit, server-only, opt-in). Gated off by
+  // default so a paid per-report call is made only when explicitly enabled.
+  // Real-or-hidden: null when disabled/unconfigured/no VIN/failed.
+  const titleHistory = await buildTitleHistory(deal.vehicle.vin).catch(() => null);
+
+  const result = buildDealReview(deal, { marketValue, aprBenchmark, titleHistory });
 
   const inputPath: "manual" | "upload" =
     deal.sourceMetadata.documentUploaded ? "upload" : "manual";
