@@ -17,6 +17,7 @@
  * ============================================================================
  */
 import type { PriceRange } from "@/lib/fairness-engine";
+import type { TitleHistory } from "@/lib/sources/vinaudit/types";
 import type { AddOnAssessment } from "@/lib/add-on-engine/types";
 import type { FeeAssessment } from "@/lib/fee-engine/types";
 import type {
@@ -32,11 +33,42 @@ export interface RiskFlagInputs {
   fees: FeeAssessment[];
   addOns: AddOnAssessment[];
   marketValue: PriceRange | null;
+  /** NMVTIS title/salvage history (VinAudit); null when unavailable. */
+  titleHistory?: TitleHistory | null;
 }
 
 export function generateRiskFlags(inputs: RiskFlagInputs): RiskFlag[] {
-  const { deal, math, fees, addOns, marketValue } = inputs;
+  const { deal, math, fees, addOns, marketValue, titleHistory } = inputs;
   const flags: RiskFlag[] = [];
+
+  /* ---- Title: branded / total-loss (NMVTIS) ------------------------------ */
+  // Highest-stakes signal; only fires on real VinAudit data (null when the
+  // lookup is off/unavailable, so no false positives).
+  if (
+    titleHistory &&
+    (titleHistory.branded || titleHistory.totalLoss || titleHistory.odometerRollbackSuspected)
+  ) {
+    const parts: string[] = [];
+    if (titleHistory.brands.length > 0) {
+      parts.push(
+        `${titleHistory.brands.map((b) => b.label).join(", ")} ${titleHistory.brands.length === 1 ? "brand" : "brands"}`,
+      );
+    } else if (titleHistory.branded) {
+      parts.push("a branded title");
+    }
+    if (titleHistory.totalLoss) parts.push("an insurance total-loss record");
+    if (titleHistory.odometerRollbackSuspected) parts.push("a possible odometer rollback");
+    flags.push({
+      id: "branded_title",
+      source: "paperwork",
+      severity: "high",
+      confidence: "high",
+      title: RISK_COPY.brandedTitle.title,
+      detail: RISK_COPY.brandedTitle.detail(parts.join(" and ")),
+      estimatedImpact: null,
+      suggestedAction: RISK_COPY.brandedTitle.suggestedAction,
+    });
+  }
 
   /* ---- Pricing: above local market --------------------------------------- */
   const price = deal.pricing.vehiclePrice;

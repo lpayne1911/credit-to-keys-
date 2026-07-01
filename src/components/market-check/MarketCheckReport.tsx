@@ -1,7 +1,9 @@
 import Link from "next/link";
 import type { MarketCheckResponse } from "@/lib/sources/marketcheck/types";
 import type { SafetyReport } from "@/lib/sources/nhtsa/types";
+import type { TitleHistory } from "@/lib/sources/vinaudit/types";
 import { SafetyRecallsCard } from "@/components/safety/SafetyRecallsCard";
+import { TitleHistoryCard } from "@/components/safety/TitleHistoryCard";
 import { SampleBadge } from "@/components/funnels/primitives";
 import { money, MarketStatusBadge, MarketGauge, PriceTrendChart, PriceDistributionChart, StatTile } from "./parts";
 import { ComparableListingsTable } from "./ComparableListingsTable";
@@ -33,11 +35,14 @@ function KV({ k, v }: { k: string; v: string }) {
 export function MarketCheckReport({
   response,
   safety = null,
+  title = null,
   enableSave = true,
 }: {
   response: MarketCheckResponse;
   /** NHTSA recalls + crash ratings for this vehicle; null hides the card. */
   safety?: SafetyReport | null;
+  /** NMVTIS title/salvage history for this VIN; null hides the card. */
+  title?: TitleHistory | null;
   /** Hidden on an already-saved shared report (/r/[id]). */
   enableSave?: boolean;
 }) {
@@ -103,6 +108,9 @@ export function MarketCheckReport({
               </div>
             </div>
           </section>
+
+          {/* Title & history (NMVTIS/VinAudit — real-or-hidden) */}
+          <TitleHistoryCard title={title} />
 
           {/* Safety & recalls (NHTSA — real-or-hidden) */}
           <SafetyRecallsCard report={safety} />

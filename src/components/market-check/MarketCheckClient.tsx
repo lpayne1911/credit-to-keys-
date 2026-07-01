@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { MarketCheckResponse } from "@/lib/sources/marketcheck/types";
 import type { SafetyReport } from "@/lib/sources/nhtsa/types";
+import type { TitleHistory } from "@/lib/sources/vinaudit/types";
 import { MarketCheckReport } from "./MarketCheckReport";
 
 const STEPS = [
@@ -16,6 +17,7 @@ const STEPS = [
 export function MarketCheckClient({ initial }: { initial: MarketCheckResponse }) {
   const [response, setResponse] = useState<MarketCheckResponse>(initial);
   const [safety, setSafety] = useState<SafetyReport | null>(null);
+  const [title, setTitle] = useState<TitleHistory | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [f, setF] = useState({ vin: "", year: "", make: "", model: "", trim: "", mileage: "", zipCode: "", dealerAskingPrice: "" });
@@ -49,6 +51,7 @@ export function MarketCheckClient({ initial }: { initial: MarketCheckResponse })
       }
       setResponse(data.result as MarketCheckResponse);
       setSafety((data.safety ?? null) as SafetyReport | null);
+      setTitle((data.title ?? null) as TitleHistory | null);
     } catch {
       setError("Network error. Please try again.");
     } finally {
@@ -90,7 +93,7 @@ export function MarketCheckClient({ initial }: { initial: MarketCheckResponse })
           <p className="mt-4 text-xs text-slate">Comparing this vehicle against nearby listings so you can see whether the price is fair before you negotiate.</p>
         </div>
       ) : (
-        <MarketCheckReport response={response} safety={safety} />
+        <MarketCheckReport response={response} safety={safety} title={title} />
       )}
     </div>
   );
