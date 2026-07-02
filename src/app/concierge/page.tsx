@@ -4,9 +4,9 @@ import { ConciergeTimelineSample } from "@/components/funnels/samples";
 import { FunnelIntake } from "@/components/funnels/FunnelIntake";
 
 export const metadata = {
-  title: "Concierge — We Handle It | Driveway Advocate",
+  title: "Concierge — pre-purchase, done-for-you | Driveway Advocate",
   description:
-    "Your personal buyer advocate, from start to keys. We source, negotiate, review paperwork, and coordinate delivery. Application-based, buyer-side only.",
+    "Pre-purchase, done-for-you support: your personal buyer advocate from start to keys. We source, negotiate, review paperwork, and coordinate delivery. Application-based, buyer-side only.",
 };
 
 const funnel = getFunnel("concierge")!;

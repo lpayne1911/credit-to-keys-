@@ -4,9 +4,9 @@ import { PostSaleOptionsMapSample } from "@/components/funnels/samples";
 import { FunnelIntake } from "@/components/funnels/FunnelIntake";
 
 export const metadata = {
-  title: "Already Signed — Post-Sale Triage | Driveway Advocate",
+  title: "Deal Rescue — Post-Sale Options Review | Driveway Advocate",
   description:
-    "Already signed? We help you understand your options, organize your paperwork, check whether add-ons may be cancellable, and prepare next-step questions. Results after signing cannot be guaranteed.",
+    "Already signed? Deal Rescue helps you understand your options, organize your paperwork, check whether add-ons may be cancellable, and prepare next-step questions. Decision support, not legal advice — results after signing cannot be guaranteed.",
 };
 
 const funnel = getFunnel("post-sale-triage")!;

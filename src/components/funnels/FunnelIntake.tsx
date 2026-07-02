@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ACCENT_CLASSES, type Accent } from "@/lib/funnels";
+import { IntakeUpload } from "@/components/products/IntakeUpload";
 
 type Field =
   | { name: string; label: string; type: "text" | "textarea"; required?: boolean; placeholder?: string }
@@ -36,10 +37,29 @@ const FIELDS: Record<string, Field[]> = {
   ],
 };
 
+/** Per-funnel upload prompt. Deal Rescue needs the signed paperwork; the
+ *  forward-looking funnels accept any paperwork the buyer already has. */
+const UPLOADS: Record<string, { label: string; hint: string }> = {
+  "deal-rescue": {
+    label: "Upload your signed paperwork",
+    hint: "Contract, buyer's order, add-on forms — photo or PDF. This is what your advocate reviews.",
+  },
+  "build-my-plan": {
+    label: "Have paperwork already? Upload it (optional)",
+    hint: "An existing quote, worksheet, trade appraisal, or dealer offer helps us build your plan.",
+  },
+  concierge: {
+    label: "Have paperwork already? Upload it (optional)",
+    hint: "An existing quote, worksheet, trade appraisal, or dealer offer gives us a head start.",
+  },
+};
+
 /**
  * Lead-capture intake for the blue/gold/red funnels. Posts to the existing
- * /api/intake endpoint ({ productId, fields }). No payment, no automated score,
- * no promises of cancellation, refund, or guaranteed savings.
+ * /api/intake endpoint ({ productId, fields }). Documents upload through the
+ * existing /api/parse storage seam (private bucket); the storage path rides
+ * along in the intake payload for the operator console. No payment, no
+ * automated score, no promises of cancellation, refund, or guaranteed savings.
  */
 export function FunnelIntake({
   productId,
@@ -56,7 +76,10 @@ export function FunnelIntake({
 }) {
   const a = ACCENT_CLASSES[accent];
   const fields = FIELDS[productId] ?? [];
+  const upload = UPLOADS[productId];
   const [values, setValues] = useState<Record<string, string>>({});
+  const [uploadedFilePath, setUploadedFilePath] = useState<string | null>(null);
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -68,10 +91,16 @@ export function FunnelIntake({
     setError(null);
     setSubmitting(true);
     try {
+      const payload = {
+        ...values,
+        ...(uploadedFilePath
+          ? { uploadedFilePath, uploadedFileName: uploadedFileName ?? undefined }
+          : {}),
+      };
       const res = await fetch("/api/intake", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productId, fields: values }),
+        body: JSON.stringify({ productId, fields: payload }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -101,6 +130,17 @@ export function FunnelIntake({
           <h3 className="text-xl font-bold text-navy">{heading}</h3>
           {blurb && <p className="mt-1 text-sm text-slate">{blurb}</p>}
           <div className="mt-5 space-y-4">
+            {upload && (
+              <IntakeUpload
+                label={upload.label}
+                hint={upload.hint}
+                accentClass={a.textDark}
+                onUploaded={(path, name) => {
+                  setUploadedFilePath(path);
+                  setUploadedFileName(name);
+                }}
+              />
+            )}
             {fields.map((f) => (
               <label key={f.name} className="block">
                 <span className="field-label">

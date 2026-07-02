@@ -112,6 +112,22 @@ const EMPTY: FormState = {
   alreadySigned: false,
 };
 
+/** Numbered section header — turns the long scroll into visible steps so the
+ *  form feels finishable on mobile. Purely presentational; submission behavior
+ *  is unchanged. */
+function StepHeading({ n, of, children }: { n: number; of: number; children: React.ReactNode }) {
+  return (
+    <div>
+      <p className="text-[11px] font-bold uppercase tracking-wide text-green-dark">
+        Step {n} of {of}
+      </p>
+      <h2 className="font-serif text-lg font-semibold text-navy">{children}</h2>
+    </div>
+  );
+}
+
+const TOTAL_STEPS = 7;
+
 function Field({
   label,
   value,
@@ -468,7 +484,7 @@ export function QuoteReviewIntakeForm() {
 
       {/* Vehicle */}
       <section className="card space-y-3">
-        <h2 className="font-serif text-lg font-semibold text-navy">Vehicle</h2>
+        <StepHeading n={1} of={TOTAL_STEPS}>Vehicle</StepHeading>
         <VehicleSelector
           value={form.vehicle}
           onChange={(v) => set("vehicle", v)}
@@ -498,7 +514,7 @@ export function QuoteReviewIntakeForm() {
 
       {/* Dealer & location */}
       <section className="card space-y-3">
-        <h2 className="font-serif text-lg font-semibold text-navy">Dealer &amp; location</h2>
+        <StepHeading n={2} of={TOTAL_STEPS}>Dealer &amp; location</StepHeading>
         <Field label="Dealer name (optional)" value={form.dealerName} onChange={(v) => set("dealerName", v)} />
         <Field label="Dealer address (optional)" value={form.dealerAddress} onChange={(v) => set("dealerAddress", v)} />
         <div className="grid grid-cols-2 gap-3">
@@ -515,7 +531,7 @@ export function QuoteReviewIntakeForm() {
 
       {/* Pricing */}
       <section className="card space-y-3">
-        <h2 className="font-serif text-lg font-semibold text-navy">Pricing</h2>
+        <StepHeading n={3} of={TOTAL_STEPS}>Pricing</StepHeading>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Selling price" value={form.vehiclePrice} inputMode="decimal" onChange={(v) => set("vehiclePrice", v)} />
           <Field label="MSRP (optional)" value={form.msrp} inputMode="decimal" onChange={(v) => set("msrp", v)} />
@@ -534,7 +550,7 @@ export function QuoteReviewIntakeForm() {
 
       {/* Fees */}
       <section className="card space-y-3">
-        <h2 className="font-serif text-lg font-semibold text-navy">Fees</h2>
+        <StepHeading n={4} of={TOTAL_STEPS}>Fees</StepHeading>
         <p className="text-sm text-navy/55">List each fee line from the buyer&apos;s order.</p>
         {form.fees.map((line, i) => (
           <div key={i} className="flex items-end gap-2">
@@ -559,7 +575,7 @@ export function QuoteReviewIntakeForm() {
 
       {/* Add-ons */}
       <section className="card space-y-3">
-        <h2 className="font-serif text-lg font-semibold text-navy">Add-ons &amp; F&amp;I products</h2>
+        <StepHeading n={5} of={TOTAL_STEPS}>Add-ons &amp; F&amp;I products</StepHeading>
         <p className="text-sm text-navy/55">Warranty, GAP, tire &amp; wheel, paint, etc.</p>
         {form.addOns.map((line, i) => (
           <div key={i} className="space-y-2 rounded-lg border border-navy/10 p-3">
@@ -591,7 +607,7 @@ export function QuoteReviewIntakeForm() {
 
       {/* Financing */}
       <section className="card space-y-3">
-        <h2 className="font-serif text-lg font-semibold text-navy">Financing</h2>
+        <StepHeading n={6} of={TOTAL_STEPS}>Financing</StepHeading>
         <div className="grid grid-cols-2 gap-3">
           <Field label="APR %" value={form.apr} inputMode="decimal" onChange={(v) => set("apr", v)} />
           <Field label="Term (months)" value={form.termMonths} inputMode="numeric" onChange={(v) => set("termMonths", v)} />
@@ -609,7 +625,7 @@ export function QuoteReviewIntakeForm() {
 
       {/* Trade-in */}
       <section className="card space-y-3">
-        <h2 className="font-serif text-lg font-semibold text-navy">Trade-in (optional)</h2>
+        <StepHeading n={7} of={TOTAL_STEPS}>Trade-in (optional)</StepHeading>
         <div className="grid grid-cols-4 gap-3">
           <Field label="Year" value={form.tradeYear} inputMode="numeric" onChange={(v) => set("tradeYear", v)} />
           <Field label="Make" value={form.tradeMake} onChange={(v) => set("tradeMake", v)} />

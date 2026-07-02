@@ -72,10 +72,10 @@ function ActionCards() {
         <p className="mt-3 text-sm font-bold text-green-dark">Review my quote →</p>
       </Link>
       <Link href="/check" className="rounded-2xl border border-edge bg-white p-6 shadow-card transition hover:-translate-y-1 hover:shadow-lift">
-        <p className="text-xs font-bold uppercase tracking-wide text-blue">Deal Check</p>
-        <p className="mt-2 font-bold text-navy">Run a full check</p>
-        <p className="mt-1 text-sm text-slate">Score a deal&apos;s fees, APR, and add-ons.</p>
-        <p className="mt-3 text-sm font-bold text-blue">Check a deal →</p>
+        <p className="text-xs font-bold uppercase tracking-wide text-blue">Free Red Flag Scan</p>
+        <p className="mt-2 font-bold text-navy">Spot the red flags fast</p>
+        <p className="mt-1 text-sm text-slate">A free scan of a deal&apos;s fees, APR, and add-ons.</p>
+        <p className="mt-3 text-sm font-bold text-blue">Run my free scan →</p>
       </Link>
     </div>
   );

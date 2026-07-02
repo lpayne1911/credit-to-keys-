@@ -199,8 +199,9 @@ export function MarketCheckReport({
           <section className="rounded-2xl border border-edge bg-white p-5 shadow-card">
             <h2 className="text-base font-bold text-navy">What would you like to do next?</h2>
             <div className="mt-4 space-y-2.5">
-              <Link href="/quote-review" className="btn-green w-full text-sm">Review My Quote</Link>
-              <Link href="/build-my-plan" className="btn-blue w-full text-sm">Build My Plan</Link>
+              <Link href={withVehicle("/quote-review", v)} className="btn-green w-full text-sm">Review a quote for this vehicle</Link>
+              <Link href={withVehicle("/build-my-plan", v)} className="btn-blue w-full text-sm">Build a plan for this vehicle</Link>
+              <Link href={withVehicle("/concierge", v)} className="btn-gold w-full text-sm">Start Concierge for this vehicle</Link>
               <Link href="/human-review" className="btn-secondary w-full justify-center text-sm">Request Human Review</Link>
               {enableSave && <SaveReportButton response={response} />}
             </div>
@@ -292,6 +293,22 @@ export function MarketCheckReport({
 
 function cap(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/** Forward the report's vehicle into a funnel route as query params so the
+ *  next intake can pre-fill (year/make/model/trim/vin). */
+function withVehicle(
+  path: string,
+  v: MarketCheckResponse["vehicle"],
+): string {
+  const params = new URLSearchParams();
+  if (v.year) params.set("year", String(v.year));
+  if (v.make) params.set("make", v.make);
+  if (v.model) params.set("model", v.model);
+  if (v.trim) params.set("trim", v.trim);
+  if (v.vin) params.set("vin", v.vin);
+  const qs = params.toString();
+  return qs ? `${path}?${qs}` : path;
 }
 
 function VehicleImage() {

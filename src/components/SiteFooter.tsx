@@ -60,23 +60,23 @@ export function SiteFooter() {
                   href="/check"
                   className="text-sm font-semibold text-cream/85 transition hover:text-gold-light"
                 >
-                  Check my deal before I sign
+                  Free Red Flag Scan
                 </Link>
               </li>
               <li>
                 <Link
-                  href="/#how-it-works"
+                  href="/tools"
                   className="text-sm text-cream/70 transition hover:text-gold-light"
                 >
-                  How it works
+                  All free tools
                 </Link>
               </li>
               <li>
                 <Link
-                  href="/#what-we-catch"
+                  href="/market-check"
                   className="text-sm text-cream/70 transition hover:text-gold-light"
                 >
-                  What we catch
+                  Market Check
                 </Link>
               </li>
               <li>
@@ -92,7 +92,7 @@ export function SiteFooter() {
                   href="/credit-to-keys"
                   className="text-sm text-cream/70 transition hover:text-gold-light"
                 >
-                  Fix my credit first
+                  Prepare my credit first
                 </Link>
               </li>
             </ul>

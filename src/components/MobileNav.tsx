@@ -71,7 +71,7 @@ export function MobileNav({ links, primary }: { links: NavLink[]; primary?: NavL
                 href="/dashboard"
                 className="block rounded-lg px-3 py-3 text-base font-semibold text-white/80 transition hover:bg-white/10 hover:text-white"
               >
-                Account
+                Workspace
               </Link>
               {links.map((l) => (
                 <Link

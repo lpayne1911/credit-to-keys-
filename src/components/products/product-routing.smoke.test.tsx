@@ -39,11 +39,13 @@ describe("product CTA routing (rendered markup)", () => {
 
   it("header nav routes to the funnels with quote review as primary", () => {
     const markup = html(createElement(SiteHeader));
+    expect(markup).toContain('href="/tools"');
+    expect(markup).toContain('href="/market-check"');
     expect(markup).toContain('href="/concierge"');
     expect(markup).toContain('href="/post-sale-triage"');
     expect(markup).toContain('href="/quote-review"');
-    expect(markup).toContain("How it works");
-    expect(markup).toContain("What we catch");
+    expect(markup).toContain("Free Tools");
+    expect(markup).toContain("Workspace");
     expect(markup).not.toContain("Pricing");
   });
 

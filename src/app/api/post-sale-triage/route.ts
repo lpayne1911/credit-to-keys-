@@ -55,5 +55,13 @@ export async function POST(req: Request) {
 
   const result = buildPostSaleTriage(input);
 
-  return apiOk({ triageId: randomUUID(), result, persisted: false });
+  // Echo the private-bucket paperwork path (if the buyer uploaded) so the
+  // client can keep it with the saved report. The file itself was already
+  // stored securely by /api/parse; no scoring happens on it here.
+  return apiOk({
+    triageId: randomUUID(),
+    result,
+    uploadedFilePath: str(d.uploadedFilePath),
+    persisted: false,
+  });
 }

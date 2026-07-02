@@ -9,7 +9,7 @@ import { Disclaimer } from "@/components/Disclaimer";
 import { PostSaleIntakeForm } from "./PostSaleIntakeForm";
 
 export const metadata = {
-  title: "Post-Sale Triage — Driveway Advocate",
+  title: "Deal Rescue intake — Driveway Advocate",
   description:
     "Already signed? Tell us what you were sold and we'll flag what may be cancellable, who to contact, and your next steps — with the cooling-off reality up front.",
 };
@@ -35,7 +35,7 @@ export default function PostSaleIntakePage() {
             </svg>
           </Link>
           <span className="font-serif text-sm font-semibold tracking-tight text-navy/80">
-            Post-Sale Triage
+            Deal Rescue
           </span>
           <Link
             href="/"
