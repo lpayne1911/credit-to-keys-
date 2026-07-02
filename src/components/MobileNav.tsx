@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { NavLink } from "@/lib/products/product-catalog";
@@ -10,6 +11,10 @@ import type { NavLink } from "@/lib/products/product-catalog";
  * below that breakpoint this hamburger is the only way to reach the funnel
  * links (Market Check, Concierge, etc.). Client-only for the open/close state;
  * closes itself on route change so a tap-through doesn't leave it hanging open.
+ *
+ * The drawer renders through a portal to document.body: SiteHeader's
+ * `backdrop-blur` creates a CSS containing block, which would otherwise trap
+ * the `fixed inset-0` overlay inside the 64px header and clip the menu.
  */
 export function MobileNav({ links, primary }: { links: NavLink[]; primary?: NavLink }) {
   const [open, setOpen] = useState(false);
@@ -44,7 +49,7 @@ export function MobileNav({ links, primary }: { links: NavLink[]; primary?: NavL
         </svg>
       </button>
 
-      {open && (
+      {open && createPortal(
         <div className="fixed inset-0 z-50">
           <div
             className="absolute inset-0 bg-navy-950/70 backdrop-blur-sm"
@@ -71,7 +76,7 @@ export function MobileNav({ links, primary }: { links: NavLink[]; primary?: NavL
                 href="/dashboard"
                 className="block rounded-lg px-3 py-3 text-base font-semibold text-white/80 transition hover:bg-white/10 hover:text-white"
               >
-                Account
+                Workspace
               </Link>
               {links.map((l) => (
                 <Link
@@ -92,7 +97,8 @@ export function MobileNav({ links, primary }: { links: NavLink[]; primary?: NavL
               </div>
             )}
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

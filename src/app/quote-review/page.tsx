@@ -3,9 +3,9 @@ import { FunnelPage } from "@/components/funnels/FunnelPage";
 import { DealReviewSummarySample } from "@/components/funnels/samples";
 
 export const metadata = {
-  title: "Deal Rescue — Quote Review | Driveway Advocate",
+  title: "Quote Review — before you sign | Driveway Advocate",
   description:
-    "Already have a quote from a dealer? We review your numbers, benchmark the price, flag junk fees and risky terms, and give you a pushback plan before you sign.",
+    "Have a dealer quote or buyer's order but haven't signed yet? We review your numbers, benchmark the price, flag junk fees and risky terms, and give you a pushback plan before you sign.",
 };
 
 const funnel = getFunnel("quote-review")!;

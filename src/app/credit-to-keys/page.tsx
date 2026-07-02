@@ -4,7 +4,9 @@ import { SiteFooter } from "@/components/SiteFooter";
 import { Disclaimer } from "@/components/Disclaimer";
 
 export const metadata = {
-  title: "Credit-to-Keys — Driveway Advocate",
+  title: "Credit-to-Keys — prepare before you walk into the dealership | Driveway Advocate",
+  description:
+    "Not ready to shop yet because of credit, approval, budget, or down-payment issues? Credit-to-Keys is pre-purchase readiness: get buy-ready first, then bring in your advocate when it's time to sign.",
 };
 
 const STAGES = [
@@ -26,7 +28,7 @@ const STAGES = [
     n: 3,
     label: "Buy",
     title: "Bring in your advocate",
-    body: "Now the buyer-side treatment kicks in: Deal Check, junk-fee challenge, F&I review, and a sign / push back / walk verdict — so the credit you just rebuilt doesn't get handed back at the finance desk.",
+    body: "Now the buyer-side treatment kicks in: a Free Red Flag Scan, a full Quote Review, junk-fee challenge, F&I review, and a sign / push back / walk verdict — so the credit you just rebuilt doesn't get handed back at the finance desk.",
     billing: "Flat fee for the car help — its own price, never pre-paid.",
   },
 ];
@@ -39,24 +41,25 @@ export default function CreditToKeysPage() {
         {/* Hero — the 3–9 month buyer */}
         <section className="mx-auto max-w-5xl px-4 pb-10 pt-12 sm:pt-16">
           <span className="inline-block rounded-full border border-edge bg-white px-3 py-1 text-xs font-semibold uppercase tracking-wide text-navy">
-            Credit-to-Keys · the flagship pathway
+            Credit-to-Keys · pre-purchase readiness
           </span>
           <h1 className="mt-4 max-w-3xl font-serif text-4xl font-semibold leading-tight text-navy sm:text-5xl">
-            Don&apos;t let your credit be the thing that costs you the car.
+            Prepare before you walk into the dealership.
           </h1>
           <p className="mt-4 max-w-2xl text-lg leading-relaxed text-navy/70">
-            If you&apos;re <strong>3–9 months from buying</strong>, the most
-            expensive mistake isn&apos;t the dealer&apos;s markup — it&apos;s
+            Not ready to shop yet because of credit, approval, budget, or
+            down-payment issues? If you&apos;re <strong>3–9 months from buying</strong>,
+            the most expensive mistake isn&apos;t the dealer&apos;s markup — it&apos;s
             walking in with a score that hands them a reason to charge you more.
-            Credit-to-Keys fixes that first, then puts an advocate in your corner
-            when it&apos;s time to sign.
+            Credit-to-Keys gets you buy-ready first, then puts an advocate in your
+            corner when it&apos;s time to sign.
           </p>
           <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-            <Link href="/check" className="btn-primary">
-              Start with a free Deal Check
+            <Link href="/tools" className="btn-primary">
+              Start with the free tools
             </Link>
-            <Link href="/services" className="btn-secondary">
-              See all services
+            <Link href="/build-my-plan" className="btn-secondary">
+              Ready to shop? Build My Plan
             </Link>
           </div>
           <p className="mt-4 text-sm text-navy/50">
@@ -168,13 +171,13 @@ export default function CreditToKeysPage() {
               Start where you are.
             </h2>
             <p className="mx-auto mt-2 max-w-xl text-navy/65">
-              Run a free Deal Check today to see how we work — and when the credit
+              Run a Free Red Flag Scan today to see how we work — and when the credit
               stages open, you&apos;ll already be in the system, already on your
               side&apos;s side.
             </p>
             <div className="mt-6">
               <Link href="/check" className="btn-primary">
-                Start a free Deal Check
+                Run a Free Red Flag Scan
               </Link>
             </div>
           </div>

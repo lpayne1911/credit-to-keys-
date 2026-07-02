@@ -82,19 +82,19 @@ export const PRICES = {
 } as const;
 
 export const FUNNELS: Funnel[] = [
-  /* 🟢 PATH 1 — Review My Quote / Deal Rescue */
+  /* 🟢 PATH 1 — Quote Review (pre-signing) */
   {
     id: "quote-review",
     accent: "green",
-    homeEyebrow: "I have a quote",
+    homeEyebrow: "I have a quote — not signed yet",
     homeTitle: "Review My Quote",
     homeCopy: "Review it. Challenge it. Strengthen it.",
     homeCta: "Review My Quote",
     route: "/quote-review",
-    eyebrow: "Path 1 · Deal Rescue",
-    title: "Deal Rescue — Quote Review",
-    tagline: "Already have a quote from a dealer? Let us review it first.",
-    body: "We dig into your numbers, benchmark the price, flag hidden fees and risky terms, and give you a clear plan to get a better deal.",
+    eyebrow: "Path 1 · Quote Review",
+    title: "Quote Review — before you sign",
+    tagline: "I have a dealer quote or buyer's order, but I haven't signed yet.",
+    body: "We dig into your numbers, benchmark the price, flag hidden fees and risky terms, and give you a clear plan to get a better deal — before you sign anything.",
     bullets: [
       "Spot junk fees & overcharges",
       "Benchmark pricing in your market",
@@ -123,9 +123,9 @@ export const FUNNELS: Funnel[] = [
       { icon: "user", label: "Optional Human Review", blurb: "Add-on expert review for complex deals." },
     ],
     pricing: {
-      label: "Deal Rescue — Quote Review",
+      label: "Quote Review",
       amount: PRICES.quoteReview,
-      sub: "One-time fee per quote review",
+      sub: "Starting at $199 · one-time fee per quote review. Scope confirmed before any work begins — no charge today.",
       bullets: ["Same day or next business day turnaround", "Full review + pushback script"],
       addOn: { label: "Add: Human Review Upgrade", amount: PRICES.humanReview, sub: "Expert advocate review for high-stakes deals." },
     },
@@ -181,7 +181,7 @@ export const FUNNELS: Funnel[] = [
       addOn: { label: "Add: Live Support at the Dealership", amount: PRICES.liveSupport, sub: "Chat or call support when you're at the desk." },
     },
     primaryCta: { label: "Build My Plan", href: "/build-my-plan/intake" },
-    secondaryCta: { label: "Check the market first", href: "/dashboard/market-check" },
+    secondaryCta: { label: "Check the market first", href: "/market-check" },
     intakeProductId: "build-my-plan",
   },
 
@@ -196,8 +196,8 @@ export const FUNNELS: Funnel[] = [
     route: "/concierge",
     eyebrow: "Path 3 · Concierge",
     title: "Concierge — We Handle It",
-    tagline: "Your personal buyer advocate, from start to keys.",
-    body: "We source, negotiate, and handle the entire car-buying process so you get the right vehicle, at the right price, with none of the stress.",
+    tagline: "Pre-purchase, done-for-you: your personal buyer advocate, from start to keys.",
+    body: "Before you buy, we source, negotiate, and handle the entire car-buying process so you get the right vehicle, at the right price, with none of the stress.",
     bullets: [
       "Expert sourcing & comparison",
       "Dealer negotiation on your behalf",
@@ -235,21 +235,21 @@ export const FUNNELS: Funnel[] = [
     intakeProductId: "concierge",
   },
 
-  /* 🔴 PATH 4 — Already Signed / Post-Sale Triage */
+  /* 🔴 PATH 4 — Deal Rescue (already signed / post-sale) */
   {
     id: "post-sale-triage",
     accent: "red",
     homeEyebrow: "Already signed",
-    homeTitle: "Post-Sale Triage",
+    homeTitle: "Deal Rescue",
     homeCopy: "Post-sale help and options review.",
-    homeCta: "Post-Sale Triage",
+    homeCta: "Deal Rescue",
     route: "/post-sale-triage",
-    eyebrow: "Path 4 · Post-Sale Triage",
-    title: "Already Signed — Post-Sale Triage",
+    eyebrow: "Path 4 · Deal Rescue",
+    title: "Deal Rescue — Post-Sale Options Review",
     tagline: "You've already signed. Let's understand your options.",
-    body: "We help you understand your options, organize your paperwork, and pursue the best next steps available. Post-sale results cannot be guaranteed.",
+    body: "We help you understand your options, organize your paperwork, and pursue the best next steps available. This is decision support, not legal advice — and post-sale results cannot be guaranteed.",
     heroIcon: "shieldAlert",
-    stepsTitle: "Your post-sale triage workflow",
+    stepsTitle: "How Deal Rescue works",
     steps: [
       { n: 1, icon: "upload", title: "Upload signed paperwork", desc: "Securely upload your contract, add-ons, and supporting docs." },
       { n: 2, icon: "alert", title: "Issue triage", desc: "We identify key issues, potential concerns, and what may be cancellable." },
@@ -269,9 +269,9 @@ export const FUNNELS: Funnel[] = [
       { icon: "map", label: "Escalation & Next-Step Plan", blurb: "Escalation routes and recommended next steps." },
     ],
     pricing: {
-      label: "Post-Sale Options Review",
+      label: "Deal Rescue — Post-Sale Options Review",
       amount: PRICES.postSale,
-      sub: "A document and options review — not a Deal Score. Final price depends on scope.",
+      sub: "A document and options review — not a Deal Score, and results cannot be guaranteed. Scope confirmed before work begins; final price depends on scope.",
       bullets: ["Cancellation options report", "Who-to-contact map", "Documentation checklist & escalation plan"],
     },
     primaryCta: { label: "Review My Post-Sale Options", href: "/post-sale-triage/intake" },

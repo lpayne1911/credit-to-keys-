@@ -4,6 +4,7 @@ import { useState } from "react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { ProductIntro } from "@/components/products/ProductIntro";
+import { IntakeUpload } from "@/components/products/IntakeUpload";
 import { getProduct } from "@/lib/products/product-catalog";
 
 type Field =
@@ -45,6 +46,8 @@ export function IntakeForm({ productId }: { productId: string }) {
   const product = getProduct(productId);
   const fields = FIELDS[productId] ?? [];
   const [values, setValues] = useState<Record<string, string>>({});
+  const [uploadedFilePath, setUploadedFilePath] = useState<string | null>(null);
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -64,7 +67,15 @@ export function IntakeForm({ productId }: { productId: string }) {
       const res = await fetch("/api/intake", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productId, fields: values }),
+        body: JSON.stringify({
+          productId,
+          fields: {
+            ...values,
+            ...(uploadedFilePath
+              ? { uploadedFilePath, uploadedFileName: uploadedFileName ?? undefined }
+              : {}),
+          },
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -95,6 +106,25 @@ export function IntakeForm({ productId }: { productId: string }) {
           </div>
         ) : (
           <div className="mt-8 space-y-4">
+            {product.supportsUpload && (
+              <IntakeUpload
+                label={
+                  productId === "deal-rescue"
+                    ? "Upload your signed paperwork"
+                    : "Upload your quote or contract (optional)"
+                }
+                hint={
+                  productId === "deal-rescue"
+                    ? "Contract, buyer's order, add-on forms — photo or PDF. This is what your advocate reviews."
+                    : "A photo or PDF of the paperwork helps your advocate review faster."
+                }
+                accentClass="text-gold-dark"
+                onUploaded={(path, name) => {
+                  setUploadedFilePath(path);
+                  setUploadedFileName(name);
+                }}
+              />
+            )}
             {fields.map((f) => (
               <label key={f.name} className="block">
                 <span className="field-label">

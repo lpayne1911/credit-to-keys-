@@ -180,7 +180,7 @@ export function FocusedResult({
           {focus !== "warranty" && <NextLink href="/warranty-check" label="Check warranty" />}
           {focus !== "apr" && <NextLink href="/apr-check" label="Check APR" />}
           {focus !== "addons" && <NextLink href="/add-on-check" label="Review add-ons" />}
-          <NextLink href="/check" label="Full deal check" />
+          <NextLink href="/check" label="Free Red Flag Scan" />
         </div>
 
         <div className="mt-6">

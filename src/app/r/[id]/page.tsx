@@ -28,7 +28,7 @@ export default async function SharedReportPage({ params }: { params: { id: strin
         {/* Already saved → no Save button; offer a fresh lookup instead. */}
         <MarketCheckReport response={response} enableSave={false} />
         <div className="mx-auto max-w-6xl px-4 pb-12 text-center">
-          <Link href="/dashboard/market-check" className="btn-blue text-sm">
+          <Link href="/market-check" className="btn-blue text-sm">
             Run a new Market Check
           </Link>
         </div>

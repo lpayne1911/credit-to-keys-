@@ -181,13 +181,15 @@ export const buildPlanSchema = z.object({
     .nullable(),
 });
 
-/** Post-Sale Triage intake — already signed; what was bought + the basics. */
+/** Deal Rescue (post-sale) intake — already signed; what was bought + the basics. */
 export const postSaleSchema = z.object({
   buyerState: z.string().max(8).optional(),
   daysSinceSigned: numLike,
   financed: z.boolean().optional(),
   lienholder: z.string().max(120).optional(),
   dealerName: z.string().max(200).optional(),
+  // Private-bucket storage path returned by /api/parse (signed-paperwork upload).
+  uploadedFilePath: z.string().max(500).optional(),
   addOns: z
     .array(
       z.object({

@@ -32,5 +32,5 @@ export interface SavedReport {
 export const REPORT_META: Record<ReportType, { label: string; accent: "green" | "blue" | "red" }> = {
   "quote-review": { label: "Quote Review", accent: "green" },
   "target-plan": { label: "Target Deal Sheet", accent: "blue" },
-  "post-sale": { label: "Post-Sale Triage", accent: "red" },
+  "post-sale": { label: "Deal Rescue", accent: "red" },
 };

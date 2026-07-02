@@ -81,6 +81,8 @@ export default async function VerdictPage({
                 </div>
               )}
 
+              <UpgradeToQuoteReview />
+
               <RequestReviewButton
                 dealId={deal.id}
                 alreadyRequested={
@@ -107,6 +109,33 @@ export default async function VerdictPage({
           )}
         </div>
       </main>
+    </div>
+  );
+}
+
+/** The free scan's upgrade path — a full Quote Review is the paid, line-by-line
+ *  paperwork teardown with a pushback plan. Positioned as the clear next step,
+ *  not a duplicate of the free scan. */
+function UpgradeToQuoteReview() {
+  return (
+    <div className="rounded-2xl border border-green/30 bg-green-soft p-5">
+      <p className="text-sm font-bold uppercase tracking-wide text-green-dark">
+        Free scan complete
+      </p>
+      <p className="mt-2 text-lg font-bold leading-tight text-navy">
+        Want the full paperwork review and pushback plan?
+      </p>
+      <p className="mt-1 text-sm text-ink/80">
+        This was a quick free scan. A full Quote Review reconstructs your whole deal,
+        classifies every fee and add-on, and gives you a word-for-word pushback script —
+        before you sign.
+      </p>
+      <Link href="/quote-review" className="btn-green mt-4 w-full justify-center">
+        Start Quote Review →
+      </Link>
+      <p className="mt-2 text-center text-xs text-slate">
+        Starting at $199 · scope confirmed before any work begins · no charge today.
+      </p>
     </div>
   );
 }

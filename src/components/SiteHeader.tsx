@@ -37,7 +37,7 @@ export function SiteHeader() {
             href="/dashboard"
             className="hidden rounded-lg px-3 py-2 text-sm font-semibold text-white/75 transition hover:bg-white/10 hover:text-white lg:inline-flex"
           >
-            Account
+            Workspace
           </Link>
           {primary && (
             <Link href={primary.href} className="btn-outline-light hidden lg:inline-flex">

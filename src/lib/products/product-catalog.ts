@@ -80,15 +80,15 @@ export const STATUS_LABEL: Record<ProductStatus, string> = {
 export const PRODUCTS: Product[] = [
   {
     id: "deal-inspector",
-    label: "Full deal check",
+    label: "Free Red Flag Scan",
     shortDescription:
-      "The whole quote, scored: price, fees, financing, trade-in, and warranty.",
+      "A fast, free scan of your deal for the red flags buyers miss — no signup, about a minute.",
     route: "/check",
-    ctaLabel: "Start free deal check",
-    ctaLabelAlts: ["Check my full deal", "Inspect my dealer quote"],
-    intent: "I have a quote/worksheet and want the whole deal reviewed.",
-    problem: "I have the whole deal in front of me and don't know if it's fair.",
-    whoFor: "You have a quote, buyer's order, or payment worksheet.",
+    ctaLabel: "Run my free scan",
+    ctaLabelAlts: ["Start Free Red Flag Scan", "Scan my deal free"],
+    intent: "I want a quick, free read on whether my deal has red flags.",
+    problem: "I have numbers in front of me and want a fast gut-check before I dig in.",
+    whoFor: "Anyone with a quote, worksheet, or even just ballpark numbers.",
     estTime: "~1 min",
     intakeLabel: "Instant scan",
     type: "automated",
@@ -97,14 +97,14 @@ export const PRODUCTS: Product[] = [
     supportsHumanReview: true,
     supportsUpload: true,
     focus: "full",
-    emoji: "🔎",
+    emoji: "🚩",
     page: {
-      what: "Your entire deal — vehicle price, dealer fees, APR and payment, trade-in, and any extended warranty — scored against fair-range estimates.",
+      what: "A free first-pass scan of your deal — vehicle price, dealer fees, APR and payment, trade-in, and any extended warranty — checked against fair-range estimates to surface the obvious red flags.",
       inputs: [
         "A photo/PDF of your dealer quote, buyer's order, or payment worksheet — or just tap through a few questions.",
       ],
       result:
-        "A 0–100 Deal Score, a sign / push back / walk verdict, a per-category breakdown of potential savings, and a 'what to say at the desk' script.",
+        "A 0–100 score and a sign / push back / walk read that flags where the deal looks off — then a clear path to upgrade to a full Quote Review for the line-by-line paperwork teardown and pushback plan.",
     },
   },
   {
@@ -228,8 +228,8 @@ export const PRODUCTS: Product[] = [
   },
   {
     id: "deal-rescue",
-    label: "Already signed / post-sale triage",
-    shortDescription: "Bought it already? Understand your options.",
+    label: "Deal Rescue — Post-Sale Options Review",
+    shortDescription: "Already signed? Understand your post-sale options.",
     route: "/post-sale-triage",
     ctaLabel: "I already signed",
     ctaLabelAlts: ["Review my signed deal", "Help me after purchase"],
@@ -338,11 +338,12 @@ export interface NavLink {
   primary?: boolean;
 }
 export const NAV_LINKS: NavLink[] = [
-  { label: "How it works", href: "/#how-it-works" },
-  { label: "What we catch", href: "/#what-we-catch" },
-  { label: "Market Check", href: "/dashboard/market-check" },
+  { label: "Free Tools", href: "/tools" },
+  { label: "Market Check", href: "/market-check" },
+  { label: "Quote Review", href: "/quote-review" },
+  { label: "Build My Plan", href: "/build-my-plan" },
   { label: "Concierge", href: "/concierge" },
-  { label: "Already signed?", href: "/post-sale-triage" },
+  { label: "Already Signed?", href: "/post-sale-triage" },
   { label: "Review my deal", href: "/quote-review", primary: true },
 ];
 

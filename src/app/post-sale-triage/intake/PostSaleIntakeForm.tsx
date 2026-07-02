@@ -8,6 +8,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { saveReport } from "@/lib/workspace/store";
+import { IntakeUpload } from "@/components/products/IntakeUpload";
 
 interface AddOnRow {
   rawLabel: string;
@@ -71,6 +72,7 @@ function Field({
 export function PostSaleIntakeForm() {
   const router = useRouter();
   const [form, setForm] = useState<FormState>(EMPTY);
+  const [uploadedFilePath, setUploadedFilePath] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -98,6 +100,7 @@ export function PostSaleIntakeForm() {
         financed: form.financed,
         lienholder: form.lienholder || undefined,
         dealerName: form.dealerName || undefined,
+        uploadedFilePath: uploadedFilePath || undefined,
         addOns: filled.map((r) => ({ rawLabel: r.rawLabel, amount: r.amount || undefined, financed: r.financed })),
       };
       const res = await fetch("/api/post-sale-triage", {
@@ -126,6 +129,21 @@ export function PostSaleIntakeForm() {
 
   return (
     <div className="space-y-6">
+      <section className="rounded-2xl border border-edge bg-white p-5 shadow-card">
+        <h2 className="text-sm font-bold uppercase tracking-wide text-red">Your signed paperwork</h2>
+        <p className="mt-1 text-xs text-navy/50">
+          Optional but recommended — the contract is what your options depend on.
+        </p>
+        <div className="mt-3">
+          <IntakeUpload
+            label="Upload your signed paperwork"
+            hint="Contract, buyer's order, add-on forms — photo or PDF."
+            accentClass="text-red-dark"
+            onUploaded={(path) => setUploadedFilePath(path)}
+          />
+        </div>
+      </section>
+
       <section className="rounded-2xl border border-edge bg-white p-5 shadow-card">
         <h2 className="text-sm font-bold uppercase tracking-wide text-red">Products you were sold</h2>
         <p className="mt-1 text-xs text-navy/50">List the add-ons from your contract — service contract, GAP, protection plans, etc.</p>

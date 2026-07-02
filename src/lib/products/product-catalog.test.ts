@@ -52,10 +52,12 @@ describe("product catalog routing", () => {
 
   it("nav links route correctly with the quote-review funnel as primary", () => {
     const byLabel = Object.fromEntries(NAV_LINKS.map((l) => [l.label, l]));
-    expect(byLabel["How it works"].href).toBe("/#how-it-works");
-    expect(byLabel["What we catch"].href).toBe("/#what-we-catch");
+    expect(byLabel["Free Tools"].href).toBe("/tools");
+    expect(byLabel["Market Check"].href).toBe("/market-check");
+    expect(byLabel["Quote Review"].href).toBe("/quote-review");
+    expect(byLabel["Build My Plan"].href).toBe("/build-my-plan");
     expect(byLabel["Concierge"].href).toBe("/concierge");
-    expect(byLabel["Already signed?"].href).toBe("/post-sale-triage");
+    expect(byLabel["Already Signed?"].href).toBe("/post-sale-triage");
     const primary = NAV_LINKS.find((l) => l.primary);
     expect(primary?.href).toBe("/quote-review");
   });

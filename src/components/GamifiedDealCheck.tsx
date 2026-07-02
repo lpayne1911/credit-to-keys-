@@ -446,6 +446,25 @@ export function GamifiedDealCheck({ focus = "full" }: { focus?: Focus } = {}) {
                 warrantyPrice: s.hasWarranty ? s.warrantyPrice : 0,
               }}
             />
+            <div className="mt-6 rounded-2xl border border-green/30 bg-green-soft p-5">
+              <p className="text-sm font-bold uppercase tracking-wide text-green-dark">
+                Free scan complete
+              </p>
+              <p className="mt-2 text-lg font-bold leading-tight text-navy">
+                Want the full paperwork review and pushback plan?
+              </p>
+              <p className="mt-1 text-sm text-ink/80">
+                This was a quick free scan. A full Quote Review reconstructs your whole
+                deal, classifies every fee and add-on, and gives you a word-for-word
+                pushback script — before you sign.
+              </p>
+              <Link href="/quote-review" className="btn-green mt-4 w-full justify-center">
+                Start Quote Review →
+              </Link>
+              <p className="mt-2 text-center text-xs text-navy/50">
+                Starting at $199 · scope confirmed before any work begins · no charge today.
+              </p>
+            </div>
           </div>
         </Scroll>
       </AppShell>
@@ -984,8 +1003,8 @@ function ServiceContractNames() {
 /** Per-focus intro copy so each product route opens tailored to the intent. */
 const START_COPY: Record<Focus, { title: string; sub: string }> = {
   full: {
-    title: "Let's check your deal.",
-    sub: "One quick question at a time. No forms, about a minute.",
+    title: "Free Red Flag Scan",
+    sub: "A fast, free scan for the red flags buyers miss. One quick question at a time — no forms, about a minute.",
   },
   warranty: {
     title: "Let's price-check your warranty.",

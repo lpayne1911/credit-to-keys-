@@ -8,7 +8,7 @@ import { FunnelIcon, type FunnelIconName } from "@/components/funnels/icons";
 export const metadata = {
   title: "Services & pricing — Driveway Advocate",
   description:
-    "Pick the level of help that fits your moment: Quote Review, Build My Plan, Concierge, or Post-Sale Triage. Flat fees, paid only by you.",
+    "Pick the level of help that fits your moment: Quote Review, Build My Plan, Concierge, or Deal Rescue. Flat fees, paid only by you.",
 };
 
 /**
@@ -45,9 +45,9 @@ const FOCUSED_SERVICES: FocusedService[] = [
     icon: "shieldAlert",
   },
   {
-    name: "Deal Rescue",
+    name: "Deal Teardown",
     blurb:
-      "The full teardown: buyer's-order audit, junk-fee challenge list, F&I review, trade analysis, a target counteroffer, and a dealer script.",
+      "Before you sign: the full teardown — buyer's-order audit, junk-fee challenge list, F&I review, trade analysis, a target counteroffer, and a dealer script.",
     price: "$349–$599",
     href: "/services/deal-rescue",
     accent: "green",

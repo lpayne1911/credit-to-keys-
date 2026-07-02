@@ -6,9 +6,9 @@ import { ACCENT_CLASSES, type Accent } from "@/lib/funnels";
 import { Reveal } from "@/components/ui/Reveal";
 
 export const metadata = {
-  title: "Deal Rescue — Driveway Advocate",
+  title: "Deal Teardown — Driveway Advocate",
   description:
-    "The full buyer-side teardown of an offer on the table — fees, F&I, trade-in, and finance terms — with a clear sign / push back / walk call.",
+    "The full buyer-side teardown of an offer on the table — before you sign — covering fees, F&I, trade-in, and finance terms, with a clear sign / push back / walk call.",
 };
 
 const ACCENT: Accent = "green";
@@ -64,14 +64,14 @@ export default function DealRescuePage() {
                 </span>
               </div>
               <h1 className="mt-5 max-w-3xl text-4xl font-bold tracking-tight sm:text-5xl">
-                Deal Rescue
+                Deal Teardown
               </h1>
               <p className={`mt-4 max-w-2xl text-lg font-semibold ${a.text}`}>
-                “Help me fix this offer.”
+                “Help me fix this offer before I sign.”
               </p>
               <p className="mt-4 max-w-2xl text-lg leading-relaxed text-white/75">
-                You have an offer in hand and a bad feeling about it. Deal Rescue is
-                the full teardown — every number on the buyer&apos;s order taken apart
+                You have an offer in hand and a bad feeling about it. Deal Teardown is
+                the full pre-signing teardown — every number on the buyer&apos;s order taken apart
                 and put back together on your side — so you walk in knowing exactly
                 what to fix, what to challenge, and what to say.
               </p>
@@ -104,7 +104,7 @@ export default function DealRescuePage() {
             <Block title="What this helps with" accent={ACCENT}>
               <p className="text-slate">
                 When the offer is real and the pressure is on, you don&apos;t need a
-                quick read — you need the whole thing pulled apart. Deal Rescue goes
+                quick read — you need the whole thing pulled apart. Deal Teardown goes
                 line by line through the buyer&apos;s order, the financing, the
                 trade, and the finance-office products, and hands you a corrected
                 target and the words to get there.
